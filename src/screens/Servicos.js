@@ -48,7 +48,7 @@ const Servicos = () => {
         return actions.order.create({
           purchase_units: [
             {
-              description: "Áudio 30s - Deixa Comigo",
+              description: "Áudio 30s - CorujinhaLegal",
               amount: { currency_code: "BRL", value: "5.00" },
               custom_id: "audio_30s",
             },
@@ -59,16 +59,16 @@ const Servicos = () => {
         return actions.order.capture().then((details) => {
           const nome = details.payer.name?.given_name || "amigo";
           alert(`Obrigado, ${nome}! Seu áudio de 30s já está na fila de produção.`);
-          // ✅ REDIRECIONA COM TIPO CORRETO
-          window.location.href = `https://deixacomigoweb.netlify.app/retorno?tipo=audio&status=success&orderID=${data.orderID}`;
+          // ✅ REDIRECIONA COM TIPO CORRETO - URL relativa
+          window.location.href = `/retorno?tipo=audio&status=success&orderID=${data.orderID}`;
         });
       },
       onCancel: () => {
-        window.location.href = "https://deixacomigoweb.netlify.app/retorno?tipo=audio&status=cancel";
+        window.location.href = "/retorno?tipo=audio&status=cancel";
       },
       onError: (err) => {
         console.error("Erro no pagamento:", err);
-        alert("Ops, erro no PayPal. Tenta de novo!");
+        alert("Ops, erro no PayPal. Tente de novo!");
       },
     }).render("#paypal-audio");
 
@@ -78,7 +78,7 @@ const Servicos = () => {
         return actions.order.create({
           purchase_units: [
             {
-              description: "Vídeo 30s - Deixa Comigo",
+              description: "Vídeo 30s - CorujinhaLegal",
               amount: { currency_code: "BRL", value: "10.00" },
               custom_id: "video_30s",
             },
@@ -88,17 +88,17 @@ const Servicos = () => {
       onApprove: (data, actions) => {
         return actions.order.capture().then((details) => {
           const nome = details.payer.name?.given_name || "amigo";
-          alert(`Valeu, ${nome}! Seu vídeo de 30s já tá na fila de produção.`);
-          // ✅ REDIRECIONA COM TIPO CORRETO
-          window.location.href = `https://deixacomigoweb.netlify.app/retorno?tipo=video&status=success&orderID=${data.orderID}`;
+          alert(`Valeu, ${nome}! Seu vídeo de 30s já está na fila de produção.`);
+          // ✅ REDIRECIONA COM TIPO CORRETO - URL relativa
+          window.location.href = `/retorno?tipo=video&status=success&orderID=${data.orderID}`;
         });
       },
       onCancel: () => {
-        window.location.href = "https://deixacomigoweb.netlify.app/retorno?tipo=video&status=cancel";
+        window.location.href = "/retorno?tipo=video&status=cancel";
       },
       onError: (err) => {
         console.error("Erro no pagamento:", err);
-        alert("Ops, erro no PayPal. Tenta de novo!");
+        alert("Ops, erro no PayPal. Tente de novo!");
       },
     }).render("#paypal-video");
   };
@@ -109,9 +109,12 @@ const Servicos = () => {
 
       <div style={cardStyle}>
         <img
-          src="https://deixacomigoweb.netlify.app/audio.gif"
+          src="/audio.gif"
           alt="Áudio 30s"
           style={{ width: "100%", borderRadius: "10px", marginBottom: "15px" }}
+          onError={(e) => {
+            e.target.src = "https://via.placeholder.com/400x200/007bff/ffffff?text=Áudio+30s";
+          }}
         />
         <h3>ÁUDIO 30s — R$ 5,00</h3>
         <div id="paypal-audio" style={{ marginTop: "20px", minHeight: "60px" }}></div>
@@ -125,9 +128,12 @@ const Servicos = () => {
 
       <div style={cardStyle}>
         <img
-          src="https://deixacomigoweb.netlify.app/video.gif"
+          src="/video.gif"
           alt="Vídeo 30s"
           style={{ width: "100%", borderRadius: "10px", marginBottom: "15px" }}
+          onError={(e) => {
+            e.target.src = "https://via.placeholder.com/400x200/28a745/ffffff?text=Vídeo+30s";
+          }}
         />
         <h3>VÍDEO 30s — R$ 10,00</h3>
         <div id="paypal-video" style={{ marginTop: "20px", minHeight: "60px" }}></div>
