@@ -132,9 +132,10 @@ const AudioRecorder = () => {
       console.log("🔗 URL pública gerada:", publicUrl);
 
       // 4. Preparar dados para o webhook
+      const orderID = `AUDIO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const dadosParaWebhook = {
         tipo: 'audio',
-        orderID: `AUDIO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        orderID: orderID,
         status: 'success', // Supondo pagamento já processado
         destinatario: nome,
         telefone: telefoneLimpo, // Telefone limpo (apenas números)
@@ -173,19 +174,35 @@ const AudioRecorder = () => {
 
       console.log("✅ Webhook respondeu com sucesso:", webhookResult);
 
-      // 7. Sucesso completo!
+      // 7. 🆕 SALVAR NO LOCALSTORAGE PARA SAIDA.JS
+      const dadosParaSaida = {
+        nome: nome,
+        dataEntrega: dataEntrega,
+        horario: horaEntrega,
+        telefone: telefoneLimpo,
+        tipo: 'audio',
+        link_midia: publicUrl,
+        orderID: orderID
+      };
+
+      localStorage.setItem('lastAgendamento', JSON.stringify(dadosParaSaida));
+      console.log("📱 Dados salvos no localStorage para Saida.js:", dadosParaSaida);
+
+      // 8. Sucesso completo!
       alert(`🎉 Áudio agendado com sucesso!\n\n📞 Para: ${nome}\n📅 Data: ${dataEntrega}\n🕒 Hora: ${horaEntrega}\n\nO SMS será enviado no dia e hora agendados.`);
 
-      // 8. Limpar formulário
+      // 9. 🆕 REDIRECIONAR PARA SAIDA.JS APÓS 2 SEGUNDOS
+      setTimeout(() => {
+        window.location.href = '/saida';
+      }, 2000);
+
+      // 10. Limpar formulário (opcional, já vai redirecionar)
       setAudioURL(null);
       setAudioBlob(null);
       setNome("");
       setTelefone("");
       setDataEntrega("");
       setHoraEntrega("");
-      
-      // 9. Opcional: Redirecionar para página de saída
-      // window.location.href = '/saida';
 
     } catch (error) {
       console.error("❌ Erro no processo completo:", error);
