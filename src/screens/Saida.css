@@ -1,0 +1,93 @@
+.saida-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+}
+
+.saida-content {
+  background: white;
+  padding: 40px;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  text-align: center;
+  max-width: 500px;
+  width: 100%;
+}
+
+.gif-container {
+  margin-bottom: 20px;
+}
+
+.success-gif {
+  width: 200px;
+  height: 200px;
+  border-radius: 10px;
+}
+
+.saida-title {
+  color: #2d3748;
+  margin-bottom: 20px;
+  font-size: 28px;
+}
+
+.saida-info {
+  background: #f7fafc;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 30px;
+  text-align: left;
+}
+
+.saida-info h3 {
+  color: #2d3748;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.info-item {
+  margin-bottom: 10px;
+  color: #4a5568;
+}
+
+.status-confirmado {
+  color: #38a169;
+  font-weight: bold;
+}
+
+.saida-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.btn-nova-mensagem {
+  background: #e53e3e;
+  color: white;
+  border: none;
+  padding: 15px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.btn-sair {
+  background: #718096;
+  color: white;
+  border: none;
+  padding: 15px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.saida-footer {
+  color: #718096;
+  font-size: 14px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 20px;
+}

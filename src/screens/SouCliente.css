@@ -1,0 +1,140 @@
+/* ===== CONTAINER PRINCIPAL ===== */
+.soucliente-container {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 20px;
+  text-align: center;
+  font-family: "Arial", sans-serif;
+  color: #333;
+}
+
+/* ===== TITULO ===== */
+.titulo {
+  font-size: 32px;
+  font-weight: bold;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  color: #4a47d5;
+}
+
+/* ===== DESCRIÇÃO ===== */
+.descricao {
+  font-size: 16px;
+  color: #666;
+  margin-bottom: 20px;
+}
+
+/* ===== FORM BOX ===== */
+.form-box {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  margin-bottom: 25px;
+}
+
+.form-box input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 2px solid #e6e6e6;
+  border-radius: 12px;
+  font-size: 16px;
+  transition: 0.2s;
+}
+
+.form-box input:focus {
+  border-color: #4a47d5;
+  outline: none;
+}
+
+/* ===== BOTÃO ===== */
+.botao {
+  width: 100%;
+  padding: 14px;
+  background: #4a47d5;
+  color: white;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  font-size: 17px;
+  font-weight: bold;
+  transition: 0.2s;
+}
+
+.botao:hover {
+  background: #3733c9;
+  transform: scale(1.02);
+}
+
+/* ===== GIF AREA ===== */
+.gif-area {
+  margin-top: 15px;
+}
+
+.gif {
+  width: 140px;
+  height: auto;
+  margin: 10px auto;
+  display: block;
+}
+
+/* ===== LOADING ===== */
+.loading {
+  margin-top: 20px;
+  font-size: 18px;
+  color: #4a47d5;
+}
+
+/* ===== ERRO ===== */
+.erro-box {
+  background: #ffe6e6;
+  border: 2px solid #ffb3b3;
+  padding: 18px;
+  border-radius: 14px;
+  margin: 20px 0;
+  color: #b30000;
+  font-weight: bold;
+}
+
+/* ===== AGUARDANDO PAGAMENTO ===== */
+.aguardando-box {
+  background: #f2f6ff;
+  border: 2px solid #d0d7ff;
+  padding: 25px;
+  border-radius: 16px;
+  margin-top: 20px;
+}
+
+.aguardando-box h2 {
+  margin: 10px 0;
+  font-size: 22px;
+  color: #4a47d5;
+}
+
+.aguardando-box p {
+  font-size: 16px;
+  color: #555;
+  margin-top: 8px;
+}
+
+.menor {
+  font-size: 14px;
+  color: #777;
+  margin-top: 4px;
+}
+
+/* ===== RESPONSIVIDADE ===== */
+@media (max-width: 450px) {
+  .soucliente-container {
+    padding: 15px;
+  }
+
+  .titulo {
+    font-size: 28px;
+  }
+
+  .gif {
+    width: 120px;
+  }
+}

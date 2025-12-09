@@ -1,0 +1,88 @@
+/* Cadastro.css – CENTRALIZADO, LINDO E FUNCIONANDO 100% */
+
+.cadastro-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.cadastro-card {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+  width: 100%;
+  max-width: 420px;
+  padding: 40px 30px;
+  text-align: center;
+}
+
+.cadastro-titulo {
+  font-size: 28px;
+  color: #333;
+  margin-bottom: 30px;
+  font-weight: 600;
+}
+
+.cadastro-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.cadastro-input {
+  padding: 14px 16px;
+  font-size: 16px;
+  border: 2px solid #e1e1e1;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.cadastro-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.cadastro-botao {
+  background: #667eea;
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background 0.3s ease;
+}
+
+.cadastro-botao:hover {
+  background: #5a6fd8;
+}
+
+.cadastro-botao:disabled {
+  background: #a0a0a0;
+  cursor: not-allowed;
+}
+
+.cadastro-erro {
+  color: #e74c3c;
+  font-size: 14px;
+  margin-top: 10px;
+  font-weight: 500;
+}
+
+/* Responsivo */
+@media (max-width: 480px) {
+  .cadastro-card {
+    padding: 30px 20px;
+    border-radius: 16px;
+  }
+  .cadastro-titulo {
+    font-size: 24px;
+  }
+}

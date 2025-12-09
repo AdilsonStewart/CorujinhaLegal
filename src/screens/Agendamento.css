@@ -1,0 +1,189 @@
+.agendamento-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  min-height: 100vh;
+  background: #FFFFFF;
+}
+
+.agendamento-title {
+  font-size: 32px;
+  font-weight: bold;
+  color: #4A3780;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.agendamento-subtitle {
+  text-align: center;
+  color: #666;
+  margin-bottom: 30px;
+  font-size: 16px;
+}
+
+/* SEÇÃO DE PREVIEW DE ÁUDIO */
+.audio-preview-section {
+  text-align: center;
+  margin-bottom: 30px;
+  padding: 20px;
+  background: #F8F9FA;
+  border-radius: 15px;
+  border-left: 4px solid #3498DB;
+}
+
+.btn-ouvir {
+  background-color: #3498DB;
+  color: white;
+  padding: 12px 25px;
+  border: none;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 10px;
+}
+
+.btn-ouvir:hover {
+  background-color: #2980B9;
+  transform: translateY(-2px);
+}
+
+.audio-preview-hint {
+  color: #666;
+  font-size: 14px;
+  margin: 0;
+}
+
+.form-group {
+  margin-bottom: 25px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #333;
+  font-size: 16px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 12px 15px;
+  border: 2px solid #E0E0E0;
+  border-radius: 10px;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: #6C5CE7;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+}
+
+.form-group textarea {
+  resize: vertical;
+  font-family: inherit;
+}
+
+.field-hint {
+  display: block;
+  color: #666;
+  font-size: 12px;
+  margin-top: 5px;
+  font-style: italic;
+}
+
+.form-group input[type="tel"] {
+  font-family: monospace;
+  font-size: 16px;
+  letter-spacing: 1px;
+}
+
+.agendamento-info {
+  background: #F8F9FA;
+  padding: 20px;
+  border-radius: 10px;
+  margin: 30px 0;
+  border-left: 4px solid #6C5CE7;
+}
+
+.agendamento-info h3 {
+  margin: 0 0 15px 0;
+  color: #4A3780;
+  font-size: 18px;
+}
+
+.agendamento-info ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #555;
+}
+
+.agendamento-info li {
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.agendamento-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 30px;
+}
+
+.btn-confirm, .btn-back {
+  padding: 16px 30px;
+  border: none;
+  border-radius: 30px;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-confirm {
+  background-color: #00B894;
+  color: white;
+}
+
+.btn-confirm:hover {
+  background-color: #00A885;
+  transform: translateY(-2px);
+}
+
+.btn-back {
+  background-color: #6C5CE7;
+  color: white;
+}
+
+.btn-back:hover {
+  background-color: #5B4CD8;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .agendamento-container {
+    padding: 20px 15px;
+  }
+  
+  .agendamento-title {
+    font-size: 28px;
+  }
+  
+  .btn-confirm, .btn-back {
+    padding: 14px 25px;
+    font-size: 16px;
+  }
+  
+  .btn-ouvir {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+}

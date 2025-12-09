@@ -1,0 +1,62 @@
+.erro-container {
+  background: linear-gradient(135deg, #E17055, #d1654b);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.erro-card {
+  background: white;
+  padding: 40px;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  text-align: center;
+  max-width: 500px;
+  width: 90%;
+}
+
+.erro-icon {
+  font-size: 80px;
+  margin-bottom: 20px;
+}
+
+.erro-titulo {
+  font-size: 28px;
+  color: #E17055;
+  margin-bottom: 15px;
+}
+
+.erro-mensagem {
+  font-size: 18px;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.erro-detalhes {
+  font-size: 16px;
+  color: #666;
+  margin-bottom: 30px;
+}
+
+.botao-tentar-novamente {
+  background-color: #E17055;
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 30px;
+  font-size: 20px;
+  cursor: pointer;
+  margin-bottom: 15px;
+  width: 100%;
+}
+
+.botao-voltar {
+  background: none;
+  border: none;
+  color: #6C5CE7;
+  font-size: 16px;
+  cursor: pointer;
+  text-decoration: underline;
+}

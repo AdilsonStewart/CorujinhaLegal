@@ -1,0 +1,122 @@
+.admin-dashboard {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+.dashboard-header {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.dashboard-header h1 {
+  color: #4A3780;
+  margin-bottom: 10px;
+  font-size: 32px;
+}
+
+.dashboard-header p {
+  color: #666;
+  margin-bottom: 20px;
+  font-size: 18px;
+}
+
+.btn-voltar {
+  background: #6C5CE7;
+  color: white;
+  border: none;
+  padding: 12px 25px;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-voltar:hover {
+  background: #5B4CD8;
+  transform: translateY(-2px);
+}
+
+.audios-list {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.audios-list h2 {
+  color: #4A3780;
+  margin-bottom: 25px;
+  font-size: 24px;
+  border-bottom: 2px solid #6C5CE7;
+  padding-bottom: 10px;
+}
+
+.audio-item {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  border-left: 4px solid #6C5CE7;
+}
+
+.audio-item p {
+  margin: 8px 0;
+  color: #555;
+  font-size: 14px;
+}
+
+.audio-item strong {
+  color: #4A3780;
+}
+
+.audio-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.audio-actions button {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  flex: 1;
+}
+
+.audio-actions button:first-child {
+  background: #3498DB;
+  color: white;
+}
+
+.audio-actions button:first-child:hover {
+  background: #2980B9;
+  transform: translateY(-2px);
+}
+
+.audio-actions button:last-child {
+  background: #00B894;
+  color: white;
+}
+
+.audio-actions button:last-child:hover {
+  background: #00A885;
+  transform: translateY(-2px);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-style: italic;
+}
