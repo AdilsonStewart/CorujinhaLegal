@@ -252,8 +252,12 @@ if __name__ == '__main__':
     # Inicializar scheduler
     message_scheduler.init_app(app)
     
+    # Determinar modo debug a partir de variável de ambiente
+    # Por padrão, debug está desativado por segurança
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() in ('true', '1', 'yes')
+    
     # Executar aplicação
     try:
-        app.run(host='0.0.0.0', port=5000, debug=True)
+        app.run(host='0.0.0.0', port=5000, debug=debug_mode)
     finally:
         message_scheduler.shutdown()
