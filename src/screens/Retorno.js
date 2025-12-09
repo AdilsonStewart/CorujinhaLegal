@@ -1,204 +1,128 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 
 const Retorno = () => {
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [status, setStatus] = useState('processando');
   const [mensagem, setMensagem] = useState('Processando seu pagamento...');
 
   useEffect(() => {
-    // Pegar os parâmetros da URL
-    const params = new URLSearchParams(window.location.search);
-    const tipo = params.get('tipo');
-    const statusPagamento = params.get('status');
-    const orderID = params.get('orderID');
+    const processarPagamento = async () => {
+      // 1. Pegar parâmetros da URL
+      const tipo = searchParams.get('tipo');
+      const statusPagamento = searchParams.get('status');
+      const orderID = searchParams.get('orderID');
 
-    // Se o pagamento foi cancelado
-    if (statusPagamento === 'cancel') {
-      setStatus('cancelado');
-      setMensagem('Pagamento cancelado. Você pode tentar novamente.');
-      return;
-    }
+      // 2. Se o pagamento foi cancelado
+      if (statusPagamento === 'cancel') {
+        setStatus('cancelado');
+        setMensagem('Pagamento cancelado. Você pode tentar novamente quando quiser.');
+        setTimeout(() => navigate('/servicos'), 3000);
+        return;
+      }
 
-    // Se o pagamento foi aprovado
-    if (statusPagamento === 'success' && orderID) {
-      // Pegar os dados do agendamento do localStorage
-      const agendamento = JSON.parse(localStorage.getItem('agendamento') || '{}');
+      // 3. Se o pagamento foi aprovado
+      if (statusPagamento === 'success') {
+        try {
+          // 4. Pegar dados do localStorage (salvos pela página Agendamento.js)
+          const agendamentoSalvo = localStorage.getItem('agendamento_corujinha');
+          const agendamento = agendamentoSalvo ? JSON.parse(agendamentoSalvo) : {};
 
-      // Chamar o webhook para salvar no banco de dados
-      fetch('/api/paypal-webhook', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tipo,
-          orderID,
-          status: 'approved',
-          destinatario: agendamento.nomeDestinatario || 'Não informado',
-          data: agendamento.data || 'Não informada',
-          hora: agendamento.hora || 'Não informada',
-        }),
-      })
-        .then((response) => response.json())
-        .then((data) => {
-          if (data.success) {
+          // 5. Preparar dados para enviar ao webhook
+          const dadosWebhook = {
+            tipo: tipo,
+            orderID: orderID,
+            status: statusPagamento,
+            destinatario: agendamento.nomeDestinatario || 'Cliente',
+            telefone: agendamento.telefone || 'Não informado',
+            data: agendamento.data || new Date().toISOString().split('T')[0],
+            hora: agendamento.hora || '12:00'
+          };
+
+          // 6. Enviar para a API
+          const response = await fetch('/api/paypal-webhook', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(dadosWebhook)
+          });
+
+          const resultado = await response.json();
+
+          // 7. Verificar resposta
+          if (response.ok && resultado.success) {
             setStatus('sucesso');
-            setMensagem('Pagamento confirmado! Seu agendamento foi registrado com sucesso.');
-            // Limpar o localStorage
-            localStorage.removeItem('agendamento');
-            // Redirecionar para a página de saída após 3 segundos
-            setTimeout(() => {
-              navigate('/saida');
-            }, 3000);
+            setMensagem('✅ Pagamento confirmado! Seu agendamento foi registrado com sucesso.');
+            
+            // 8. Limpar localStorage
+            localStorage.removeItem('agendamento_corujinha');
+            
+            // 9. Redirecionar para página de saída
+            setTimeout(() => navigate('/saida'), 3000);
           } else {
             setStatus('erro');
-            setMensagem('Erro ao registrar o pagamento. Entre em contato com o suporte.');
+            setMensagem(`❌ Erro: ${resultado.error || 'Não foi possível registrar o agendamento.'}`);
           }
-        })
-        .catch((error) => {
-          console.error('Erro ao chamar webhook:', error);
+        } catch (error) {
+          console.error('Erro:', error);
           setStatus('erro');
-          setMensagem('Erro ao processar pagamento. Tente novamente mais tarde.');
-        });
-    } else {
-      setStatus('erro');
-      setMensagem('Parâmetros inválidos na URL.');
-    }
-  }, [navigate]);
+          setMensagem('❌ Erro inesperado. Por favor, entre em contato com o suporte.');
+        }
+      }
+    };
+
+    processarPagamento();
+  }, [searchParams, navigate]);
+
+  // Estilos
+  const containerStyle = {
+    textAlign: 'center',
+    padding: '50px 20px',
+    maxWidth: '600px',
+    margin: '0 auto'
+  };
+
+  const cardStyle = {
+    backgroundColor: '#fff',
+    padding: '40px',
+    borderRadius: '10px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+    marginTop: '20px'
+  };
+
+  const statusColors = {
+    processando: '#FFA500',
+    sucesso: '#28a745',
+    erro: '#dc3545',
+    cancelado: '#6c757d'
+  };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h1 style={styles.titulo}>Status do Pagamento</h1>
-        <div style={styles.conteudo}>
-          {status === 'processando' && (
-            <div>
-              <div style={styles.spinner}></div>
-              <p style={styles.mensagem}>{mensagem}</p>
-            </div>
-          )}
-          {status === 'sucesso' && (
-            <div>
-              <div style={styles.iconeSucesso}>✓</div>
-              <p style={styles.mensagemSucesso}>{mensagem}</p>
-              <p style={styles.detalhe}>Redirecionando para a página de confirmação...</p>
-            </div>
-          )}
-          {status === 'cancelado' && (
-            <div>
-              <div style={styles.iconeCancelado}>✗</div>
-              <p style={styles.mensagemCancelado}>{mensagem}</p>
-              <button
-                style={styles.botao}
-                onClick={() => navigate('/servicos')}
-              >
-                Voltar para Serviços
-              </button>
-            </div>
-          )}
-          {status === 'erro' && (
-            <div>
-              <div style={styles.iconeCancelado}>⚠</div>
-              <p style={styles.mensagemCancelado}>{mensagem}</p>
-              <button
-                style={styles.botao}
-                onClick={() => navigate('/servicos')}
-              >
-                Voltar para Serviços
-              </button>
-            </div>
-          )}
+    <div style={containerStyle}>
+      <h1>Processando Retorno do Pagamento</h1>
+      <div style={cardStyle}>
+        <div style={{
+          fontSize: '60px',
+          color: statusColors[status],
+          marginBottom: '20px'
+        }}>
+          {status === 'processando' && '⏳'}
+          {status === 'sucesso' && '✅'}
+          {status === 'erro' && '❌'}
+          {status === 'cancelado' && '⚠️'}
         </div>
+        <h2 style={{ color: statusColors[status] }}>
+          {status === 'processando' && 'Processando...'}
+          {status === 'sucesso' && 'Sucesso!'}
+          {status === 'erro' && 'Erro'}
+          {status === 'cancelado' && 'Cancelado'}
+        </h2>
+        <p style={{ fontSize: '18px', marginTop: '20px' }}>{mensagem}</p>
       </div>
     </div>
   );
 };
-
-const styles = {
-  container: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: '100vh',
-    backgroundColor: '#f5f5f5',
-    padding: '20px',
-  },
-  card: {
-    backgroundColor: 'white',
-    borderRadius: '10px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-    padding: '40px',
-    maxWidth: '500px',
-    width: '100%',
-    textAlign: 'center',
-  },
-  titulo: {
-    color: '#333',
-    marginBottom: '30px',
-  },
-  conteudo: {
-    marginTop: '20px',
-  },
-  spinner: {
-    border: '4px solid #f3f3f3',
-    borderTop: '4px solid #0066CC',
-    borderRadius: '50%',
-    width: '40px',
-    height: '40px',
-    animation: 'spin 1s linear infinite',
-    margin: '0 auto 20px',
-  },
-  mensagem: {
-    color: '#666',
-    fontSize: '16px',
-  },
-  iconeSucesso: {
-    fontSize: '60px',
-    color: '#28a745',
-    marginBottom: '20px',
-  },
-  mensagemSucesso: {
-    color: '#28a745',
-    fontSize: '18px',
-    fontWeight: 'bold',
-    marginBottom: '10px',
-  },
-  detalhe: {
-    color: '#666',
-    fontSize: '14px',
-    marginTop: '10px',
-  },
-  iconeCancelado: {
-    fontSize: '60px',
-    color: '#dc3545',
-    marginBottom: '20px',
-  },
-  mensagemCancelado: {
-    color: '#dc3545',
-    fontSize: '18px',
-    fontWeight: 'bold',
-    marginBottom: '20px',
-  },
-  botao: {
-    backgroundColor: '#0066CC',
-    color: 'white',
-    padding: '12px 24px',
-    border: 'none',
-    borderRadius: '5px',
-    fontSize: '16px',
-    cursor: 'pointer',
-    marginTop: '10px',
-  },
-};
-
-// Adicionar animação do spinner
-const styleSheet = document.styleSheets[0];
-styleSheet.insertRule(`
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-`, styleSheet.cssRules.length);
 
 export default Retorno;
