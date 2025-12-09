@@ -50,6 +50,16 @@ python app.py
 
 O servidor estará disponível em `http://localhost:5000`
 
+### Modo de Desenvolvimento
+
+Para executar em modo debug (apenas em desenvolvimento):
+```bash
+export FLASK_DEBUG=True  # No Windows: set FLASK_DEBUG=True
+python app.py
+```
+
+⚠️ **IMPORTANTE**: Nunca execute em modo debug em produção, pois isso permite execução de código arbitrário através do debugger.
+
 ## 📡 API Endpoints
 
 ### GET /
