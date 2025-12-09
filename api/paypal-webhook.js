@@ -1,15 +1,14 @@
-// api/paypal-webhook.js - VERSÃO CORRIGIDA E SEGURA
+// api/paypal-webhook.js - VERSÃO FINAL COM LINK DA MÍDIA
 import { createClient } from '@supabase/supabase-js';
 
-// ⚠️ MOVA AS CHAVES PARA VARIÁVEIS DE AMBIENTE (ver PASSO 2)
+// ✅ Variáveis de ambiente do Vercel
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default async function handler(req, res) {
-  // 🔵 1. ADICIONAR CORS HEADERS
-  // Permite apenas seu domínio (ajuste se tiver localhost também)
+  // CORS
   const allowedOrigins = [
     'https://corujinha-legal.vercel.app',
     'http://localhost:3000'
@@ -24,20 +23,24 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   
-  // 2. LIDAR COM PREFLIGHT (OPTIONS)
+  // Preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
   
-  // 3. SÓ ACEITA POST
+  // Só aceita POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método não permitido' });
   }
 
   try {
-    const { tipo, orderID, status, destinatario, data, hora, telefone } = req.body;
+    // 🔥 AGORA PEGA O link_midia TAMBÉM!
+    const { tipo, orderID, status, destinatario, data, hora, telefone, link_midia } = req.body;
     
-    console.log('📥 Dados recebidos:', { tipo, orderID, status, destinatario, data, hora, telefone });
+    console.log('📥 Dados recebidos:', { 
+      tipo, orderID, status, destinatario, data, hora, telefone,
+      temLinkMidia: !!link_midia // Mostra se veio link
+    });
 
     // Validar dados obrigatórios
     if (!orderID || !tipo || !destinatario || !telefone || !data || !hora) {
@@ -48,7 +51,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // 4. Salvar no Supabase
+    // Salvar no Supabase COM O LINK DA MÍDIA
     const { data: agendamento, error } = await supabase
       .from('agendamentos')
       .insert([
@@ -60,12 +63,12 @@ export default async function handler(req, res) {
           telefone,
           data_agendamento: data,
           hora_agendamento: hora,
-          link_midia: '', // Vazio por enquanto
+          link_midia: link_midia || '', // 🔥 AQUI MUDOU! Pega do frontend
           enviado: false,
           criado_em: new Date().toISOString()
         }
       ])
-      .select(); // ⬅️ Retorna o registro inserido
+      .select();
 
     if (error) {
       console.error('❌ Erro ao salvar no Supabase:', error);
@@ -76,6 +79,7 @@ export default async function handler(req, res) {
     }
 
     console.log(`✅ Agendamento salvo: ${orderID} - ${tipo} para ${destinatario}`);
+    console.log('🔗 Link da mídia salvo:', link_midia || '(sem link)');
     console.log('📊 Registro inserido:', agendamento);
 
     return res.status(200).json({ 
