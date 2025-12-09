@@ -3,7 +3,7 @@ Serviço de agendamento e entrega de mensagens
 """
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from apscheduler.schedulers.background import BackgroundScheduler
 from models import db, Message
 
@@ -42,7 +42,7 @@ class MessageScheduler:
             
         with self.app.app_context():
             try:
-                now = datetime.utcnow()
+                now = datetime.now(timezone.utc)
                 
                 # Busca mensagens não entregues com data de entrega já passada
                 pending_messages = Message.query.filter(
@@ -77,7 +77,7 @@ class MessageScheduler:
             
             # Marca como entregue
             message.delivered = True
-            message.delivered_at = datetime.utcnow()
+            message.delivered_at = datetime.now(timezone.utc)
             db.session.commit()
             
             logger.info(f"Mensagem ID {message.id} entregue com sucesso para {message.client_email}")

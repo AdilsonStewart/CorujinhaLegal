@@ -4,7 +4,7 @@ Sistema de gravação e agendamento de mensagens em áudio/vídeo
 """
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
@@ -102,7 +102,7 @@ def create_message():
         # Validar e parsear data de entrega
         try:
             delivery_date = parser.parse(request.form['delivery_date'])
-            if delivery_date < datetime.utcnow():
+            if delivery_date < datetime.now(timezone.utc):
                 return jsonify({'error': 'Data de entrega deve ser no futuro'}), 400
         except Exception as e:
             return jsonify({'error': f'Formato de data inválido: {str(e)}'}), 400
@@ -113,7 +113,7 @@ def create_message():
         
         # Salvar arquivo com nome seguro
         filename = secure_filename(file.filename)
-        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
         unique_filename = f"{timestamp}_{filename}"
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
         
@@ -176,7 +176,7 @@ def list_messages():
 def get_message(message_id):
     """Obtém detalhes de uma mensagem específica"""
     try:
-        message = Message.query.get(message_id)
+        message = db.session.get(Message, message_id)
         
         if not message:
             return jsonify({'error': 'Mensagem não encontrada'}), 404
@@ -191,7 +191,7 @@ def get_message(message_id):
 def delete_message(message_id):
     """Deleta uma mensagem"""
     try:
-        message = Message.query.get(message_id)
+        message = db.session.get(Message, message_id)
         
         if not message:
             return jsonify({'error': 'Mensagem não encontrada'}), 404
@@ -217,7 +217,7 @@ def delete_message(message_id):
 def download_message(message_id):
     """Baixa o arquivo de áudio/vídeo de uma mensagem"""
     try:
-        message = Message.query.get(message_id)
+        message = db.session.get(Message, message_id)
         
         if not message:
             return jsonify({'error': 'Mensagem não encontrada'}), 404
