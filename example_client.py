@@ -6,7 +6,7 @@ Demonstra como gravar e agendar uma mensagem
 
 import requests
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 def create_scheduled_message(file_path, client_name, client_email, title, description, delivery_date):
     """
@@ -127,7 +127,7 @@ if __name__ == "__main__":
         f.write("Conteúdo de exemplo de uma mensagem de áudio")
     
     # Agendar para 7 dias no futuro
-    delivery = datetime.utcnow() + timedelta(days=7)
+    delivery = datetime.now(timezone.utc) + timedelta(days=7)
     
     message = create_scheduled_message(
         file_path=example_file,

@@ -1,7 +1,7 @@
 """
 Modelos de dados para o sistema CorujinhaLegal
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
@@ -31,7 +31,7 @@ class Message(db.Model):
     file_size = db.Column(db.Integer)  # Tamanho em bytes
     
     # Datas
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     delivery_date = db.Column(db.DateTime, nullable=False)
     
     # Status da entrega
