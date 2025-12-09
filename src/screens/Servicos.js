@@ -1,7 +1,12 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 
 const Servicos = () => {
+  const paypalInitialized = useRef(false);
+
   useEffect(() => {
+    // Se já inicializou, não faz nada
+    if (paypalInitialized.current) return;
+
     const existente = document.querySelector('script[src*="paypal.com/sdk/js"]');
     if (existente) existente.remove();
 
@@ -10,7 +15,10 @@ const Servicos = () => {
     script.async = true;
     script.onload = () => {
       console.log("PayPal SDK carregado!");
-      setTimeout(iniciarBotoesPayPal, 500);
+      if (!paypalInitialized.current) {
+        iniciarBotoesPayPal();
+        paypalInitialized.current = true;
+      }
     };
     script.onerror = (e) => {
       console.error("Erro no SDK:", e);
@@ -19,9 +27,12 @@ const Servicos = () => {
     document.head.appendChild(script);
 
     return () => {
-      if (document.head.contains(script)) {
+      // Limpeza: remove o script se o componente for desmontado
+      if (script && document.head.contains(script)) {
         document.head.removeChild(script);
       }
+      // Reseta a flag de inicialização se o componente for desmontado
+      paypalInitialized.current = false;
     };
   }, []);
 
