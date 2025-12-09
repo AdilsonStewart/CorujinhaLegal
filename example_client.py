@@ -6,6 +6,8 @@ Demonstra como gravar e agendar uma mensagem
 
 import requests
 import sys
+import os
+import tempfile
 from datetime import datetime, timedelta, timezone
 
 def create_scheduled_message(file_path, client_name, client_email, title, description, delivery_date):
@@ -121,8 +123,7 @@ if __name__ == "__main__":
     print("\n📝 Exemplo de criação de mensagem agendada:\n")
     
     # Criar arquivo de exemplo para demonstração
-    import os
-    example_file = "/tmp/exemplo_mensagem.mp3"
+    example_file = os.path.join(tempfile.gettempdir(), "exemplo_mensagem.mp3")
     with open(example_file, 'w') as f:
         f.write("Conteúdo de exemplo de uma mensagem de áudio")
     

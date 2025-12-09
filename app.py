@@ -102,6 +102,10 @@ def create_message():
         # Validar e parsear data de entrega
         try:
             delivery_date = parser.parse(request.form['delivery_date'])
+            # Garantir que a data seja timezone-aware
+            if delivery_date.tzinfo is None:
+                delivery_date = delivery_date.replace(tzinfo=timezone.utc)
+            
             if delivery_date < datetime.now(timezone.utc):
                 return jsonify({'error': 'Data de entrega deve ser no futuro'}), 400
         except Exception as e:

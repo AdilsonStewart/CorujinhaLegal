@@ -46,7 +46,7 @@ class MessageScheduler:
                 
                 # Busca mensagens não entregues com data de entrega já passada
                 pending_messages = Message.query.filter(
-                    Message.delivered == False,
+                    Message.delivered.is_(False),
                     Message.delivery_date <= now
                 ).all()
                 

@@ -6,8 +6,9 @@ Demonstra o uso dos principais endpoints
 
 import requests
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
+import tempfile
 
 BASE_URL = "http://localhost:5000"
 
@@ -24,16 +25,16 @@ def test_create_message():
     print("\n=== Testando POST /api/messages ===")
     
     # Criar arquivo de teste
-    test_file_path = "/tmp/test_audio.txt"
+    test_file_path = os.path.join(tempfile.gettempdir(), "test_audio.txt")
     with open(test_file_path, 'w') as f:
         f.write("Este é um arquivo de teste simulando áudio")
     
     # Renomear para ter extensão de áudio
-    test_audio = "/tmp/test_message.mp3"
+    test_audio = os.path.join(tempfile.gettempdir(), "test_message.mp3")
     os.rename(test_file_path, test_audio)
     
     # Data de entrega: 7 dias no futuro
-    delivery_date = (datetime.utcnow() + timedelta(days=7)).isoformat()
+    delivery_date = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
     
     files = {
         'file': ('test_message.mp3', open(test_audio, 'rb'), 'audio/mpeg')
@@ -84,6 +85,24 @@ def test_delete_message(message_id):
     print(f"Response: {json.dumps(response.json(), indent=2)}")
     return response.status_code == 200
 
+def test_download(message_id):
+    """Testa download de mensagem"""
+    print(f"\n=== Testando GET /api/messages/{message_id}/download ===")
+    response = requests.get(f"{BASE_URL}/api/messages/{message_id}/download")
+    print(f"Status: {response.status_code}")
+    
+    if response.status_code == 200:
+        # Salvar em arquivo temporário
+        temp_file = os.path.join(tempfile.gettempdir(), "downloaded_message.mp3")
+        with open(temp_file, 'wb') as f:
+            f.write(response.content)
+        print(f"Arquivo baixado para: {temp_file}")
+        # Limpar arquivo
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
+        return True
+    return False
+
 def run_tests():
     """Executa todos os testes"""
     print("=" * 60)
@@ -116,7 +135,13 @@ def run_tests():
             return
         print("✅ Obtenção de mensagem OK")
         
-        # Teste 5: Deletar mensagem
+        # Teste 5: Download de mensagem
+        if not test_download(message_id):
+            print("❌ Teste de download falhou")
+            return
+        print("✅ Download de mensagem OK")
+        
+        # Teste 6: Deletar mensagem
         if not test_delete_message(message_id):
             print("❌ Teste de deleção falhou")
             return
