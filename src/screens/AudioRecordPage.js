@@ -132,7 +132,7 @@ const AudioRecorder = () => {
       console.log("🔗 URL pública gerada:", publicUrl);
 
       // 4. Preparar dados para o webhook
-      const orderID = `AUDIO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const orderID = localStorage.getItem("currentOrderId") || `AUDIO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const dadosParaWebhook = {
         tipo: 'audio',
         orderID: orderID,
