@@ -1,223 +1,249 @@
-import React, { useEffect, useRef } from "react";
+// TestePayPal.js - PÁGINA DE TESTE SIMPLES
+import React, { useEffect, useRef } from 'react';
 
-const Servicos = () => {
-  const paypalInitialized = useRef(false);
+const TestePayPal = () => {
+  const paypalCarregado = useRef(false);
 
   useEffect(() => {
-    if (paypalInitialized.current) return;
-
-    const existente = document.querySelector('script[src*="paypal.com/sdk/js"]');
-    if (existente) existente.remove();
-
-    const script = document.createElement("script");
-    script.src = `https://www.paypal.com/sdk/js?client-id=AWcGR2Fa2OoZ8lTaDiGTIvQh0q7t-OPAZun6x3ixjad1CYn-CMc0Sp8Xm3NtGF6JvSJpZK9_Sd4b4Pqb&currency=BRL&intent=capture&disable-funding=credit`;
+    // Evita carregar múltiplas vezes
+    if (paypalCarregado.current) return;
+    
+    console.log('🔧 Iniciando teste do PayPal...');
+    
+    // Remove scripts antigos do PayPal
+    const scriptsAntigos = document.querySelectorAll('script[src*="paypal.com"]');
+    scriptsAntigos.forEach(script => script.remove());
+    
+    // Cria novo script
+    const script = document.createElement('script');
+    script.src = 'https://www.paypal.com/sdk/js?client-id=AWcGR2Fa2OoZ8lTaDiGTIvQh0q7t-OPAZun6x3ixjad1CYn-CMc0Sp8Xm3NtGF6JvSJpZK9_Sd4b4Pqb&currency=BRL&intent=capture';
     script.async = true;
     
     script.onload = () => {
-      console.log("PayPal SDK carregado!");
-      if (!paypalInitialized.current) {
-        iniciarBotoesPayPal();
-        paypalInitialized.current = true;
+      console.log('✅ SDK PayPal carregado no teste');
+      
+      if (window.paypal && !paypalCarregado.current) {
+        // Botão SIMPLES de teste
+        window.paypal.Buttons({
+          style: {
+            layout: 'vertical',
+            color: 'blue',
+            shape: 'rect',
+            label: 'pay'
+          },
+          createOrder: function(data, actions) {
+            return actions.order.create({
+              purchase_units: [{
+                amount: {
+                  value: '1.00', // Valor baixo para teste
+                  currency_code: 'BRL'
+                },
+                description: 'Teste CorujinhaLegal'
+              }]
+            });
+          },
+          onApprove: function(data, actions) {
+            return actions.order.capture().then(function(details) {
+              alert('🎉 Teste APROVADO! Pagamento de R$ 1,00 realizado.');
+              console.log('Detalhes do pagamento:', details);
+            });
+          },
+          onError: function(err) {
+            console.error('Erro no PayPal (teste):', err);
+            alert('❌ Erro no teste do PayPal');
+          }
+        }).render('#paypal-test-button');
+        
+        paypalCarregado.current = true;
+        console.log('🎯 Botão de teste renderizado com sucesso');
       }
     };
     
-    script.onerror = (e) => {
-      console.error("Erro no SDK:", e);
-      alert("Erro ao carregar PayPal. Verifique o Client ID!");
+    script.onerror = (err) => {
+      console.error('❌ Falha ao carregar SDK PayPal:', err);
+      document.getElementById('paypal-test-button').innerHTML = 
+        '<p style="color: red; padding: 20px; background: #ffeeee; border-radius: 8px;">' +
+        '❌ FALHA: Não foi possível carregar o PayPal. Verifique o Client ID.' +
+        '</p>';
     };
     
     document.head.appendChild(script);
-
+    
+    // Limpeza quando o componente for desmontado
     return () => {
-      if (script && document.head.contains(script)) {
-        document.head.removeChild(script);
-      }
-      paypalInitialized.current = false;
+      paypalCarregado.current = false;
     };
   }, []);
 
-  const iniciarBotoesPayPal = () => {
-    if (!window.paypal) {
-      console.error("PayPal não carregou ainda.");
-      return;
-    }
-
-    // Botão ÁUDIO R$ 5,00
-    window.paypal.Buttons({
-      createOrder: (data, actions) => {
-        return actions.order.create({
-          purchase_units: [
-            {
-              description: "Áudio 30s - CorujinhaLegal",
-              amount: { currency_code: "BRL", value: "5.00" },
-              custom_id: "audio_30s",
-            },
-          ],
-        });
-      },
-      onApprove: (data, actions) => {
-        return actions.order.capture().then((details) => {
-          const nome = details.payer.name?.given_name || "amigo";
-          alert(`Obrigado, ${nome}! Seu áudio de 30s já está na fila de produção.`);
-          window.location.href = `/retorno?tipo=audio&status=success&orderID=${data.orderID}`;
-        });
-      },
-      onCancel: () => {
-        window.location.href = "/retorno?tipo=audio&status=cancel";
-      },
-      onError: (err) => {
-        console.error("Erro no pagamento:", err);
-        alert("Ops, erro no PayPal. Tente de novo!");
-      },
-    }).render("#paypal-audio");
-
-    // Botão VÍDEO R$ 10,00
-    window.paypal.Buttons({
-      createOrder: (data, actions) => {
-        return actions.order.create({
-          purchase_units: [
-            {
-              description: "Vídeo 30s - CorujinhaLegal",
-              amount: { currency_code: "BRL", value: "10.00" },
-              custom_id: "video_30s",
-            },
-          ],
-        });
-      },
-      onApprove: (data, actions) => {
-        return actions.order.capture().then((details) => {
-          const nome = details.payer.name?.given_name || "amigo";
-          alert(`Valeu, ${nome}! Seu vídeo de 30s já está na fila de produção.`);
-          window.location.href = `/retorno?tipo=video&status=success&orderID=${data.orderID}`;
-        });
-      },
-      onCancel: () => {
-        window.location.href = "/retorno?tipo=video&status=cancel";
-      },
-      onError: (err) => {
-        console.error("Erro no pagamento:", err);
-        alert("Ops, erro no PayPal. Tente de novo!");
-      },
-    }).render("#paypal-video");
-  };
-
   return (
-    <div style={{ maxWidth: "500px", margin: "50px auto", textAlign: "center" }}>
-      <h2>Escolha seu serviço</h2>
-
-      {/* CARD DO ÁUDIO */}
-      <div style={cardStyle}>
-        {/* ÁREA DA IMAGEM - VERSÃO CORRIGIDA SEM via.placeholder.com */}
-        <div style={{ 
-          width: "100%", 
-          height: "200px",
-          background: "linear-gradient(135deg, #007bff, #0056b3)",
-          borderRadius: "10px",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "white",
-          fontFamily: "Arial, sans-serif",
-          marginBottom: "15px"
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      padding: '40px 20px',
+      fontFamily: 'Arial, sans-serif',
+      color: 'white'
+    }}>
+      <div style={{
+        maxWidth: '600px',
+        margin: '0 auto',
+        background: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: '20px',
+        padding: '40px',
+        boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+        color: '#333'
+      }}>
+        
+        <h1 style={{ 
+          textAlign: 'center', 
+          color: '#764ba2', 
+          marginBottom: '30px',
+          fontSize: '2.5rem'
         }}>
-          <div style={{ fontSize: "48px", marginBottom: "10px" }}>🎤</div>
-          <div style={{ fontSize: "24px", fontWeight: "bold" }}>ÁUDIO 30s</div>
-          <div style={{ fontSize: "16px", opacity: 0.9 }}>R$ 5,00</div>
+          🧪 TESTE DO PAYPAL
+        </h1>
+        
+        <div style={{
+          background: '#f8f9fa',
+          padding: '20px',
+          borderRadius: '12px',
+          marginBottom: '30px',
+          border: '2px dashed #dee2e6'
+        }}>
+          <h3 style={{ color: '#495057', marginTop: '0' }}>
+            Status do Teste:
+          </h3>
+          <div id="test-status" style={{
+            padding: '15px',
+            background: '#e7f3ff',
+            borderRadius: '8px',
+            marginBottom: '15px',
+            fontWeight: 'bold'
+          }}>
+            🔄 Aguardando carregamento do PayPal...
+          </div>
+          
+          <div style={{ marginBottom: '20px' }}>
+            <h4 style={{ color: '#6c757d', marginBottom: '10px' }}>
+              Informações do Client ID:
+            </h4>
+            <div style={{
+              fontFamily: 'monospace',
+              background: '#2d3748',
+              color: '#68d391',
+              padding: '12px',
+              borderRadius: '6px',
+              fontSize: '14px',
+              overflowX: 'auto'
+            }}>
+              AWcGR2Fa2OoZ8lTaDiGTIvQh0q7t-OPAZun6x3ixjad1CYn-CMc0Sp8Xm3NtGF6JvSJpZK9_Sd4b4Pqb
+            </div>
+          </div>
         </div>
         
-        <h3>ÁUDIO 30s — R$ 5,00</h3>
-        <div id="paypal-audio" style={{ marginTop: "20px", minHeight: "60px" }}></div>
-        <button 
-          style={btn} 
-          onClick={() => alert("Aguarde o botão azul do PayPal aparecer acima!")}
-        >
-          Pagar com PayPal, Cartão ou Pix
-        </button>
-      </div>
-
-      {/* CARD DO VÍDEO */}
-      <div style={cardStyle}>
-        {/* ÁREA DA IMAGEM - VERSÃO CORRIGIDA SEM via.placeholder.com */}
-        <div style={{ 
-          width: "100%", 
-          height: "200px",
-          background: "linear-gradient(135deg, #28a745, #1e7e34)",
-          borderRadius: "10px",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "white",
-          fontFamily: "Arial, sans-serif",
-          marginBottom: "15px"
+        <div style={{
+          textAlign: 'center',
+          padding: '25px',
+          background: 'linear-gradient(135deg, #48bb78, #38a169)',
+          borderRadius: '12px',
+          marginBottom: '30px'
         }}>
-          <div style={{ fontSize: "48px", marginBottom: "10px" }}>🎥</div>
-          <div style={{ fontSize: "24px", fontWeight: "bold" }}>VÍDEO 30s</div>
-          <div style={{ fontSize: "16px", opacity: 0.9 }}>R$ 10,00</div>
+          <h3 style={{ color: 'white', marginTop: '0', fontSize: '1.5rem' }}>
+            Botão de Teste PayPal
+          </h3>
+          <p style={{ color: 'rgba(255,255,255,0.9)', marginBottom: '25px' }}>
+            Valor de teste: <strong>R$ 1,00</strong><br/>
+            (Você pode cancelar no final)
+          </p>
+          
+          {/* CONTAINER DO BOTÃO PAYPAL */}
+          <div id="paypal-test-button" style={{
+            minHeight: '120px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(255,255,255,0.9)',
+            borderRadius: '8px',
+            padding: '15px'
+          }}>
+            <div style={{ color: '#718096', fontStyle: 'italic' }}>
+              Carregando botão PayPal...
+            </div>
+          </div>
         </div>
         
-        <h3>VÍDEO 30s — R$ 10,00</h3>
-        <div id="paypal-video" style={{ marginTop: "20px", minHeight: "60px" }}></div>
-        <button 
-          style={btn} 
-          onClick={() => alert("Aguarde o botão dourado do PayPal aparecer acima!")}
-        >
-          Pagar com PayPal, Cartão ou Pix
-        </button>
+        <div style={{
+          background: '#fff5f5',
+          padding: '20px',
+          borderRadius: '12px',
+          borderLeft: '4px solid #fc8181'
+        }}>
+          <h4 style={{ color: '#c53030', marginTop: '0' }}>
+            🔍 Instruções para Testar:
+          </h4>
+          <ol style={{ paddingLeft: '20px', color: '#744210' }}>
+            <li>Aguarde o botão azul do PayPal aparecer acima</li>
+            <li>Clique em "Pagar com PayPal"</li>
+            <li>Na tela do PayPal, use:
+              <ul style={{ paddingLeft: '20px', margin: '10px 0' }}>
+                <li><strong>Modo Sandbox:</strong> Email: sb-...@business.example.com</li>
+                <li><strong>Senha:</strong> A mesma da sua conta sandbox</li>
+              </ul>
+            </li>
+            <li>Complete ou cancele o pagamento</li>
+            <li>Volte para esta página e veja o resultado</li>
+          </ol>
+        </div>
+        
+        <div style={{
+          marginTop: '30px',
+          paddingTop: '20px',
+          borderTop: '1px solid #e2e8f0',
+          textAlign: 'center',
+          color: '#718096',
+          fontSize: '14px'
+        }}>
+          <p>
+            <strong>App:</strong> CorujinhaLegal<br/>
+            <strong>URL de Teste:</strong> /teste-paypal<br/>
+            <strong>Status:</strong> {paypalCarregado.current ? '✅ Carregado' : '🔄 Carregando...'}
+          </p>
+          <button 
+            onClick={() => {
+              window.location.href = '/servicos';
+            }}
+            style={{
+              marginTop: '15px',
+              padding: '10px 25px',
+              background: '#667eea',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            ← Voltar para Serviços
+          </button>
+        </div>
+        
       </div>
       
-      {/* CAIXA DE INFORMAÇÕES */}
-      <div style={{ 
-        marginTop: "30px", 
-        padding: "15px", 
-        background: "#f8f9fa", 
-        borderRadius: "10px",
-        fontSize: "14px",
-        border: "1px solid #e9ecef"
-      }}>
-        <p style={{ margin: "0 0 10px 0", fontWeight: "bold", color: "#495057" }}>
-          💡 Como funciona:
-        </p>
-        <ol style={{ 
-          textAlign: "left", 
-          margin: "0", 
-          paddingLeft: "20px",
-          color: "#6c757d"
-        }}>
-          <li>Escolha áudio (R$ 5) ou vídeo (R$ 10)</li>
-          <li>Clique no botão do PayPal acima</li>
-          <li>Pague com PayPal, cartão ou Pix</li>
-          <li>Grave sua mensagem de 30 segundos</li>
-          <li>Agende data e hora do envio</li>
-          <li>Pronto! O SMS será enviado automaticamente 🎉</li>
-        </ol>
-      </div>
+      {/* Script para atualizar status */}
+      <script dangerouslySetInnerHTML={{
+        __html: `
+          setTimeout(() => {
+            const statusEl = document.getElementById('test-status');
+            if (statusEl && window.paypal) {
+              statusEl.innerHTML = '✅ SDK PayPal carregado com sucesso!';
+              statusEl.style.background = '#d4edda';
+              statusEl.style.color = '#155724';
+            }
+          }, 1000);
+        `
+      }} />
+      
     </div>
   );
 };
 
-// ESTILOS
-const cardStyle = {
-  backgroundColor: "#ffffff",
-  padding: "20px",
-  borderRadius: "10px",
-  margin: "20px 0",
-  border: "1px solid #dee2e6",
-  boxShadow: "0 4px 6px rgba(0,0,0,0.05)",
-};
-
-const btn = {
-  backgroundColor: "#0066CC",
-  color: "white",
-  padding: "14px",
-  border: "none",
-  borderRadius: "10px",
-  fontSize: "16px",
-  fontWeight: "bold",
-  cursor: "pointer",
-  width: "100%",
-  marginTop: "15px",
-};
-
-export default Servicos;
+export default TestePayPal;
