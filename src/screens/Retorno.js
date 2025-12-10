@@ -6,62 +6,105 @@ const Retorno = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const processarPagamento = () => {
-      // 1. PEGAR DADOS DA URL (OBRIGATÓRIOS)
-      const tipo = searchParams.get('tipo'); // 'audio' ou 'video'
-      const statusPagamento = searchParams.get('status'); // 'success' ou 'cancel'
-      const orderID = searchParams.get('orderID'); // 'AUDIO-123...' ou 'VIDEO-123...'
-      const paypalOrderID = searchParams.get('paypalOrderID'); // ID do PayPal
+    // 1. PEGAR DADOS DA URL
+    const tipo = searchParams.get('tipo'); // 'audio' ou 'video'
+    const status = searchParams.get('status'); // 'success' ou 'cancel'
+    const orderID = searchParams.get('orderID'); // 'AUDIO-123...' ou 'VIDEO-123...'
+    const paypalOrderID = searchParams.get('paypalOrderID'); // ID do PayPal
 
-      console.log('🔍 DADOS DA URL:', { tipo, statusPagamento, orderID, paypalOrderID });
+    console.log('🔗 Retorno do PayPal:', { tipo, status, orderID, paypalOrderID });
 
-      // 2. SE CANCELOU
-      if (statusPagamento === 'cancel') {
-        alert('❌ Pagamento cancelado. Tente novamente!');
-        setTimeout(() => navigate('/servicos'), 1000);
-        return;
-      }
+    // 2. VALIDAÇÃO BÁSICA
+    if (!tipo || !status || !orderID) {
+      console.error('❌ URL incompleta. Parâmetros faltando.');
+      navigate('/servicos');
+      return;
+    }
 
-      // 3. SE APROVOU
-      if (statusPagamento === 'success' && tipo && orderID) {
-        console.log('💰 PAGAMENTO APROVADO! Redirecionando para gravação...');
-        
-        // 4. SALVAR NO localStorage (opcional, mas útil)
-        localStorage.setItem('pagamentoAtual', JSON.stringify({
-          tipo: tipo,
-          orderID: orderID,
-          paypalOrderID: paypalOrderID,
-          pagoEm: new Date().toISOString()
-        }));
-        
-        // 5. REDIRECIONAR DIRETO PARA GRAVAÇÃO (SEM ENVIAR PARA WEBHOOK AGORA)
-        // ⚠️ IMPORTANTE: Ajuste '/gravar' para a URL CORRETA da sua tela de gravação
-        setTimeout(() => {
-          navigate(`/gravar?tipo=${tipo}&orderID=${orderID}`);
-        }, 500);
-        
-      } else {
-        // SE FALTAM DADOS
-        console.error('❌ DADOS INCOMPLETOS NA URL');
-        alert('Erro: Dados incompletos. Contate o suporte.');
-        setTimeout(() => navigate('/servicos'), 2000);
-      }
-    };
+    // 3. SE CANCELADO
+    if (status === 'cancel') {
+      alert('Pagamento cancelado. Você pode tentar novamente.');
+      navigate('/servicos');
+      return;
+    }
 
-    processarPagamento();
+    // 4. SE APROVADO
+    if (status === 'success') {
+      console.log(`✅ Pagamento ${tipo.toUpperCase()} aprovado!`);
+      console.log(`📋 OrderID: ${orderID}`);
+      console.log(`💳 PayPal OrderID: ${paypalOrderID || 'não informado'}`);
+      
+      // 5. SALVAR DADOS PARA USAR NA GRAVAÇÃO
+      const dadosPagamento = {
+        tipo: tipo,
+        orderID: orderID,
+        paypalOrderID: paypalOrderID,
+        dataPagamento: new Date().toISOString(),
+        valor: tipo === 'audio' ? 5.00 : 10.00
+      };
+      
+      localStorage.setItem('dadosPagamento', JSON.stringify(dadosPagamento));
+      console.log('💾 Dados salvos no localStorage:', dadosPagamento);
+
+      // 6. REDIRECIONAR PARA TELA CORRETA
+      setTimeout(() => {
+        if (tipo === 'audio') {
+          console.log('🎤 Redirecionando para AudioRecordPage...');
+          navigate(`/audiorecord?orderID=${orderID}`);
+        } 
+        else if (tipo === 'video') {
+          console.log('🎥 Redirecionando para VideoRecordPage...');
+          navigate(`/videorecord?orderID=${orderID}`);
+        }
+        else {
+          console.error('❌ Tipo inválido:', tipo);
+          navigate('/servicos');
+        }
+      }, 1500); // Aguardar 1.5 segundos
+      
+      return;
+    }
+
+    // 7. SE STATUS DESCONHECIDO
+    console.error('❌ Status desconhecido:', status);
+    alert('Status de pagamento não reconhecido.');
+    navigate('/servicos');
+
   }, [searchParams, navigate]);
 
-  // TELA SIMPLES DE CARREGAMENTO (aparece por menos de 1 segundo)
+  // TELA DE CARREGAMENTO (aparece por ~1.5 segundos)
   return (
     <div style={{
       textAlign: 'center',
       padding: '100px 20px',
       maxWidth: '600px',
-      margin: '0 auto'
+      margin: '0 auto',
+      fontFamily: 'Arial, sans-serif'
     }}>
-      <div style={{ fontSize: '60px', marginBottom: '20px' }}>⏳</div>
-      <h1>Processando pagamento...</h1>
-      <p>Aguarde, você será redirecionado em instantes.</p>
+      <div style={{
+        fontSize: '60px',
+        marginBottom: '20px',
+        color: '#28a745'
+      }}>
+        ✅
+      </div>
+      <h1 style={{ color: '#28a745' }}>
+        Pagamento Confirmado!
+      </h1>
+      <p style={{ fontSize: '18px', marginTop: '10px' }}>
+        Aguarde um momento...
+      </p>
+      <div style={{
+        marginTop: '30px',
+        padding: '15px',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '8px',
+        fontSize: '14px',
+        color: '#666'
+      }}>
+        <p>📱 <strong>Seu pedido está sendo processado</strong></p>
+        <p>Você será redirecionado automaticamente para gravar seu conteúdo.</p>
+      </div>
     </div>
   );
 };
