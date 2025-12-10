@@ -9,67 +9,89 @@ const Retorno = () => {
 
   useEffect(() => {
     const processarPagamento = async () => {
-      // 1. Pegar parâmetros da URL
+      // 1. Pegar TUDO da URL
       const tipo = searchParams.get('tipo');
       const statusPagamento = searchParams.get('status');
       const orderID = searchParams.get('orderID');
+      const paypalOrderID = searchParams.get('paypalOrderID');
 
-      // 2. Se o pagamento foi cancelado
+      console.log('🔍 URL completa:', {
+        tipo: tipo,
+        status: statusPagamento,
+        orderID: orderID,
+        paypalOrderID: paypalOrderID
+      });
+
+      // 2. Se cancelado
       if (statusPagamento === 'cancel') {
         setStatus('cancelado');
-        setMensagem('Pagamento cancelado. Você pode tentar novamente quando quiser.');
+        setMensagem('Pagamento cancelado.');
         setTimeout(() => navigate('/servicos'), 3000);
         return;
       }
 
-      // 3. Se o pagamento foi aprovado
-      if (statusPagamento === 'success') {
+      // 3. Se aprovado
+      if (statusPagamento === 'success' && orderID && tipo) {
         try {
-          // 4. Preparar dados SIMPLES para enviar ao webhook
+          // 4. Dados MÍNIMOS e CORRETOS para webhook
           const dadosWebhook = {
-            tipo: tipo,
-            orderID: orderID,
-            status: 'pago'  // ⚠️ SÓ ISSO! SEM destinatario, telefone, data, hora
+            tipo: tipo,  // "audio" ou "video"
+            orderID: orderID,  // "AUDIO-123..." ou "VIDEO-123..."
+            status: 'pago'  // SEMPRE "pago"
           };
 
-          console.log('📤 Enviando para webhook (APENAS confirmação de pagamento):', dadosWebhook);
+          console.log('📤 Enviando PARA WEBHOOK (OBRIGATÓRIO):', dadosWebhook);
 
-          // 5. Enviar para a API
+          // 5. Enviar para API
           const response = await fetch('/api/paypal-webhook', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(dadosWebhook)
           });
 
           const resultado = await response.json();
-          console.log('📥 Resposta do webhook:', resultado);
+          console.log('📥 RESPOSTA DO WEBHOOK:', resultado);
 
-          // 6. Verificar resposta
-          if (response.ok) {
+          // 6. Se deu certo
+          if (response.ok && resultado.success) {
             setStatus('sucesso');
-            setMensagem('✅ Pagamento confirmado! Agora você pode gravar seu áudio/vídeo.');
+            setMensagem('✅ Pagamento confirmado! Agora você pode gravar.');
             
-            // 7. Redirecionar para GRAVAÇÃO (não para agendamento)
-            // ⚠️ Ajuste '/gravar' para o caminho correto da sua tela de gravação
-            setTimeout(() => navigate('/gravar'), 2000);
+            // Salvar no localStorage para usar depois
+            localStorage.setItem('ultimoPagamento', JSON.stringify({
+              orderID: orderID,
+              tipo: tipo,
+              paypalOrderID: paypalOrderID,
+              data: new Date().toISOString()
+            }));
+            
+            // Redirecionar para GRAVAÇÃO
+            setTimeout(() => {
+              navigate(`/gravar?orderID=${orderID}&tipo=${tipo}`);
+            }, 1500);
+            
           } else {
             setStatus('erro');
-            setMensagem(`❌ Erro: ${resultado.error || 'Não foi possível confirmar o pagamento.'}`);
+            setMensagem(`❌ Erro: ${resultado.error || 'Webhook rejeitou'}`);
           }
+          
         } catch (error) {
-          console.error('Erro:', error);
+          console.error('💥 Erro inesperado:', error);
           setStatus('erro');
-          setMensagem('❌ Erro inesperado. Por favor, entre em contato com o suporte.');
+          setMensagem('❌ Erro de conexão. Contate o suporte.');
         }
+      } else {
+        // Se faltam dados na URL
+        setStatus('erro');
+        setMensagem('❌ Dados incompletos na URL. Faltam: tipo e/ou orderID');
+        console.error('❌ FALTAM DADOS NA URL:', { tipo, statusPagamento, orderID });
       }
     };
 
     processarPagamento();
   }, [searchParams, navigate]);
 
-  // Estilos
+  // Estilos (mantenha os SEUS estilos)
   const containerStyle = {
     textAlign: 'center',
     padding: '50px 20px',
@@ -94,7 +116,7 @@ const Retorno = () => {
 
   return (
     <div style={containerStyle}>
-      <h1>Processando Retorno do Pagamento</h1>
+      <h1>Retorno do Pagamento</h1>
       <div style={cardStyle}>
         <div style={{
           fontSize: '60px',
@@ -113,6 +135,23 @@ const Retorno = () => {
           {status === 'cancelado' && 'Cancelado'}
         </h2>
         <p style={{ fontSize: '18px', marginTop: '20px' }}>{mensagem}</p>
+        
+        {status === 'erro' && (
+          <button 
+            onClick={() => navigate('/servicos')}
+            style={{
+              marginTop: '20px',
+              padding: '10px 20px',
+              backgroundColor: '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer'
+            }}
+          >
+            Voltar para Serviços
+          </button>
+        )}
       </div>
     </div>
   );
