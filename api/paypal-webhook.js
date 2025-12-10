@@ -1,12 +1,10 @@
 const { createClient } = require('@supabase/supabase-js');
 
-// Configuração Supabase
-const supabaseUrl = process.env.SUPABASE_URL || 'https://kuwsgvhjmjnhkteleczc.supabase.co';
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY || 'sua-service-key-aqui';
+const supabaseUrl = 'https://kuwsgvhjmjnhkteleczc.supabase.co';
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY || 'SUA_SERVICE_KEY_AQUI';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 module.exports = async function handler(req, res) {
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -21,36 +19,33 @@ module.exports = async function handler(req, res) {
     const isPayPal = req.body.event_type && req.body.resource;
     
     if (isPayPal) {
-      console.log('💰 PAYPAL DETECTADO');
+      console.log('💰 PAYPAL DETECTADO!');
       console.log('Evento:', req.body.event_type);
       
-      // DADOS DO PAYPAL
+      // EXTRAIR DADOS DO PAYPAL
       const paypalData = req.body.resource;
       const purchaseUnit = paypalData.purchase_units?.[0] || {};
       
-      // EXTRAIR orderID (custom_id que você enviou)
+      // 🎯 EXTRAIR custom_id (SEU orderID)
       const orderID = purchaseUnit.custom_id || `PAYPAL-${Date.now()}`;
       
       // EXTRAIR VALOR
-      const valorStr = purchaseUnit.amount?.value || '0';
-      const valor = parseFloat(valorStr);
-      
-      // DETERMINAR TIPO PELO VALOR
+      const valor = parseFloat(purchaseUnit.amount?.value || '0');
       const tipo = valor === 5 ? 'audio' : valor === 10 ? 'video' : 'desconhecido';
       
-      console.log(`📊 Pagamento: ${orderID} - ${tipo} - R$${valor}`);
+      console.log(`📊 Pagamento detectado: ${orderID} - ${tipo} - R$${valor}`);
       
-      // 🗃️ SALVAR NO BANCO (APENAS DADOS BÁSICOS)
+      // 🗃️ SALVAR NO BANCO
       const dadosParaSalvar = {
         tipo: tipo,
         order_id: orderID,
-        status: 'pago',  // Pagamento confirmado
+        status: 'pago',
         valor: valor,
         criado_em: new Date().toISOString(),
         enviado: false
       };
       
-      console.log('💾 Salvando:', dadosParaSalvar);
+      console.log('💾 Salvando no banco:', dadosParaSalvar);
       
       const { data, error } = await supabase
         .from('agendamentos')
@@ -58,31 +53,28 @@ module.exports = async function handler(req, res) {
         .select();
       
       if (error) {
-        console.error('❌ Erro banco:', error);
-        // MAS RESPONDE 200 PARA PAYPAL NÃO REENVIAR!
-        return res.status(200).json({ status: 'RECEIVED_BUT_DB_ERROR' });
+        console.error('❌ Erro no banco:', error);
+        // ⚠️ MAS RESPONDE 200 PARA PAYPAL!
+        return res.status(200).json({ status: 'RECEIVED' });
       }
       
-      console.log('✅ PayPal salvo no banco!');
+      console.log('✅ PayPal salvo no banco! ID:', data[0]?.id);
       
-      // ⚠️ IMPORTANTE: PayPal exige 200 OK RÁPIDO!
+      // 📤 RESPOSTA PARA PAYPAL (200 OK!)
       return res.status(200).json({ 
         status: 'RECEIVED',
-        message: 'Pagamento processado'
+        message: 'Pagamento processado com sucesso'
       });
       
     } else {
       // 🎬 É SEU FRONTEND (gravação)
-      console.log('🎬 FRONTEND DETECTADO');
+      console.log('🎬 FRONTEND DETECTADO (gravação)');
       
       const { tipo, orderID, status, destinatario, data, hora, telefone, link_midia } = req.body;
       
-      // Validar dados do frontend
       if (!orderID || !tipo || !destinatario || !telefone || !data || !hora) {
-        console.error('❌ Dados incompletos frontend:', req.body);
-        return res.status(400).json({ 
-          error: 'Dados incompletos do frontend'
-        });
+        console.error('❌ Dados incompletos do frontend');
+        return res.status(400).json({ error: 'Dados incompletos' });
       }
       
       const dadosParaSalvar = {
@@ -107,7 +99,7 @@ module.exports = async function handler(req, res) {
       
       if (error) {
         console.error('❌ Erro frontend:', error);
-        return res.status(500).json({ error: 'Erro banco' });
+        return res.status(500).json({ error: 'Erro no banco' });
       }
       
       return res.status(200).json({ 
@@ -119,7 +111,7 @@ module.exports = async function handler(req, res) {
     
   } catch (error) {
     console.error('❌ ERRO GERAL:', error);
-    // ⚠️ SEMPRE RESPONDE 200 PARA PAYPAL!
-    return res.status(200).json({ status: 'RECEIVED_BUT_ERROR' });
+    // ⚠️ SEMPRE 200 PARA PAYPAL!
+    return res.status(200).json({ status: 'RECEIVED' });
   }
 };
