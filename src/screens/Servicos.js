@@ -1,280 +1,286 @@
 import React, { useEffect, useRef } from "react";
 
 const Servicos = () => {
+  // 🔒 CONTROLES DE SEGURANÇA
   const paypalInitialized = useRef(false);
+  const loadingAttempts = useRef(0);
+  const maxAttempts = 3;
 
+  // 🧹 FUNÇÃO PARA LIMPAR TOTALMENTE
+  const cleanupPayPal = () => {
+    // Remove todos os scripts do PayPal
+    document.querySelectorAll('script[src*="paypal.com"]').forEach(script => {
+      script.remove();
+    });
+    
+    // Remove todos os botões PayPal renderizados
+    document.querySelectorAll('[data-paypal-button], iframe[src*="paypal.com"]').forEach(el => {
+      el.remove();
+    });
+    
+    // Limpa containers
+    const audioContainer = document.getElementById('paypal-audio');
+    const videoContainer = document.getElementById('paypal-video');
+    
+    if (audioContainer) audioContainer.innerHTML = '';
+    if (videoContainer) videoContainer.innerHTML = '';
+    
+    console.log('🧹 PayPal limpo completamente');
+  };
+
+  // 🚀 INICIALIZAR PAYPAPEL UMA ÚNICA VEZ
+  const initializePayPal = () => {
+    if (paypalInitialized.current) {
+      console.log('⏭️ PayPal já inicializado, pulando...');
+      return;
+    }
+    
+    if (loadingAttempts.current >= maxAttempts) {
+      console.warn('⚠️ Máximo de tentativas alcançado');
+      return;
+    }
+    
+    loadingAttempts.current += 1;
+    console.log(`🔄 Tentativa ${loadingAttempts.current} de ${maxAttempts}`);
+    
+    // 1. LIMPEZA TOTAL ANTES DE COMEÇAR
+    cleanupPayPal();
+    
+    // 2. CARREGAR SDK APENAS SE NÃO EXISTIR
+    if (!document.querySelector('script[src*="paypal.com/sdk/js"]')) {
+      const script = document.createElement("script");
+      script.src = `https://www.paypal.com/sdk/js?client-id=AWcGR2Fa2OoZ8lTaDiGTIvQh0q7t-OPAZun6x3ixjad1CYn-CMc0Sp8Xm3NtGF6JvSJpZK9_Sd4b4Pqb&currency=BRL&intent=capture&disable-funding=credit,card,paylater`;
+      script.async = true;
+      script.defer = true;
+      
+      script.onload = () => {
+        console.log('✅ PayPal SDK carregado com sucesso');
+        // Pequeno delay para garantir estabilidade
+        setTimeout(renderPayPalButtons, 500);
+      };
+      
+      script.onerror = () => {
+        console.error('❌ Falha ao carregar PayPal SDK');
+        paypalInitialized.current = false;
+      };
+      
+      document.head.appendChild(script);
+    } else {
+      // SDK já está carregado, só renderizar
+      setTimeout(renderPayPalButtons, 100);
+    }
+  };
+
+  // 🎨 RENDERIZAR BOTÕES COM SEGURANÇA
+  const renderPayPalButtons = () => {
+    if (!window.paypal || paypalInitialized.current) {
+      console.log('⏭️ PayPal não disponível ou já inicializado');
+      return;
+    }
+    
+    try {
+      console.log('🎨 Renderizando botões PayPal...');
+      
+      // BOTÃO ÁUDIO
+      window.paypal.Buttons({
+        style: {
+          layout: 'vertical',
+          color: 'blue',
+          shape: 'rect',
+          label: 'pay'
+        },
+        createOrder: (data, actions) => {
+          return actions.order.create({
+            purchase_units: [{
+              description: "Áudio 30s - CorujinhaLegal",
+              amount: { currency_code: "BRL", value: "5.00" },
+              custom_id: `AUDIO-${Date.now()}`,
+            }],
+          });
+        },
+        onApprove: (data, actions) => {
+          return actions.order.capture().then((details) => {
+            const nome = details.payer.name?.given_name || "amigo";
+            alert(`🎉 Obrigado, ${nome}! Seu áudio de 30s já está na fila de produção.`);
+            window.location.href = `/retorno?tipo=audio&status=success&orderID=${data.orderID}`;
+          });
+        },
+        onCancel: () => {
+          console.log('❌ Pagamento de áudio cancelado');
+          window.location.href = "/retorno?tipo=audio&status=cancel";
+        },
+        onError: (err) => {
+          console.error('💥 Erro no pagamento áudio:', err);
+          alert("Ops, erro no PayPal. Tente de novo!");
+        },
+      }).render("#paypal-audio").then(() => {
+        console.log('✅ Botão ÁUDIO renderizado');
+      }).catch(err => {
+        console.error('❌ Erro ao renderizar botão áudio:', err);
+      });
+
+      // BOTÃO VÍDEO
+      window.paypal.Buttons({
+        style: {
+          layout: 'vertical',
+          color: 'gold',
+          shape: 'rect',
+          label: 'pay'
+        },
+        createOrder: (data, actions) => {
+          return actions.order.create({
+            purchase_units: [{
+              description: "Vídeo 30s - CorujinhaLegal",
+              amount: { currency_code: "BRL", value: "10.00" },
+              custom_id: `VIDEO-${Date.now()}`,
+            }],
+          });
+        },
+        onApprove: (data, actions) => {
+          return actions.order.capture().then((details) => {
+            const nome = details.payer.name?.given_name || "amigo";
+            alert(`🎬 Valeu, ${nome}! Seu vídeo de 30s já está na fila de produção.`);
+            window.location.href = `/retorno?tipo=video&status=success&orderID=${data.orderID}`;
+          });
+        },
+        onCancel: () => {
+          console.log('❌ Pagamento de vídeo cancelado');
+          window.location.href = "/retorno?tipo=video&status=cancel";
+        },
+        onError: (err) => {
+          console.error('💥 Erro no pagamento vídeo:', err);
+          alert("Ops, erro no PayPal. Tente de novo!");
+        },
+      }).render("#paypal-video").then(() => {
+        console.log('✅ Botão VÍDEO renderizado');
+      }).catch(err => {
+        console.error('❌ Erro ao renderizar botão vídeo:', err);
+      });
+
+      // 🏁 MARCA COMO INICIALIZADO
+      paypalInitialized.current = true;
+      console.log('🚀 PayPal inicializado com sucesso!');
+      
+    } catch (error) {
+      console.error('💥 Erro crítico ao renderizar PayPal:', error);
+      paypalInitialized.current = false;
+    }
+  };
+
+  // ⚡ EFFECT PRINCIPAL
   useEffect(() => {
-    // Se já inicializou, não faz nada
-    if (paypalInitialized.current) return;
-
-    const existente = document.querySelector('script[src*="paypal.com/sdk/js"]');
-    if (existente) existente.remove();
-
-    const script = document.createElement("script");
-    script.src = `https://www.paypal.com/sdk/js?client-id=AWcGR2Fa2OoZ8lTaDiGTIvQh0q7t-OPAZun6x3ixjad1CYn-CMc0Sp8Xm3NtGF6JvSJpZK9_Sd4b4Pqb&currency=BRL&intent=capture&disable-funding=credit`;
-    script.async = true;
-    script.onload = () => {
-      console.log("PayPal SDK carregado!");
-      if (!paypalInitialized.current) {
-        iniciarBotoesPayPal();
-        paypalInitialized.current = true;
-      }
-    };
-    script.onerror = (e) => {
-      console.error("Erro no SDK:", e);
-      alert("Erro ao carregar PayPal. Verifique o Client ID!");
-    };
-    document.head.appendChild(script);
-
+    console.log('🏁 Componente Servicos montado');
+    
+    // Pequeno delay antes de iniciar
+    const timer = setTimeout(() => {
+      initializePayPal();
+    }, 300);
+    
+    // Limpeza ao desmontar
     return () => {
-      // Limpeza: remove o script se o componente for desmontado
-      if (script && document.head.contains(script)) {
-        document.head.removeChild(script);
-      }
-      // Reseta a flag de inicialização se o componente for desmontado
+      clearTimeout(timer);
+      console.log('♻️ Componente Servicos desmontado');
       paypalInitialized.current = false;
     };
   }, []);
 
-  const iniciarBotoesPayPal = () => {
-    if (!window.paypal) {
-      console.error("PayPal não carregou ainda.");
-      return;
-    }
-
-    // Botão ÁUDIO R$ 5,00
-    window.paypal.Buttons({
-      createOrder: (data, actions) => {
-        return actions.order.create({
-          purchase_units: [
-            {
-              description: "Áudio 30s - CorujinhaLegal",
-              amount: { currency_code: "BRL", value: "5.00" },
-              custom_id: "audio_30s",
-            },
-          ],
-        });
-      },
-      onApprove: (data, actions) => {
-        return actions.order.capture().then((details) => {
-          const nome = details.payer.name?.given_name || "amigo";
-          alert(`Obrigado, ${nome}! Seu áudio de 30s já está na fila de produção.`);
-          // ✅ REDIRECIONA COM TIPO CORRETO - URL relativa
-          window.location.href = `/retorno?tipo=audio&status=success&orderID=${data.orderID}`;
-        });
-      },
-      onCancel: () => {
-        window.location.href = "/retorno?tipo=audio&status=cancel";
-      },
-      onError: (err) => {
-        console.error("Erro no pagamento:", err);
-        alert("Ops, erro no PayPal. Tente de novo!");
-      },
-    }).render("#paypal-audio");
-
-    // Botão VÍDEO R$ 10,00
-    window.paypal.Buttons({
-      createOrder: (data, actions) => {
-        return actions.order.create({
-          purchase_units: [
-            {
-              description: "Vídeo 30s - CorujinhaLegal",
-              amount: { currency_code: "BRL", value: "10.00" },
-              custom_id: "video_30s",
-            },
-          ],
-        });
-      },
-      onApprove: (data, actions) => {
-        return actions.order.capture().then((details) => {
-          const nome = details.payer.name?.given_name || "amigo";
-          alert(`Valeu, ${nome}! Seu vídeo de 30s já está na fila de produção.`);
-          // ✅ REDIRECIONA COM TIPO CORRETO - URL relativa
-          window.location.href = `/retorno?tipo=video&status=success&orderID=${data.orderID}`;
-        });
-      },
-      onCancel: () => {
-        window.location.href = "/retorno?tipo=video&status=cancel";
-      },
-      onError: (err) => {
-        console.error("Erro no pagamento:", err);
-        alert("Ops, erro no PayPal. Tente de novo!");
-      },
-    }).render("#paypal-video");
-  };
-
+  // 🎨 RENDER DA PÁGINA
   return (
-    <div style={{ maxWidth: "500px", margin: "50px auto", textAlign: "center" }}>
-      <h2>Escolha seu serviço</h2>
+    <div style={{ maxWidth: "500px", margin: "50px auto", textAlign: "center", padding: "20px" }}>
+      <h2 style={{ color: "#333", marginBottom: "30px" }}>Escolha seu serviço</h2>
 
+      {/* CARD ÁUDIO */}
       <div style={cardStyle}>
-        {/* ÁREA DA IMAGEM DO ÁUDIO - CORRIGIDA */}
-        <div style={{ position: "relative", marginBottom: "15px" }}>
-          <img
-            src="/audio.gif"
-            alt="Áudio 30s"
-            style={{ 
-              width: "100%", 
-              height: "200px",
-              objectFit: "cover",
-              borderRadius: "10px",
-              backgroundColor: "#007bff" // Cor de fundo se a imagem falhar
-            }}
-            onError={(e) => {
-              e.target.style.display = "none";
-              // Cria um div colorido no lugar da imagem quebrada
-              const container = e.target.parentNode;
-              const replacement = document.createElement("div");
-              replacement.innerHTML = `
-                <div style="
-                  width: 100%;
-                  height: 200px;
-                  background: linear-gradient(135deg, #007bff, #0056b3);
-                  border-radius: 10px;
-                  display: flex;
-                  flex-direction: column;
-                  align-items: center;
-                  justify-content: center;
-                  color: white;
-                  font-family: Arial, sans-serif;
-                ">
-                  <div style="font-size: 48px; margin-bottom: 10px;">🎤</div>
-                  <div style="font-size: 24px; font-weight: bold;">ÁUDIO 30s</div>
-                  <div style="font-size: 16px; opacity: 0.9;">R$ 5,00</div>
-                </div>
-              `;
-              container.appendChild(replacement.firstChild);
-            }}
-          />
+        <div style={imagePlaceholderStyle('#007bff', '#0056b3')}>
+          <div style={{ fontSize: "48px", marginBottom: "10px" }}>🎤</div>
+          <div style={{ fontSize: "24px", fontWeight: "bold" }}>ÁUDIO 30s</div>
+          <div style={{ fontSize: "16px", opacity: 0.9 }}>R$ 5,00</div>
         </div>
-        <h3>ÁUDIO 30s — R$ 5,00</h3>
+        <h3 style={{ color: "#333", margin: "15px 0" }}>ÁUDIO 30s — R$ 5,00</h3>
         <div id="paypal-audio" style={{ marginTop: "20px", minHeight: "60px" }}></div>
-        <button 
-          style={btn} 
-          onClick={() => {
-            const audioBtn = document.querySelector("#paypal-audio iframe");
-            if (audioBtn) {
-              audioBtn.click();
-            } else {
-              alert("Aguarde o botão azul do PayPal aparecer acima!");
-            }
-          }}
-        >
-          Pagar com PayPal, Cartão ou Pix
-        </button>
+        <div style={helpText}>
+          Clique no botão azul acima para pagar com PayPal, cartão ou Pix
+        </div>
       </div>
 
+      {/* CARD VÍDEO */}
       <div style={cardStyle}>
-        {/* ÁREA DA IMAGEM DO VÍDEO - CORRIGIDA */}
-        <div style={{ position: "relative", marginBottom: "15px" }}>
-          <img
-            src="/video.gif"
-            alt="Vídeo 30s"
-            style={{ 
-              width: "100%", 
-              height: "200px",
-              objectFit: "cover",
-              borderRadius: "10px",
-              backgroundColor: "#28a745" // Cor de fundo se a imagem falhar
-            }}
-            onError={(e) => {
-              e.target.style.display = "none";
-              // Cria um div colorido no lugar da imagem quebrada
-              const container = e.target.parentNode;
-              const replacement = document.createElement("div");
-              replacement.innerHTML = `
-                <div style="
-                  width: 100%;
-                  height: 200px;
-                  background: linear-gradient(135deg, #28a745, #1e7e34);
-                  border-radius: 10px;
-                  display: flex;
-                  flex-direction: column;
-                  align-items: center;
-                  justify-content: center;
-                  color: white;
-                  font-family: Arial, sans-serif;
-                ">
-                  <div style="font-size: 48px; margin-bottom: 10px;">🎥</div>
-                  <div style="font-size: 24px; font-weight: bold;">VÍDEO 30s</div>
-                  <div style="font-size: 16px; opacity: 0.9;">R$ 10,00</div>
-                </div>
-              `;
-              container.appendChild(replacement.firstChild);
-            }}
-          />
+        <div style={imagePlaceholderStyle('#28a745', '#1e7e34')}>
+          <div style={{ fontSize: "48px", marginBottom: "10px" }}>🎥</div>
+          <div style={{ fontSize: "24px", fontWeight: "bold" }}>VÍDEO 30s</div>
+          <div style={{ fontSize: "16px", opacity: 0.9 }}>R$ 10,00</div>
         </div>
-        <h3>VÍDEO 30s — R$ 10,00</h3>
+        <h3 style={{ color: "#333", margin: "15px 0" }}>VÍDEO 30s — R$ 10,00</h3>
         <div id="paypal-video" style={{ marginTop: "20px", minHeight: "60px" }}></div>
-        <button 
-          style={btn} 
-          onClick={() => {
-            const videoBtn = document.querySelector("#paypal-video iframe");
-            if (videoBtn) {
-              videoBtn.click();
-            } else {
-              alert("Aguarde o botão azul do PayPal aparecer acima!");
-            }
-          }}
-        >
-          Pagar com PayPal, Cartão ou Pix
-        </button>
+        <div style={helpText}>
+          Clique no botão dourado acima para pagar com PayPal, cartão ou Pix
+        </div>
       </div>
-      
-      <div style={{ 
-        marginTop: "30px", 
-        padding: "15px", 
-        background: "#f8f9fa", 
-        borderRadius: "10px",
-        fontSize: "14px",
-        border: "1px solid #e9ecef"
-      }}>
-        <p style={{ margin: "0 0 10px 0", fontWeight: "bold", color: "#495057" }}>
+
+      {/* INFORMAÇÕES */}
+      <div style={infoBoxStyle}>
+        <p style={{ fontWeight: "bold", marginBottom: "10px", color: "#495057" }}>
           💡 Como funciona:
         </p>
-        <ol style={{ 
-          textAlign: "left", 
-          margin: "0", 
-          paddingLeft: "20px",
-          color: "#6c757d"
-        }}>
+        <ol style={instructionsStyle}>
           <li>Escolha áudio (R$ 5) ou vídeo (R$ 10)</li>
-          <li>Clique no botão azul do PayPal acima</li>
+          <li>Clique no botão do PayPal</li>
           <li>Pague com PayPal, cartão ou Pix</li>
           <li>Grave sua mensagem de 30 segundos</li>
           <li>Agende data e hora do envio</li>
-          <li>Pronto! O SMS será enviado automaticamente 🎉</li>
+          <li>Pronto! SMS será enviado automaticamente 🎉</li>
         </ol>
       </div>
     </div>
   );
 };
 
+// 🎨 ESTILOS
 const cardStyle = {
   backgroundColor: "#ffffff",
-  padding: "20px",
-  borderRadius: "10px",
-  margin: "20px 0",
-  border: "1px solid #dee2e6",
-  boxShadow: "0 4px 6px rgba(0,0,0,0.05)",
+  padding: "25px",
+  borderRadius: "12px",
+  margin: "25px 0",
+  border: "1px solid #e0e0e0",
+  boxShadow: "0 6px 12px rgba(0,0,0,0.08)",
+  transition: "transform 0.2s, box-shadow 0.2s",
 };
 
-const btn = {
-  backgroundColor: "#0066CC",
-  color: "white",
-  padding: "14px",
-  border: "none",
-  borderRadius: "10px",
-  fontSize: "16px",
-  fontWeight: "bold",
-  cursor: "pointer",
+const imagePlaceholderStyle = (color1, color2) => ({
   width: "100%",
-  marginTop: "15px",
-  transition: "background-color 0.2s",
+  height: "200px",
+  background: `linear-gradient(135deg, ${color1}, ${color2})`,
+  borderRadius: "10px",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  color: "white",
+  fontFamily: "Arial, sans-serif",
+  marginBottom: "20px",
+});
+
+const helpText = {
+  fontSize: "14px",
+  color: "#666",
+  marginTop: "10px",
+  fontStyle: "italic",
 };
 
-btn[':hover'] = {
-  backgroundColor: "#0052a3",
+const infoBoxStyle = {
+  marginTop: "30px",
+  padding: "20px",
+  background: "#f8f9fa",
+  borderRadius: "10px",
+  border: "1px solid #e9ecef",
+  textAlign: "left",
+};
+
+const instructionsStyle = {
+  margin: "0",
+  paddingLeft: "20px",
+  color: "#6c757d",
+  lineHeight: "1.6",
 };
 
 export default Servicos;
