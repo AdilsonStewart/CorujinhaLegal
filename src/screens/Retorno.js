@@ -14,6 +14,8 @@ const Retorno = () => {
       const statusPagamento = searchParams.get('status');
       const orderID = searchParams.get('orderID');
 
+      console.log('🔍 Parâmetros da URL:', { tipo, statusPagamento, orderID });
+
       // 2. Se o pagamento foi cancelado
       if (statusPagamento === 'cancel') {
         setStatus('cancelado');
@@ -27,18 +29,28 @@ const Retorno = () => {
         try {
           // 4. Pegar dados do localStorage (salvos pela página Agendamento.js)
           const agendamentoSalvo = localStorage.getItem('agendamento_corujinha');
-          const agendamento = agendamentoSalvo ? JSON.parse(agendamentoSalvo) : {};
+          
+          if (!agendamentoSalvo) {
+            setStatus('erro');
+            setMensagem('❌ Dados do agendamento não encontrados. Entre em contato com o suporte.');
+            return;
+          }
+          
+          const agendamento = JSON.parse(agendamentoSalvo);
+          console.log('📋 Dados do localStorage:', agendamento);
 
-          // 5. Preparar dados para enviar ao webhook
+          // 5. Preparar dados para enviar ao webhook - FORMATO CORRETO
           const dadosWebhook = {
             tipo: tipo,
             orderID: orderID,
-            status: statusPagamento,
-            destinatario: agendamento.nomeDestinatario || 'Cliente',
+            status: 'pago',  // ⚠️ IMPORTANTE: Enviar 'pago' e não 'success'
+            destinatario: agendamento.nomeDestinatario || agendamento.destinatario || 'Cliente',
             telefone: agendamento.telefone || 'Não informado',
             data: agendamento.data || new Date().toISOString().split('T')[0],
             hora: agendamento.hora || '12:00'
           };
+
+          console.log('📤 Enviando para API:', dadosWebhook);
 
           // 6. Enviar para a API
           const response = await fetch('/api/paypal-webhook', {
@@ -49,27 +61,43 @@ const Retorno = () => {
             body: JSON.stringify(dadosWebhook)
           });
 
-          const resultado = await response.json();
+          console.log('📥 Resposta da API - Status:', response.status);
 
-          // 7. Verificar resposta
-          if (response.ok && resultado.success) {
-            setStatus('sucesso');
-            setMensagem('✅ Pagamento confirmado! Seu agendamento foi registrado com sucesso.');
+          // 7. Verificar resposta - FORMA SIMPLIFICADA
+          if (response.ok) {
+            const resultado = await response.json();
+            console.log('✅ Resposta completa:', resultado);
             
-            // 8. Limpar localStorage
-            localStorage.removeItem('agendamento_corujinha');
-            
-            // 9. Redirecionar para página de saída
-            setTimeout(() => navigate('/saida'), 3000);
+            // Se a resposta tem 'success: true' ou se foi salvo com sucesso
+            if (resultado.success || resultado.message) {
+              setStatus('sucesso');
+              setMensagem('✅ Pagamento confirmado! Seu agendamento foi registrado com sucesso.');
+              
+              // 8. Limpar localStorage
+              localStorage.removeItem('agendamento_corujinha');
+              
+              // 9. Redirecionar para página de saída
+              setTimeout(() => navigate('/saida'), 3000);
+            } else {
+              setStatus('erro');
+              setMensagem('❌ Não foi possível registrar o agendamento.');
+            }
           } else {
+            // Se a API retornou erro (400, 500, etc.)
+            const erro = await response.json();
+            console.error('❌ Erro da API:', erro);
             setStatus('erro');
-            setMensagem(`❌ Erro: ${resultado.error || 'Não foi possível registrar o agendamento.'}`);
+            setMensagem(`❌ Erro: ${erro.error || 'Não foi possível registrar o agendamento.'}`);
           }
         } catch (error) {
-          console.error('Erro:', error);
+          console.error('💥 Erro inesperado:', error);
           setStatus('erro');
           setMensagem('❌ Erro inesperado. Por favor, entre em contato com o suporte.');
         }
+      } else {
+        // Se não tem status ou é diferente de 'success' ou 'cancel'
+        setStatus('erro');
+        setMensagem('Status de pagamento não reconhecido.');
       }
     };
 
@@ -120,6 +148,24 @@ const Retorno = () => {
           {status === 'cancelado' && 'Cancelado'}
         </h2>
         <p style={{ fontSize: '18px', marginTop: '20px' }}>{mensagem}</p>
+        
+        {/* Mostrar botão para voltar em caso de erro */}
+        {status === 'erro' && (
+          <button 
+            onClick={() => navigate('/servicos')}
+            style={{
+              marginTop: '20px',
+              padding: '10px 20px',
+              backgroundColor: '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer'
+            }}
+          >
+            Voltar para Serviços
+          </button>
+        )}
       </div>
     </div>
   );
