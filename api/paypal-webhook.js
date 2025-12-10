@@ -15,7 +15,7 @@ module.exports = async function handler(req, res) {
   console.log('=== WEBHOOK CHAMADO ===');
   
   try {
-    // 📦 VERIFICAR SE É PAYPAL
+    // 📦 VERIFICAR SE É PAYPAL (formato específico do PayPal)
     const isPayPal = req.body.event_type && req.body.resource;
     
     if (isPayPal) {
@@ -67,25 +67,34 @@ module.exports = async function handler(req, res) {
       });
       
     } else {
-      // 🎬 É SEU FRONTEND (gravação)
-      console.log('🎬 FRONTEND DETECTADO (gravação)');
+      // 🎬 É SEU FRONTEND (gravação) - FORMULÁRIO DE AGENDAMENTO
+      console.log('🎬 FRONTEND DETECTADO (formulário de agendamento)');
       
-      const { tipo, orderID, status, destinatario, data, hora, telefone, link_midia } = req.body;
+      const { tipo, orderID, destinatario, telefone, data, hora } = req.body;
       
+      console.log('📥 Dados recebidos do frontend:', req.body);
+      
+      // VERIFICA SE VEIO O status, mas não obriga (alguns podem não enviar)
+      const statusRecebido = req.body.status || 'pago';
+      
+      // VALIDAÇÃO: Campos obrigatórios
       if (!orderID || !tipo || !destinatario || !telefone || !data || !hora) {
-        console.error('❌ Dados incompletos do frontend');
-        return res.status(400).json({ error: 'Dados incompletos' });
+        console.error('❌ Dados incompletos do frontend:', { orderID, tipo, destinatario, telefone, data, hora });
+        return res.status(400).json({ 
+          success: false,
+          error: 'Dados incompletos. Envie: tipo, orderID, destinatario, telefone, data, hora' 
+        });
       }
       
       const dadosParaSalvar = {
         tipo,
         order_id: orderID,
-        status: status || 'pendente',
+        status: statusRecebido,
         destinatario,
         telefone,
         data_agendamento: data,
         hora_agendamento: hora,
-        link_midia: link_midia || '',
+        link_midia: '',
         enviado: false,
         criado_em: new Date().toISOString()
       };
@@ -99,12 +108,16 @@ module.exports = async function handler(req, res) {
       
       if (error) {
         console.error('❌ Erro frontend:', error);
-        return res.status(500).json({ error: 'Erro no banco' });
+        return res.status(500).json({ 
+          success: false,
+          error: 'Erro no banco de dados' 
+        });
       }
       
+      // ⚠️ IMPORTANTE: Retorna com 'success: true' que seu frontend espera
       return res.status(200).json({ 
         success: true, 
-        message: 'Agendamento salvo!',
+        message: 'Agendamento salvo com sucesso!',
         agendamento: resultado[0]
       });
     }
