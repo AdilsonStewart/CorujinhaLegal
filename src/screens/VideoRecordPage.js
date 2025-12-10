@@ -158,21 +158,26 @@ const VideoRecorder = () => {
 
       console.log("🔗 URL pública gerada:", publicUrl);
 
-      // 4. Preparar dados para o webhook
-      const orderID = `VIDEO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      // 4. Preparar dados para o webhook - USANDO ORDERID DO PAYPAL! 🎯
+      const orderID = localStorage.getItem("currentOrderId") || `VIDEO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const pagamentoStatus = localStorage.getItem("paymentStatus") || "pending";
+
       const dadosParaWebhook = {
         tipo: 'video',
         orderID: orderID,
-        status: 'success', // Supondo pagamento já processado
+        status: pagamentoStatus, // Agora usa status real do pagamento
         destinatario: nome,
         telefone: telefoneLimpo, // Telefone limpo (apenas números)
         data: dataEntrega,
         hora: horaEntrega,
         link_midia: publicUrl, // URL do vídeo no Supabase Storage
         clienteId: localStorage.getItem("clienteId") || "sem-cadastro",
-        valor: 10.00 // Valor do vídeo
+        valor: 10.00, // Valor do vídeo
+        origem: 'gravacao' // Identifica que veio da gravação
       };
 
+      console.log("🎫 OrderID usado:", orderID);
+      console.log("💰 Status pagamento:", pagamentoStatus);
       console.log("📦 Dados para webhook:", dadosParaWebhook);
 
       // 5. Enviar dados para o webhook no Vercel
