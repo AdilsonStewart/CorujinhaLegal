@@ -1,10 +1,28 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 const Servicos = () => {
   const paypalInitialized = useRef(false);
+  const [orderIdAudio, setOrderIdAudio] = useState("");
+  const [orderIdVideo, setOrderIdVideo] = useState("");
+
+  // Gerar orderIDs únicos quando carregar
+  useEffect(() => {
+    // OrderID para áudio: AUDIO-data-random
+    const audioId = `AUDIO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    setOrderIdAudio(audioId);
+    
+    // OrderID para vídeo: VIDEO-data-random
+    const videoId = `VIDEO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    setOrderIdVideo(videoId);
+    
+    console.log("🎫 OrderIDs gerados:", { audioId, videoId });
+    
+    // Salvar no localStorage para usar depois na gravação
+    localStorage.setItem("lastOrderIdAudio", audioId);
+    localStorage.setItem("lastOrderIdVideo", videoId);
+  }, []);
 
   useEffect(() => {
-    // Se já inicializou, não faz nada
     if (paypalInitialized.current) return;
 
     const existente = document.querySelector('script[src*="paypal.com/sdk/js"]');
@@ -27,14 +45,12 @@ const Servicos = () => {
     document.head.appendChild(script);
 
     return () => {
-      // Limpeza: remove o script se o componente for desmontado
       if (script && document.head.contains(script)) {
         document.head.removeChild(script);
       }
-      // Reseta a flag de inicialização se o componente for desmontado
       paypalInitialized.current = false;
     };
-  }, []);
+  }, [orderIdAudio, orderIdVideo]); // ✅ Agora depende dos orderIDs
 
   const iniciarBotoesPayPal = () => {
     if (!window.paypal) {
@@ -42,15 +58,21 @@ const Servicos = () => {
       return;
     }
 
-    // Botão ÁUDIO R$ 5,00
+    console.log("🔄 Iniciando botões PayPal com orderIDs:", {
+      audio: orderIdAudio,
+      video: orderIdVideo
+    });
+
+    // BOTÃO ÁUDIO R$ 5,00
     window.paypal.Buttons({
       createOrder: (data, actions) => {
+        console.log("🎤 Criando pedido ÁUDIO:", orderIdAudio);
         return actions.order.create({
           purchase_units: [
             {
               description: "Áudio 30s - CorujinhaLegal",
               amount: { currency_code: "BRL", value: "5.00" },
-              custom_id: "audio_30s",
+              custom_id: orderIdAudio, // ✅ AGORA É ÚNICO!
             },
           ],
         });
@@ -58,29 +80,41 @@ const Servicos = () => {
       onApprove: (data, actions) => {
         return actions.order.capture().then((details) => {
           const nome = details.payer.name?.given_name || "amigo";
+          console.log("✅ Pagamento ÁUDIO aprovado:", {
+            orderIdPayPal: data.orderID,
+            nossoOrderId: orderIdAudio,
+            details
+          });
+          
+          // ✅ SALVAR NO LOCALSTORAGE PARA USAR NA GRAVAÇÃO
+          localStorage.setItem("currentOrderId", orderIdAudio);
+          localStorage.setItem("paymentStatus", "paid");
+          
           alert(`Obrigado, ${nome}! Seu áudio de 30s já está na fila de produção.`);
-          // ✅ REDIRECIONA COM TIPO CORRETO - URL relativa
-          window.location.href = `/retorno?tipo=audio&status=success&orderID=${data.orderID}`;
+          // ✅ REDIRECIONA COM orderID ÚNICO
+          window.location.href = `/retorno?tipo=audio&status=success&orderID=${orderIdAudio}&paypalOrderID=${data.orderID}`;
         });
       },
       onCancel: () => {
-        window.location.href = "/retorno?tipo=audio&status=cancel";
+        console.log("❌ Pagamento ÁUDIO cancelado");
+        window.location.href = `/retorno?tipo=audio&status=cancel&orderID=${orderIdAudio}`;
       },
       onError: (err) => {
-        console.error("Erro no pagamento:", err);
+        console.error("Erro no pagamento ÁUDIO:", err);
         alert("Ops, erro no PayPal. Tente de novo!");
       },
     }).render("#paypal-audio");
 
-    // Botão VÍDEO R$ 10,00
+    // BOTÃO VÍDEO R$ 10,00
     window.paypal.Buttons({
       createOrder: (data, actions) => {
+        console.log("🎥 Criando pedido VÍDEO:", orderIdVideo);
         return actions.order.create({
           purchase_units: [
             {
               description: "Vídeo 30s - CorujinhaLegal",
               amount: { currency_code: "BRL", value: "10.00" },
-              custom_id: "video_30s",
+              custom_id: orderIdVideo, // ✅ AGORA É ÚNICO!
             },
           ],
         });
@@ -88,16 +122,27 @@ const Servicos = () => {
       onApprove: (data, actions) => {
         return actions.order.capture().then((details) => {
           const nome = details.payer.name?.given_name || "amigo";
+          console.log("✅ Pagamento VÍDEO aprovado:", {
+            orderIdPayPal: data.orderID,
+            nossoOrderId: orderIdVideo,
+            details
+          });
+          
+          // ✅ SALVAR NO LOCALSTORAGE PARA USAR NA GRAVAÇÃO
+          localStorage.setItem("currentOrderId", orderIdVideo);
+          localStorage.setItem("paymentStatus", "paid");
+          
           alert(`Valeu, ${nome}! Seu vídeo de 30s já está na fila de produção.`);
-          // ✅ REDIRECIONA COM TIPO CORRETO - URL relativa
-          window.location.href = `/retorno?tipo=video&status=success&orderID=${data.orderID}`;
+          // ✅ REDIRECIONA COM orderID ÚNICO
+          window.location.href = `/retorno?tipo=video&status=success&orderID=${orderIdVideo}&paypalOrderID=${data.orderID}`;
         });
       },
       onCancel: () => {
-        window.location.href = "/retorno?tipo=video&status=cancel";
+        console.log("❌ Pagamento VÍDEO cancelado");
+        window.location.href = `/retorno?tipo=video&status=cancel&orderID=${orderIdVideo}`;
       },
       onError: (err) => {
-        console.error("Erro no pagamento:", err);
+        console.error("Erro no pagamento VÍDEO:", err);
         alert("Ops, erro no PayPal. Tente de novo!");
       },
     }).render("#paypal-video");
@@ -117,6 +162,9 @@ const Servicos = () => {
           }}
         />
         <h3>ÁUDIO 30s — R$ 5,00</h3>
+        <p style={{ fontSize: "12px", color: "#666" }}>
+          OrderID: {orderIdAudio.substring(0, 15)}...
+        </p>
         <div id="paypal-audio" style={{ marginTop: "20px", minHeight: "60px" }}></div>
         <button 
           style={btn} 
@@ -136,6 +184,9 @@ const Servicos = () => {
           }}
         />
         <h3>VÍDEO 30s — R$ 10,00</h3>
+        <p style={{ fontSize: "12px", color: "#666" }}>
+          OrderID: {orderIdVideo.substring(0, 15)}...
+        </p>
         <div id="paypal-video" style={{ marginTop: "20px", minHeight: "60px" }}></div>
         <button 
           style={btn} 
@@ -143,6 +194,23 @@ const Servicos = () => {
         >
           Pagar com PayPal, Cartão ou Pix
         </button>
+      </div>
+      
+      <div style={{ 
+        marginTop: "30px", 
+        padding: "15px", 
+        background: "#e8f4fd", 
+        borderRadius: "10px",
+        fontSize: "14px"
+      }}>
+        <p><strong>💡 Como funciona agora:</strong></p>
+        <ol style={{ textAlign: "left", marginLeft: "20px" }}>
+          <li>Cada pedido gera um ID único</li>
+          <li>PayPal guarda esse ID</li>
+          <li>Quando pagar, o webhook recebe o ID</li>
+          <li>Sistema encontra seu pedido pelo ID</li>
+          <li>Tudo sincronizado! 🎯</li>
+        </ol>
       </div>
     </div>
   );
