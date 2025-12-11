@@ -26,16 +26,16 @@ module.exports = async function handler(req, res) {
     
     if (isPayPal) {
       console.log('💰 PAYPAL DETECTADO!');
-      // Seu código PayPal aqui (não mude)
+      
+      // CÓDIGO DO PAYPAL (mantenha o SEU código atual aqui)
+      // NÃO MEXA NESTA PARTE SE JÁ ESTIVER FUNCIONANDO
+      
       return res.status(200).json({ status: 'RECEIVED' });
       
     } else {
+      // FRONTEND APÓS PAGAMENTO (dados simples)
       console.log('🔄 FRONTEND DETECTADO (após pagamento)');
       
-      // 🎯 LOG COMPLETO PARA DEBUG
-      console.log('📦 TODOS OS DADOS RECEBIDOS:', JSON.stringify(req.body, null, 2));
-      
-      // 🎯 PEGA OS CAMPOS BÁSICOS
       const { tipo, orderID, status } = req.body;
       
       // VALIDAÇÃO SIMPLES
@@ -49,7 +49,7 @@ module.exports = async function handler(req, res) {
       
       console.log(`✅ Pagamento confirmado: ${orderID} - ${tipo}`);
       
-      // 🎯 DADOS BÁSICOS (MANTÉM ESTRUTURA ORIGINAL)
+      // SALVAR NO BANCO
       const dadosParaSalvar = {
         tipo: tipo,
         order_id: orderID,
@@ -58,52 +58,6 @@ module.exports = async function handler(req, res) {
         enviado: false
       };
       
-      // 🎯 DADOS DO DESTINATÁRIO (FORMULÁRIO)
-      if (req.body.destinatario) {
-        dadosParaSalvar.destinatario = req.body.destinatario;
-        console.log('👤 Destinatário recebido:', req.body.destinatario);
-      }
-      
-      if (req.body.telefone) {
-        dadosParaSalvar.telefone = req.body.telefone.replace(/\D/g, '');
-        console.log('📞 Telefone destinatário:', req.body.telefone);
-      }
-      
-      if (req.body.data) {
-        dadosParaSalvar.data_agendamento = req.body.data;
-        console.log('📅 Data agendamento:', req.body.data);
-      }
-      
-      if (req.body.hora) {
-        dadosParaSalvar.hora_agendamento = req.body.hora;
-        console.log('🕒 Hora agendamento:', req.body.hora);
-      }
-      
-      if (req.body.link_midia) {
-        dadosParaSalvar.link_midia = req.body.link_midia;
-        console.log('🔗 Link mídia:', req.body.link_midia);
-      }
-      
-      // 🎯 NOVO: DADOS DO REMETENTE (CLIENTE)
-      if (req.body.clienteNome) {
-        dadosParaSalvar.remetente_nome = req.body.clienteNome;
-        console.log('👤 Remetente nome:', req.body.clienteNome);
-      }
-      
-      if (req.body.clienteTelefone) {
-        dadosParaSalvar.remetente_telefone = req.body.clienteTelefone.replace(/\D/g, '');
-        console.log('📞 Remetente telefone:', req.body.clienteTelefone);
-      }
-      
-      if (req.body.clienteId) {
-        dadosParaSalvar.cliente_id = req.body.clienteId;
-        console.log('🆔 Cliente ID:', req.body.clienteId);
-      }
-      
-      console.log('💾 DADOS COMPLETOS PARA SALVAR:');
-      console.log(JSON.stringify(dadosParaSalvar, null, 2));
-      
-      // 🎯 SALVAR NO BANCO
       const { data, error } = await supabase
         .from('agendamentos')
         .insert([dadosParaSalvar])
@@ -111,35 +65,26 @@ module.exports = async function handler(req, res) {
       
       if (error) {
         console.error('❌ Erro no banco:', error);
-        console.error('Detalhes:', JSON.stringify(error, null, 2));
         return res.status(500).json({ 
           success: false,
-          error: 'Erro ao salvar no banco' 
+          error: 'Erro ao salvar' 
         });
       }
       
-      console.log('✅ REGISTRO SALVO COM SUCESSO!');
-      console.log('📊 ID:', data[0]?.id);
-      console.log('🆔 Order ID:', data[0]?.order_id);
-      console.log('👤 Remetente:', data[0]?.remetente_nome);
-      console.log('📞 Tel. Remetente:', data[0]?.remetente_telefone);
-      console.log('👥 Destinatário:', data[0]?.destinatario);
-      console.log('📅 Data:', data[0]?.data_agendamento);
+      console.log('✅ Pagamento salvo no banco!');
       
       return res.status(200).json({ 
         success: true, 
-        message: 'Pagamento confirmado e dados salvos!',
-        orderID: orderID,
-        registro: data[0]
+        message: 'Pagamento confirmado!',
+        orderID: orderID
       });
     }
     
   } catch (error) {
     console.error('❌ ERRO GERAL:', error);
-    console.error('Stack:', error.stack);
     return res.status(500).json({ 
       success: false,
-      error: 'Erro interno no servidor' 
+      error: 'Erro interno' 
     });
   }
 };
