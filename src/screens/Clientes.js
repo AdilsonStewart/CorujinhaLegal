@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
 import './Clientes.css';
 
-// 🔧 CONFIGURAÇÃO DO SUPABASE (MESMA DO AUDIORECORDPAGE)
+// 🔧 CONFIGURAÇÃO DO SUPABASE
 const supabaseUrl = 'https://kuwsgvhjmjnhkteleczc.supabase.co';
 const supabaseKey = 'sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P';
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -26,80 +26,118 @@ function Clientes() {
     video: 0
   });
   
-  // Estado para mensagens já canceladas (evitar segundo cancelamento)
+  // Estado para mensagens já canceladas
   const [mensagensCanceladas, setMensagensCanceladas] = useState([]);
 
-  // Função para buscar mensagens do cliente no Supabase
+  // 🔍 FUNÇÃO DE BUSCA SIMPLES E EFETIVA
   const buscarMensagensCliente = async (nomeCliente, telefoneCliente) => {
     setCarregando(true);
     setErro('');
     
     try {
-      console.log(`🔍 Buscando mensagens para cliente: ${nomeCliente} - ${telefoneCliente}`);
+      console.log(`🔍 Buscando para: ${nomeCliente} - ${telefoneCliente}`);
       
       const telefoneLimpo = telefoneCliente.replace(/\D/g, '');
+      const telefoneBusca = telefoneLimpo.length >= 11 ? telefoneLimpo.slice(2) : telefoneLimpo; // Remove 55 se tiver
       
-      // 🚨 IMPORTANTE: Vamos buscar de 3 formas diferentes para garantir
+      console.log('📞 Telefone para busca:', telefoneBusca);
       
-      // 1. PRIMEIRA TENTATIVA: Buscar pelo campo 'cliente_nome' (se existir)
-      let { data: mensagensData, error: mensagensError } = await supabase
+      // 1. PRIMEIRO: Buscar TODOS os registros não enviados
+      const { data: todosRegistros, error: buscaError } = await supabase
         .from('agendamentos')
         .select('*')
-        .or(`cliente_nome.eq.${nomeCliente},remetente.eq.${nomeCliente},nome_cliente.eq.${nomeCliente}`)
-        .eq('telefone_cliente', telefoneLimpo)
-        .eq('status', 'pago')
         .eq('enviado', false)
-        .order('data_agendamento', { ascending: true });
-
-      // 2. SEGUNDA TENTATIVA: Se não encontrou, buscar por telefone apenas
-      if (!mensagensData || mensagensData.length === 0) {
-        console.log('🔍 Tentativa 2: Buscando apenas por telefone...');
-        ({ data: mensagensData, error: mensagensError } = await supabase
-          .from('agendamentos')
-          .select('*')
-          .eq('telefone_cliente', telefoneLimpo)
-          .eq('status', 'pago')
-          .eq('enviado', false)
-          .order('data_agendamento', { ascending: true }));
-      }
-
-      // 3. TERCEIRA TENTATIVA: Buscar todas mensagens pagas não enviadas
-      if (!mensagensData || mensagensData.length === 0) {
-        console.log('🔍 Tentativa 3: Buscando todas mensagens do telefone...');
-        ({ data: mensagensData, error: mensagensError } = await supabase
-          .from('agendamentos')
-          .select('*')
-          .eq('telefone', telefoneLimpo)
-          .eq('status', 'pago')
-          .eq('enviado', false)
-          .order('data_agendamento', { ascending: true }));
-      }
-
-      if (mensagensError) {
-        console.error('❌ Erro ao buscar mensagens:', mensagensError);
-        throw new Error('Erro ao buscar suas mensagens. Tente novamente.');
-      }
-
-      console.log(`✅ ${mensagensData?.length || 0} mensagens encontradas`);
+        .order('criado_em', { ascending: false });
       
-      // Mostrar no console os dados encontrados para debug
-      if (mensagensData && mensagensData.length > 0) {
-        console.log('📋 Dados encontrados:', mensagensData);
+      if (buscaError) {
+        console.error('❌ Erro na busca:', buscaError);
+        throw new Error('Erro ao acessar o banco de dados');
       }
       
-      // 4. Buscar créditos do cliente
-      const creditosIniciais = {
-        audio: 0,
-        video: 0
-      };
+      console.log(`📦 Total de registros não enviados: ${todosRegistros?.length || 0}`);
       
-      // 5. Atualizar estados
-      setMensagens(mensagensData || []);
-      setCreditos(creditosIniciais);
+      // 2. FILTRAR os que pertencem a este cliente
+      const mensagensDoCliente = [];
+      
+      if (todosRegistros && todosRegistros.length > 0) {
+        todosRegistros.forEach(registro => {
+          try {
+            // Verificar se dados_completos existe e extrair
+            let dadosCliente = {};
+            
+            if (registro.dados_completos) {
+              // Tentar parsear se for string, ou usar diretamente se for objeto
+              if (typeof registro.dados_completos === 'string') {
+                dadosCliente = JSON.parse(registro.dados_completos);
+              } else {
+                dadosCliente = registro.dados_completos;
+              }
+            }
+            
+            console.log('📄 Dados extraídos do registro:', dadosCliente);
+            
+            // Verificar se é do cliente atual
+            const telefoneRegistro = dadosCliente.telefone || '';
+            const nomeRegistro = dadosCliente.destinatario || dadosCliente.nome || '';
+            
+            const telefoneLimpoRegistro = telefoneRegistro.replace(/\D/g, '');
+            const telefoneRegistroBusca = telefoneLimpoRegistro.length >= 11 ? 
+              telefoneLimpoRegistro.slice(2) : telefoneLimpoRegistro;
+            
+            console.log('🔍 Comparando:', {
+              telefoneCliente: telefoneBusca,
+              telefoneRegistro: telefoneRegistroBusca,
+              nomeCliente: nomeCliente.toLowerCase(),
+              nomeRegistro: nomeRegistro.toLowerCase()
+            });
+            
+            // Critério de busca: telefone OU nome correspondente
+            const telefoneCorresponde = telefoneRegistroBusca && 
+              telefoneRegistroBusca.includes(telefoneBusca);
+            
+            const nomeCorresponde = nomeRegistro && 
+              nomeRegistro.toLowerCase().includes(nomeCliente.toLowerCase());
+            
+            if (telefoneCorresponde || nomeCorresponde) {
+              // Formatar mensagem para exibição
+              const mensagemFormatada = {
+                id: registro.id,
+                tipo: dadosCliente.tipo || 'audio',
+                order_id: dadosCliente.order_id || dadosCliente.orderID || 'N/A',
+                status: 'pago',
+                destinatario: nomeRegistro || 'Não informado',
+                telefone: telefoneRegistro,
+                data_agendamento: registro.data_agendamento || dadosCliente.data_agendamento,
+                hora_agendamento: registro.hora_agendamento || dadosCliente.hora_agendamento,
+                link_midia: registro.link_midia || dadosCliente.link_midia,
+                enviado: registro.enviado,
+                // Para debug
+                _dadosOriginais: registro
+              };
+              
+              mensagensDoCliente.push(mensagemFormatada);
+              console.log('✅ Mensagem adicionada:', mensagemFormatada);
+            }
+            
+          } catch (erroProcessamento) {
+            console.error('❌ Erro ao processar registro:', registro.id, erroProcessamento);
+          }
+        });
+      }
+      
+      console.log(`🎯 Mensagens encontradas: ${mensagensDoCliente.length}`);
+      
+      // 3. Atualizar estado
+      setMensagens(mensagensDoCliente);
+      
+      // 4. Mostrar resultado
+      if (mensagensDoCliente.length === 0) {
+        setErro('Nenhuma mensagem encontrada. Verifique nome/telefone.');
+      }
       
     } catch (error) {
-      console.error('❌ Erro no processo:', error);
-      setErro('Erro ao buscar mensagens. Verifique seu nome e telefone.');
+      console.error('❌ Erro geral:', error);
+      setErro('Erro ao buscar. Tente novamente.');
     } finally {
       setCarregando(false);
     }
@@ -109,13 +147,12 @@ function Clientes() {
   const fazerLoginCliente = (e) => {
     e.preventDefault();
     
-    // Validação básica
+    // Validação
     if (!nome.trim() || !telefone.trim()) {
       setErro('Por favor, preencha seu nome e telefone');
       return;
     }
     
-    // Validar telefone (mínimo 10 dígitos)
     const telefoneLimpo = telefone.replace(/\D/g, '');
     if (telefoneLimpo.length < 10) {
       setErro('Digite um telefone válido com DDD (ex: 11999998888)');
@@ -127,76 +164,70 @@ function Clientes() {
     buscarMensagensCliente(nome, telefone);
   };
 
-  // Função para cancelar envio de mensagem e dar crédito
-  const cancelarEnvio = async (mensagemId, orderId, tipo) => {
-    // Verificar se já cancelou esta mensagem antes
+  // Função para cancelar envio de mensagem
+  const cancelarEnvio = async (mensagemId, tipo) => {
     if (mensagensCanceladas.includes(mensagemId)) {
-      alert('❌ ATENÇÃO!\n\nEsta mensagem já foi cancelada anteriormente.\nPor razões técnicas, não é possível cancelar a mesma mensagem duas vezes.');
+      alert('Esta mensagem já foi cancelada anteriormente.');
       return;
     }
     
-    if (!window.confirm('Tem certeza que deseja cancelar este envio?\n\n✅ Você receberá 1 crédito de ' + (tipo === 'audio' ? 'ÁUDIO' : 'VÍDEO') + ' para usar em outra mensagem.')) {
+    if (!window.confirm('Tem certeza que deseja cancelar este envio?\n\nVocê receberá 1 crédito de ' + (tipo === 'audio' ? 'ÁUDIO' : 'VÍDEO'))) {
       return;
     }
     
     try {
-      // 1. Atualizar créditos localmente (dá 1 crédito do tipo cancelado)
+      // Atualizar créditos
       setCreditos(prev => ({
         ...prev,
         [tipo]: prev[tipo] + 1
       }));
       
-      // 2. Marcar mensagem como cancelada no estado
+      // Remover da lista
       setMensagens(prev => prev.filter(m => m.id !== mensagemId));
       setMensagensCanceladas(prev => [...prev, mensagemId]);
       
-      // 3. Atualizar no Supabase (marcar como cancelado)
+      // Marcar como enviado no banco (para não aparecer mais)
       const { error } = await supabase
         .from('agendamentos')
-        .update({ 
-          status: 'cancelado',
-          enviado: true
-        })
+        .update({ enviado: true })
         .eq('id', mensagemId);
 
       if (error) {
-        console.error('❌ Erro ao atualizar no banco:', error);
-        alert('Mensagem cancelada, mas houve um erro ao atualizar o banco.');
+        console.error('Erro ao atualizar:', error);
       }
       
-      alert('✅ Envio cancelado com sucesso!\n\n🎉 1 crédito de ' + (tipo === 'audio' ? 'ÁUDIO' : 'VÍDEO') + ' foi adicionado à sua conta!');
+      alert('✅ Envio cancelado! Crédito adicionado.');
       
     } catch (error) {
-      console.error('❌ Erro ao cancelar:', error);
-      alert('Erro ao cancelar o envio. Tente novamente.');
+      console.error('Erro:', error);
+      alert('Erro ao cancelar.');
     }
   };
 
-  // Função para criar nova mensagem usando crédito (vai DIRETO para gravação)
+  // Função para criar nova mensagem usando crédito
   const criarNovaMensagemComCredito = (tipo) => {
     if (creditos[tipo] <= 0) {
-      alert(`❌ Você não tem créditos de ${tipo === 'audio' ? 'ÁUDIO' : 'VÍDEO'} disponíveis.`);
+      alert(`Você não tem créditos de ${tipo === 'audio' ? 'ÁUDIO' : 'VÍDEO'}.`);
       return;
     }
     
-    // Confirmar com o cliente
-    if (!window.confirm(`Usar 1 crédito de ${tipo === 'audio' ? 'ÁUDIO' : 'VÍDEO'} para criar uma nova mensagem?`)) {
+    if (!window.confirm(`Usar 1 crédito de ${tipo === 'audio' ? 'ÁUDIO' : 'VÍDEO'}?`)) {
       return;
     }
     
-    // Reduzir crédito localmente
+    // Reduzir crédito
     setCreditos(prev => ({
       ...prev,
       [tipo]: prev[tipo] - 1
     }));
     
-    // Salvar dados do cliente para usar na gravação
+    // Salvar dados do cliente
     localStorage.setItem('clienteNome', clienteNome);
     localStorage.setItem('clienteTelefone', telefone);
     localStorage.setItem('usandoCredito', 'true');
     localStorage.setItem('tipoCredito', tipo);
     
-    // Navegar DIRETO para gravação
+    // Ir para gravação
     navigate(tipo === 'audio' ? '/audiorecord' : '/videorecord');
   };
 
@@ -210,55 +241,59 @@ function Clientes() {
     setMensagensCanceladas([]);
     setErro('');
     
-    // Limpar dados do localStorage
     localStorage.removeItem('clienteNome');
     localStorage.removeItem('clienteTelefone');
     localStorage.removeItem('usandoCredito');
     localStorage.removeItem('tipoCredito');
   };
 
-  // Formatar data para exibição
+  // Formatar data
   const formatarData = (dataString) => {
     if (!dataString) return 'Data não definida';
     try {
       const data = new Date(dataString);
       return data.toLocaleDateString('pt-BR');
-    } catch (e) {
-      return dataString; // Retorna a string original se não conseguir formatar
+    } catch {
+      return dataString;
     }
   };
 
-  // Função para ver estrutura da tabela (debug - opcional)
-  const verEstruturaTabela = async () => {
-    if (!clienteLogado) return;
-    
+  // BOTÃO DE DEBUG - PARA VER O QUE TEM NO BANCO
+  const verDadosBanco = async () => {
     try {
-      // Busca apenas 1 registro para ver os campos
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('agendamentos')
         .select('*')
-        .limit(1);
+        .limit(5);
       
-      if (data && data.length > 0) {
-        console.log('🔍 ESTRUTURA DA TABELA (primeiro registro):', data[0]);
-        alert('Estrutura da tabela logada no console (F12 para ver)');
+      if (data) {
+        console.log('=== DADOS REAIS NO BANCO ===');
+        data.forEach(item => {
+          console.log('ID:', item.id);
+          console.log('Data:', item.data_agendamento);
+          console.log('Hora:', item.hora_agendamento);
+          console.log('Dados completos:', item.dados_completos);
+          console.log('Enviado:', item.enviado);
+          console.log('---');
+        });
+        alert('Dados logados no console (F12)');
       }
     } catch (error) {
-      console.error('Erro ao ver estrutura:', error);
+      console.error('Erro debug:', error);
     }
   };
 
   return (
     <div className="clientes-container">
       <header className="clientes-header">
-        <h1>🦉 Área do Cliente CorujinhaLegal</h1>
+        <h1>🦉 Área do Cliente</h1>
         {clienteLogado && (
           <div className="header-botoes">
-            <button className="debug-btn" onClick={verEstruturaTabela} title="Ver estrutura da tabela">
-              🔍 Debug
+            <button className="btn-debug" onClick={verDadosBanco}>
+              🔍 Ver Banco
             </button>
             <button className="logout-btn" onClick={fazerLogout}>
-              Sair da Conta
+              Sair
             </button>
           </div>
         )}
@@ -266,10 +301,10 @@ function Clientes() {
 
       <main className="clientes-main">
         {!clienteLogado ? (
-          // TELA DE LOGIN DO CLIENTE
+          // TELA DE LOGIN
           <div className="login-section">
             <h2>👋 Acesse Suas Mensagens</h2>
-            <p className="subtitulo">Digite seu nome e telefone para ver seus agendamentos</p>
+            <p>Digite seu nome e telefone usados no cadastro</p>
             
             <form onSubmit={fazerLoginCliente} className="login-form">
               <div className="form-group">
@@ -290,220 +325,120 @@ function Clientes() {
                   type="tel"
                   value={telefone}
                   onChange={(e) => setTelefone(e.target.value)}
-                  placeholder="Ex: 11999998888"
+                  placeholder="11999998888"
                   required
                   className="form-input"
                 />
-                <small className="dica">Somente números, com DDD</small>
               </div>
               
               {erro && <div className="erro-mensagem">{erro}</div>}
               
               <button type="submit" className="btn-primary" disabled={carregando}>
-                {carregando ? '🔍 Buscando seus dados...' : '📱 Entrar na Minha Conta'}
+                {carregando ? 'Buscando...' : 'Acessar Minhas Mensagens'}
               </button>
               
               <div className="dica-login">
-                <p><strong>Dica:</strong> Use o mesmo nome e telefone que cadastrou ao pagar.</p>
+                <p><strong>Dica:</strong> Use os mesmos dados do pagamento</p>
               </div>
             </form>
-            
-            <div className="info-box">
-              <p>ℹ️ <strong>Como funciona?</strong></p>
-              <p>Digite o mesmo nome e telefone que usou ao criar suas mensagens.</p>
-              <p>Você verá todas as suas mensagens agendadas e poderá gerenciá-las.</p>
-            </div>
           </div>
         ) : (
           // TELA DO CLIENTE LOGADO
           <div className="cliente-logado">
             <div className="saudacao">
               <h2>👋 Olá, {clienteNome}!</h2>
-              <p className="boas-vindas">Que bom te ter aqui, ficamos felizes com seu retorno! 🎉</p>
-              
-              <div className="status-info">
-                {carregando ? (
-                  <span className="status-carregando">🔄 Buscando suas mensagens...</span>
-                ) : mensagens.length > 0 ? (
-                  <span className="status-sucesso">✅ Encontramos {mensagens.length} mensagem(ns) agendada(s)</span>
-                ) : (
-                  <span className="status-vazio">📭 Nenhuma mensagem agendada encontrada</span>
-                )}
-              </div>
-            </div>
-            
-            {/* SEÇÃO DE CRÉDITOS */}
-            <div className="creditos-container">
-              <h3>💰 Seus Créditos Disponíveis</h3>
-              <div className="creditos-cards">
-                <div className={`credito-card ${creditos.audio > 0 ? 'disponivel' : 'indisponivel'}`}>
-                  <div className="credito-icon">🎵</div>
-                  <div className="credito-info">
-                    <span className="credito-tipo">Áudios</span>
-                    <span className="credito-quantidade">{creditos.audio}</span>
-                  </div>
-                  <div className="credito-legenda">Créditos</div>
-                </div>
-                
-                <div className={`credito-card ${creditos.video > 0 ? 'disponivel' : 'indisponivel'}`}>
-                  <div className="credito-icon">🎬</div>
-                  <div className="credito-info">
-                    <span className="credito-tipo">Vídeos</span>
-                    <span className="credito-quantidade">{creditos.video}</span>
-                  </div>
-                  <div className="credito-legenda">Créditos</div>
-                </div>
-              </div>
-              
-              {(creditos.audio > 0 || creditos.video > 0) ? (
-                <div className="usar-creditos">
-                  <p className="instrucao">💡 <strong>Usar crédito para criar mensagem:</strong></p>
-                  <div className="credito-botoes">
-                    {creditos.audio > 0 && (
-                      <button 
-                        className="btn-credito audio"
-                        onClick={() => criarNovaMensagemComCredito('audio')}
-                      >
-                        🎵 Usar Crédito de Áudio
-                      </button>
-                    )}
-                    {creditos.video > 0 && (
-                      <button 
-                        className="btn-credito video"
-                        onClick={() => criarNovaMensagemComCredito('video')}
-                      >
-                        🎬 Usar Crédito de Vídeo
-                      </button>
-                    )}
-                  </div>
-                  <small className="dica-credito">Usando crédito, você vai DIRETO para gravação!</small>
-                </div>
+              {carregando ? (
+                <p>🔄 Buscando suas mensagens...</p>
+              ) : mensagens.length > 0 ? (
+                <p className="status-sucesso">✅ {mensagens.length} mensagem(ns) encontrada(s)</p>
               ) : (
-                <div className="sem-creditos">
-                  <p className="instrucao">💡 <strong>Como conseguir créditos?</strong></p>
-                  <p>Cancele uma mensagem agendada e você ganha 1 crédito do mesmo tipo!</p>
-                </div>
+                <p className="status-vazio">📭 Nenhuma mensagem encontrada</p>
               )}
             </div>
             
-            {/* SEÇÃO DE MENSAGENS AGENDADAS */}
+            {/* CRÉDITOS */}
+            <div className="creditos-container">
+              <h3>💰 Seus Créditos</h3>
+              <div className="creditos-cards">
+                <div className={`credito-card ${creditos.audio > 0 ? 'disponivel' : 'indisponivel'}`}>
+                  <div className="credito-icon">🎵</div>
+                  <span className="credito-tipo">Áudios</span>
+                  <span className="credito-quantidade">{creditos.audio}</span>
+                </div>
+                <div className={`credito-card ${creditos.video > 0 ? 'disponivel' : 'indisponivel'}`}>
+                  <div className="credito-icon">🎬</div>
+                  <span className="credito-tipo">Vídeos</span>
+                  <span className="credito-quantidade">{creditos.video}</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* MENSAGENS */}
             <div className="mensagens-section">
               {carregando ? (
                 <div className="carregando">
-                  <div className="spinner"></div>
-                  <p>Buscando suas mensagens no banco de dados...</p>
-                  <small>Aguarde, isso pode levar alguns segundos.</small>
+                  <p>Buscando no banco de dados...</p>
                 </div>
               ) : mensagens.length === 0 ? (
                 <div className="nenhuma-mensagem">
-                  <div className="icon-vazio">📭</div>
-                  <h3>Nenhuma mensagem pendente encontrada</h3>
-                  <p>Possíveis motivos:</p>
-                  <ul className="lista-motivos">
-                    <li>📝 Usou nome ou telefone diferente do cadastro</li>
-                    <li>⏳ A mensagem já foi enviada (campo "enviado" = true)</li>
-                    <li>💰 Pagamento ainda não foi processado (status ≠ "pago")</li>
-                    <li>🗄️ Os dados estão em campos diferentes no banco</li>
-                  </ul>
-                  
-                  <div className="acoes-vazio">
-                    <button 
-                      className="btn-voltar"
-                      onClick={() => setClienteLogado(false)}
-                    >
-                      ↻ Tentar com outros dados
-                    </button>
-                    
-                    <p className="aviso-compra">
-                      <strong>Para criar uma nova mensagem:</strong><br/>
-                      Volte para a página inicial e clique em "Criar Meu Lembrete"
-                    </p>
-                  </div>
+                  <p>📭 Nenhuma mensagem encontrada</p>
+                  <button className="btn-voltar" onClick={fazerLogout}>
+                    ↻ Tentar outros dados
+                  </button>
                 </div>
               ) : (
                 <div className="mensagens-lista">
                   <h3>📋 Suas Mensagens Agendadas</h3>
-                  <p className="subtitulo-lista">Você tem {mensagens.length} mensagem(ns) agendada(s)</p>
                   
                   {mensagens.map((msg) => (
                     <div key={msg.id} className="mensagem-card">
                       <div className="mensagem-header">
                         <span className={`tipo-badge ${msg.tipo}`}>
-                          {msg.tipo === 'audio' ? '🎵 Mensagem de Áudio' : '🎬 Mensagem de Vídeo'}
+                          {msg.tipo === 'audio' ? '🎵 Áudio' : '🎬 Vídeo'}
                         </span>
-                        <span className="status-badge agendado">
-                          Agendado para {formatarData(msg.data_agendamento)}
+                        <span className="status-badge">
+                          {formatarData(msg.data_agendamento)} - {msg.hora_agendamento}
                         </span>
                       </div>
                       
                       <div className="mensagem-info">
-                        <div className="info-item">
-                          <span className="info-label">Para:</span>
-                          <span className="info-valor">{msg.destinatario || 'Não informado'}</span>
-                        </div>
-                        <div className="info-item">
-                          <span className="info-label">Data de envio:</span>
-                          <span className="info-valor">{formatarData(msg.data_agendamento)}</span>
-                        </div>
-                        <div className="info-item">
-                          <span className="info-label">Horário:</span>
-                          <span className="info-valor">{msg.hora_agendamento || 'Não definido'}</span>
-                        </div>
-                        <div className="info-item">
-                          <span className="info-label">Tipo:</span>
-                          <span className="info-valor">{msg.tipo === 'audio' ? 'Áudio' : 'Vídeo'}</span>
-                        </div>
-                        {msg.order_id && (
-                          <div className="info-item">
-                            <span className="info-label">ID do Pedido:</span>
-                            <span className="info-valor codigo">{msg.order_id}</span>
-                          </div>
-                        )}
+                        <p><strong>Para:</strong> {msg.destinatario}</p>
+                        <p><strong>Telefone:</strong> {msg.telefone}</p>
+                        <p><strong>ID:</strong> {msg.order_id}</p>
                       </div>
                       
                       <div className="mensagem-acoes">
                         <button 
                           className="btn-cancelar"
-                          onClick={() => cancelarEnvio(msg.id, msg.order_id, msg.tipo)}
+                          onClick={() => cancelarEnvio(msg.id, msg.tipo)}
                           disabled={mensagensCanceladas.includes(msg.id)}
                         >
-                          {mensagensCanceladas.includes(msg.id) ? '❌ Já Cancelado' : '❌ Cancelar Envio'}
+                          {mensagensCanceladas.includes(msg.id) ? '❌ Já Cancelado' : '❌ Cancelar'}
                         </button>
-                        
-                        <div className="aviso-container">
-                          <p className="aviso-credito">
-                            💡 Ao cancelar: <strong>Recebe 1 crédito de {msg.tipo === 'audio' ? 'ÁUDIO' : 'VÍDEO'}</strong>
-                          </p>
-                          <p className="aviso-tecnico">
-                            ⚠️ Por razões técnicas: <strong>NÃO É POSSÍVEL fazer SEGUNDO CANCELAMENTO</strong> da mesma mensagem.
-                          </p>
-                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
+            
+            {/* BOTÃO PARA CRIAR NOVA */}
+            <div className="nova-mensagem-section">
+              <button 
+                className="btn-nova-mensagem"
+                onClick={() => navigate('/servicos')}
+              >
+                🎁 Criar Nova Mensagem
+              </button>
+            </div>
           </div>
         )}
       </main>
 
       <footer className="clientes-footer">
-        <p>🦉 CorujinhaLegal - Suas mensagens com carinho 💌</p>
-        <div className="footer-botoes">
-          <button 
-            className="btn-voltar"
-            onClick={() => navigate('/')}
-          >
-            ← Voltar para Home
-          </button>
-          <button 
-            className="btn-suporte"
-            onClick={() => alert('Entre em contato pelo WhatsApp: (11) 99999-8888')}
-          >
-            💬 Precisa de Ajuda?
-          </button>
-        </div>
+        <button className="btn-voltar" onClick={() => navigate('/')}>
+          ← Voltar para Home
+        </button>
       </footer>
     </div>
   );
