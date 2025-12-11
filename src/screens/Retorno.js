@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
 
-// 🔧 CONFIGURAÇÃO DO SUPABASE
+// CONEXÃO COM SUPABASE
 const supabaseUrl = 'https://kuwsgvhjmjnhkteleczc.supabase.co';
 const supabaseKey = 'sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P';
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -10,239 +10,97 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const Retorno = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-useEffect(() => {
-  // 🔍 PRIMEIRO: Ver o que já tem na tabela
-  verEstruturaTabela();
-  
-  // ... resto do seu código
-}, [searchParams, navigate]);
+
   useEffect(() => {
     const processarPagamento = async () => {
-      // 1. PEGAR DADOS DA URL
-      const tipo = searchParams.get('tipo'); // 'audio' ou 'video'
-      const status = searchParams.get('status'); // 'success' ou 'cancel'
-      const orderID = searchParams.get('orderID'); // 'AUDIO-123...' ou 'VIDEO-123...'
-      const paypalOrderID = searchParams.get('paypalOrderID'); // ID do PayPal
+      // PEGA DADOS DA URL DO PAYPAL
+      const tipo = searchParams.get('tipo');
+      const status = searchParams.get('status');
+      const orderID = searchParams.get('orderID');
+      const paypalOrderID = searchParams.get('paypalOrderID');
 
-      console.log('🔗 Retorno do PayPal:', { tipo, status, orderID, paypalOrderID });
-
-      // 2. VALIDAÇÃO BÁSICA
-      if (!tipo || !status || !orderID) {
-        console.error('❌ URL incompleta. Parâmetros faltando.');
-        navigate('/servicos');
-        return;
-      }
-
-      // 3. SE CANCELADO
+      // SE CANCELOU, VOLTA
       if (status === 'cancel') {
-        alert('Pagamento cancelado. Você pode tentar novamente.');
+        alert('Pagamento cancelado');
         navigate('/servicos');
         return;
       }
 
-      // 4. SE APROVADO
+      // SE PAGOU, CONTINUA
       if (status === 'success') {
-        console.log(`✅ Pagamento ${tipo.toUpperCase()} aprovado!`);
         
-        // 5. BUSCAR DADOS DO CLIENTE DO LOCALSTORAGE
-        const clienteNome = localStorage.getItem('clienteNome') || 'Cliente não identificado';
-        const clienteTelefone = localStorage.getItem('clienteTelefone') || 'Não informado';
-
-        console.log('👤 Dados do cliente:', {
+        // BUSCA DADOS DO CLIENTE (do cadastro)
+        const clienteNome = localStorage.getItem('clienteNome') || '';
+        const clienteTelefone = localStorage.getItem('clienteTelefone') || '';
+        
+        console.log('💾 SALVANDO NO BANCO:', {
           nome: clienteNome,
-          telefone: clienteTelefone
+          telefone: clienteTelefone,
+          tipo: tipo,
+          orderID: orderID
         });
 
-        // 6. SALVAR NO SUPABASE - FORMA SUPER SIMPLES
-try {
-  console.log('💾 Salvando no Supabase...');
-  
-  // Dados MÍNIMOS que vão funcionar
-  const dadosSimples = {
-    data_agendamento: new Date().toISOString().split('T')[0], // Data de hoje
-    hora_agendamento: '12:00:00', // Hora padrão
-    criado_em: new Date().toISOString(),
-    enviado: false,
-    
-    // ⭐⭐ DADOS DO CLIENTE AQUI DENTRO ⭐⭐
-    dados_completos: {
-      // Identificação do cliente (CRÍTICO)
-      remetente: clienteNome,
-      telefone_remetente: clienteTelefone.replace(/\D/g, ''),
-      cliente_nome: clienteNome,
-      cliente_telefone: clienteTelefone.replace(/\D/g, ''),
-      
-      // Dados do pagamento
-      tipo: tipo,
-      order_id: orderID,
-      paypal_order_id: paypalOrderID || '',
-      status: 'pago',
-      valor: tipo === 'audio' ? 5.00 : 10.00,
-      
-      // Para compatibilidade
-      destinatario: clienteNome,
-      telefone: clienteTelefone
-    }
-  };
+        // ⭐⭐ SALVA NO SUPABASE ⭐⭐
+        try {
+          // PREPARA DADOS
+          const dadosParaSalvar = {
+            data_agendamento: new Date().toISOString().split('T')[0],
+            hora_agendamento: '12:00:00',
+            criado_em: new Date().toISOString(),
+            enviado: false,
+            dados_completos: {
+              // ⭐ DADOS DO CLIENTE (para a área "Sou Cliente" encontrar depois)
+              remetente: clienteNome,
+              telefone_remetente: clienteTelefone,
+              cliente_nome: clienteNome,
+              cliente_telefone: clienteTelefone,
+              // Dados do pedido
+              tipo: tipo,
+              order_id: orderID,
+              status: 'pago',
+              valor: tipo === 'audio' ? 5.00 : 10.00
+            },
+            evento_paypal: `PAYMENT_${orderID}`,
+            valor: tipo === 'audio' ? 5.00 : 10.00
+          };
 
-  console.log('📤 Salvando dados:', dadosSimples);
-
-  const { data, error } = await supabase
-    .from('agendamentos')
-    .insert([dadosSimples]);
-
-  if (error) {
-    console.error('❌ Erro ao salvar:', error);
-    
-    // Tentativa MAIS SIMPLES AINDA
-    console.log('🔄 Tentando forma ultra simples...');
-    
-    const dadosUltraSimples = {
-      data_agendamento: new Date().toISOString().split('T')[0],
-      hora_agendamento: '12:00:00',
-      criado_em: new Date().toISOString(),
-      enviado: false,
-      dados_completos: JSON.stringify({
-        remetente: clienteNome,
-        telefone: clienteTelefone,
-        tipo: tipo
-      })
-    };
-    
-    const { data: data2, error: error2 } = await supabase
-      .from('agendamentos')
-      .insert([dadosUltraSimples]);
-      
-    if (error2) {
-      console.error('❌ Erro na forma simples:', error2);
-    } else {
-      console.log('✅ Salvo (forma simples) ID:', data2?.[0]?.id);
-    }
-    
-  } else {
-    console.log('✅ Salvo com sucesso! ID:', data?.[0]?.id);
-  }
-
-} catch (error) {
-  console.error('❌ Erro geral:', error);
-}
-// 🔍 FUNÇÃO PARA VER EXATAMENTE O QUE TEM NA TABELA
-const verEstruturaTabela = async () => {
-  console.log('🔍 VERIFICANDO ESTRUTURA DA TABELA...');
-  
-  try {
-    // Ver a estrutura (colunas) da tabela
-    const { data: estrutura, error: errEstrutura } = await supabase
-      .from('agendamentos')
-      .select('*')
-      .limit(1);
-    
-    if (estrutura && estrutura.length > 0) {
-      console.log('📋 ESTRUTURA DO PRIMEIRO REGISTRO:');
-      console.log('Campos existentes:', Object.keys(estrutura[0]));
-      console.log('Primeiro registro:', estrutura[0]);
-    }
-    
-    // Ver TODOS os registros
-    const { data: todos, error: errTodos } = await supabase
-      .from('agendamentos')
-      .select('*');
-    
-    if (todos) {
-      console.log(`📊 TOTAL DE REGISTROS: ${todos.length}`);
-      todos.forEach(reg => {
-        console.log(`\n📌 ID ${reg.id}:`, {
-          data_agendamento: reg.data_agendamento,
-          hora_agendamento: reg.hora_agendamento,
-          dados_completos: reg.dados_completos,
-          enviado: reg.enviado
-        });
-      });
-    }
-    
-  } catch (error) {
-    console.error('❌ Erro ao ver estrutura:', error);
-  }
-};
-          console.log('📤 Dados a serem salvos:', dadosParaSalvar);
-
-          // SALVAR NO BANCO DE DADOS
-          const { data, error } = await supabase
+          // ENVIA PARA O BANCO
+          const { error } = await supabase
             .from('agendamentos')
             .insert([dadosParaSalvar]);
 
           if (error) {
-            console.error('❌ Erro ao salvar no Supabase:', error);
-            
-            // Tentativa alternativa: salvar sem campos problemáticos
-            console.log('🔄 Tentando salvar forma alternativa...');
-            
-            const dadosAlternativos = {
-              data_agendamento: dataFormatada,
-              hora_agendamento: '12:00:00',
-              criado_em: new Date().toISOString(),
-              enviado: false,
-              dados_completos: {
-                tipo: tipo,
-                order_id: orderID,
-                cliente_nome: clienteNome,
-                cliente_telefone: clienteTelefone.replace(/\D/g, ''),
-                status: 'pago'
-              }
-            };
-            
-            const { data: altData, error: altError } = await supabase
-              .from('agendamentos')
-              .insert([dadosAlternativos]);
-              
-            if (altError) {
-              console.error('❌ Erro na tentativa alternativa:', altError);
-              alert('Pagamento aprovado! Mas não foi possível salvar todos os dados.');
-            } else {
-              console.log('✅ Dados salvos (forma alternativa) com ID:', altData?.[0]?.id);
-            }
-            
+            console.error('Erro ao salvar:', error);
           } else {
-            console.log('✅ Dados salvos no Supabase com ID:', data?.[0]?.id);
+            console.log('✅ Dados salvos no banco!');
           }
 
-        } catch (error) {
-          console.error('❌ Erro geral ao salvar:', error);
-          // Continua mesmo com erro
+        } catch (erro) {
+          console.error('Erro geral:', erro);
         }
 
-        // 7. SALVAR NO LOCALSTORAGE TAMBÉM
-        const dadosPagamento = {
+        // SALVA NO LOCALSTORAGE TAMBÉM
+        localStorage.setItem('dadosPagamento', JSON.stringify({
           tipo: tipo,
           orderID: orderID,
-          paypalOrderID: paypalOrderID,
           clienteNome: clienteNome,
-          clienteTelefone: clienteTelefone,
-          dataPagamento: new Date().toISOString(),
-          valor: tipo === 'audio' ? 5.00 : 10.00
-        };
-        
-        localStorage.setItem('dadosPagamento', JSON.stringify(dadosPagamento));
-        console.log('💾 Dados salvos no localStorage:', dadosPagamento);
+          clienteTelefone: clienteTelefone
+        }));
 
-        // 8. REDIRECIONAR PARA GRAVAÇÃO
+        // REDIRECIONA PARA GRAVAR
         setTimeout(() => {
           if (tipo === 'audio') {
-            console.log('🎤 Redirecionando para AudioRecordPage...');
             navigate(`/audiorecord?orderID=${orderID}`);
-          } 
-          else if (tipo === 'video') {
-            console.log('🎥 Redirecionando para VideoRecordPage...');
+          } else {
             navigate(`/videorecord?orderID=${orderID}`);
           }
-        }, 2000);
-        
+        }, 1500);
+
         return;
       }
 
-      // 9. SE STATUS DESCONHECIDO
-      console.error('❌ Status desconhecido:', status);
-      alert('Status de pagamento não reconhecido.');
+      // SE DEU ERRADO
+      alert('Erro no pagamento');
       navigate('/servicos');
     };
 
@@ -255,43 +113,19 @@ const verEstruturaTabela = async () => {
       textAlign: 'center',
       padding: '100px 20px',
       maxWidth: '600px',
-      margin: '0 auto',
-      fontFamily: 'Arial, sans-serif'
+      margin: '0 auto'
     }}>
-      <div style={{
-        fontSize: '60px',
-        marginBottom: '20px',
-        color: '#28a745'
-      }}>
-        ✅
-      </div>
-      <h1 style={{ color: '#28a745' }}>
-        Pagamento Confirmado!
-      </h1>
-      <p style={{ fontSize: '18px', marginTop: '10px' }}>
-        Salvando seus dados no sistema...
-      </p>
-      
+      <div style={{ fontSize: '60px', color: 'green' }}>✅</div>
+      <h1>Pagamento Confirmado!</h1>
+      <p>Salvando seus dados...</p>
       <div style={{
         marginTop: '30px',
         padding: '15px',
-        backgroundColor: '#f8f9fa',
-        borderRadius: '8px',
-        fontSize: '14px',
-        color: '#666'
+        backgroundColor: '#f5f5f5',
+        borderRadius: '8px'
       }}>
-        <p>📱 <strong>Processando seu pedido</strong></p>
-        <p>• Verificando pagamento ✅</p>
-        <p>• Salvando seus dados no banco... ⏳</p>
-        <p>• Preparando gravação...</p>
-      </div>
-      
-      <div style={{
-        marginTop: '20px',
-        fontSize: '12px',
-        color: '#888'
-      }}>
-        <p>🦉 <em>Em instantes você será redirecionado para gravar</em></p>
+        <p>🦉 <strong>Processando seu pedido</strong></p>
+        <p>• Salvando seus dados no sistema...</p>
       </div>
     </div>
   );
