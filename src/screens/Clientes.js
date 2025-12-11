@@ -142,7 +142,30 @@ function Clientes() {
       setCarregando(false);
     }
   };
-
+// FUNÇÃO SIMPLES PARA VER O BANCO
+const verBanco = () => {
+  console.log("🦉 CLICOU PARA VER BANCO");
+  
+  // Isso vai mostrar no CONSOLE (F12) o que tem no banco
+  supabase
+    .from('agendamentos')
+    .select('*')
+    .limit(5)
+    .then(({ data }) => {
+      console.log("=== O QUE TEM NO SUPABASE ===");
+      if (data && data.length > 0) {
+        data.forEach(item => {
+          console.log("ID:", item.id);
+          console.log("Data:", item.data_agendamento);
+          console.log("Hora:", item.hora_agendamento);
+          console.log("Dados completos:", item.dados_completos);
+          console.log("---");
+        });
+      } else {
+        console.log("VAZIO - Não tem nada no banco!");
+      }
+    });
+};
   // Função para fazer login do cliente
   const fazerLoginCliente = (e) => {
     e.preventDefault();
