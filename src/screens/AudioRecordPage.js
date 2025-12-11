@@ -82,6 +82,65 @@ const AudioRecorder = () => {
     }
   };
 
+  // 🆕 FUNÇÃO PARA ATUALIZAR DADOS DO FORMULÁRIO NO SUPABASE
+  const atualizarDadosFormularioNoSupabase = async (orderID, nomeCliente, telefoneCliente, data, hora) => {
+    try {
+      console.log('🔧 Atualizando dados do formulário no Supabase...');
+      
+      const telefoneLimpo = telefoneCliente.replace(/\D/g, '');
+      
+      // Dados para atualizar
+      const dadosAtualizacao = {
+        destinatario: nomeCliente,
+        telefone: telefoneLimpo,
+        data_agendamento: data,
+        hora_agendamento: hora,
+        atualizado_em: new Date().toISOString()
+      };
+      
+      console.log('📝 Dados para atualizar:', dadosAtualizacao);
+      console.log('🔍 Buscando registro com order_id:', orderID);
+      
+      // Primeiro, verificar se o registro existe
+      const { data: registroExistente, error: erroBusca } = await supabase
+        .from('agendamentos')
+        .select('id, order_id')
+        .eq('order_id', orderID)
+        .maybeSingle();
+      
+      if (erroBusca) {
+        console.error('❌ Erro ao buscar registro:', erroBusca);
+        return false;
+      }
+      
+      if (!registroExistente) {
+        console.log('⚠️ Registro não encontrado para order_id:', orderID);
+        return false;
+      }
+      
+      console.log('✅ Registro encontrado. ID:', registroExistente.id);
+      
+      // Atualizar no Supabase
+      const { data, error } = await supabase
+        .from('agendamentos')
+        .update(dadosAtualizacao)
+        .eq('order_id', orderID)
+        .select();
+      
+      if (error) {
+        console.error('❌ Erro ao atualizar dados do formulário:', error);
+        return false;
+      } else {
+        console.log('✅ Dados do formulário atualizados no Supabase:', data);
+        return true;
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro na atualização:', error);
+      return false;
+    }
+  };
+
   const enviarDados = async () => {
     if (!audioBlob) {
       alert("Grave um áudio antes de enviar.");
@@ -174,7 +233,24 @@ const AudioRecorder = () => {
 
       console.log("✅ Webhook respondeu com sucesso:", webhookResult);
 
-      // 7. 🆕 SALVAR NO LOCALSTORAGE PARA SAIDA.JS
+      // 7. 🆕 ATUALIZAR DADOS DO FORMULÁRIO NO SUPABASE
+      console.log("🔄 Iniciando atualização dos dados do formulário...");
+      const atualizacaoSucesso = await atualizarDadosFormularioNoSupabase(
+        orderID, 
+        nome, 
+        telefone, 
+        dataEntrega, 
+        horaEntrega
+      );
+      
+      if (atualizacaoSucesso) {
+        console.log("🎯 Dados do formulário (nome, telefone, data, hora) foram salvos no Supabase!");
+      } else {
+        console.log("⚠️ Os dados principais foram salvos, mas os dados do formulário podem não ter sido atualizados.");
+        // Não mostra alerta para o usuário - o processo principal já foi bem sucedido
+      }
+
+      // 8. 🆕 SALVAR NO LOCALSTORAGE PARA SAIDA.JS
       const dadosParaSaida = {
         nome: nome,
         dataEntrega: dataEntrega,
@@ -188,15 +264,15 @@ const AudioRecorder = () => {
       localStorage.setItem('lastAgendamento', JSON.stringify(dadosParaSaida));
       console.log("📱 Dados salvos no localStorage para Saida.js:", dadosParaSaida);
 
-      // 8. Sucesso completo!
+      // 9. Sucesso completo!
       alert(`🎉 Áudio agendado com sucesso!\n\n📞 Para: ${nome}\n📅 Data: ${dataEntrega}\n🕒 Hora: ${horaEntrega}\n\nO SMS será enviado no dia e hora agendados.`);
 
-      // 9. 🆕 REDIRECIONAR PARA SAIDA.JS APÓS 2 SEGUNDOS
+      // 10. 🆕 REDIRECIONAR PARA SAIDA.JS APÓS 2 SEGUNDOS
       setTimeout(() => {
         window.location.href = '/saida';
       }, 2000);
 
-      // 10. Limpar formulário (opcional, já vai redirecionar)
+      // 11. Limpar formulário (opcional, já vai redirecionar)
       setAudioURL(null);
       setAudioBlob(null);
       setNome("");
