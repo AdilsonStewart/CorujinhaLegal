@@ -1,121 +1,410 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from "react";
+import { createClient } from '@supabase/supabase-js';
 
-const VideoRecordPage = () => {
-  const navigate = useNavigate();
+const supabaseUrl = 'https://kuwsgvhjmjnhkteleczc.supabase.co';
+const supabaseKey = 'sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+const VideoRecorder = () => {
+  const [isRecording, setIsRecording] = useState(false);
+  const [videoURL, setVideoURL] = useState(null);
+  const [videoBlob, setVideoBlob] = useState(null);
+  const [nome, setNome] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [dataEntrega, setDataEntrega] = useState("");
+  const [horaEntrega, setHoraEntrega] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [tempoRestante, setTempoRestante] = useState(30);
+  const [stream, setStream] = useState(null);
+
   const videoRef = useRef(null);
-  const streamRef = useRef(null);
-  const recorderRef = useRef(null);
-  const chunks = useRef([]);
-
-  const [recording, setRecording] = useState(false);
-  const [recordedBlob, setRecordedBlob] = useState(null);
-  const [seconds, setSeconds] = useState(30);
-  const [gravacaoId] = useState(() => `VID-${Date.now()}`);
+  const mediaRecorderRef = useRef(null);
+  const videoChunksRef = useRef([]);
+  const tempoIntervalRef = useRef(null);
 
   useEffect(() => {
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      .then(s => {
-        streamRef.current = s;
-        if (videoRef.current) videoRef.current.srcObject = s;
-      })
-      .catch(() => alert('Permita câmera e microfone!'));
+    iniciarCamera();
+    return () => {
+      pararCamera();
+    };
   }, []);
 
-  const start = () => {
-    chunks.current = [];
-    const r = new MediaRecorder(streamRef.current);
-    recorderRef.current = r;
-    r.ondataavailable = e => e.data.size > 0 && chunks.current.push(e.data);
-    r.onstop = () => {
-      const blob = new Blob(chunks.current, { type: 'video/webm' });
-      setRecordedBlob(blob);
-      setRecording(false);
-      setSeconds(30);
-      streamRef.current.getTracks().forEach(t => t.stop());
-      if (videoRef.current) videoRef.current.srcObject = null;
-    };
-    r.start();
-    setRecording(true);
-    setSeconds(30);
-  };
-
-  const stop = () => recorderRef.current?.stop();
-
-  const regravar = () => {
-    setRecordedBlob(null);
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      .then(s => {
-        streamRef.current = s;
-        if (videoRef.current) videoRef.current.srcObject = s;
-      });
-  };
-
-  const salvar = async () => {
-    if (!recordedBlob) return;
-
-    const filename = `video_${gravacaoId}.webm`;
-    const formData = new FormData();
-    formData.append('file', recordedBlob, filename);
-    formData.append('upload_preset', 'deixacomigo'); // preset público padrão do Cloudinary
-
+  const iniciarCamera = async () => {
     try {
-      const res = await fetch(`https://api.cloudinary.com/v1_1/do2zvxbfb/video/upload`, {
-        method: 'POST',
-        body: formData
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        video: true, 
+        audio: true 
       });
-      const data = await res.json();
-
-      if (data.secure_url) {
-        localStorage.setItem('lastRecordingUrl', data.secure_url);
-        alert('Vídeo salvo com sucesso! Link permanente gerado.');
-        navigate('/agendamento');
-      } else {
-        alert('Erro: ' + data.error.message);
+      setStream(mediaStream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
       }
-    } catch (err) {
-      alert('Erro de conexão. Tenta de novo.');
+    } catch (error) {
+      alert("❌ Não consegui acessar câmera/microfone.");
     }
   };
 
-  useEffect(() => {
-    if (recording && seconds > 0) {
-      const t = setTimeout(() => setSeconds(s => s - 1), 1000);
-      return () => clearTimeout(t);
-    } else if (seconds === 0 && recording) stop();
-  }, [recording, seconds]);
+  const pararCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+  };
+
+  const startRecording = async () => {
+    if (!stream) {
+      alert("Câmera não disponível.");
+      return;
+    }
+
+    try {
+      videoChunksRef.current = [];
+      setVideoURL(null);
+      setVideoBlob(null);
+
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.ondataavailable = (event) => {
+        videoChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(videoChunksRef.current, { type: "video/webm" });
+        setVideoBlob(blob);
+        setVideoURL(URL.createObjectURL(blob));
+        if (tempoIntervalRef.current) {
+          clearInterval(tempoIntervalRef.current);
+        }
+        setTempoRestante(30);
+      };
+
+      mediaRecorder.start();
+      mediaRecorderRef.current = mediaRecorder;
+      setIsRecording(true);
+
+      tempoIntervalRef.current = setInterval(() => {
+        setTempoRestante((prev) => {
+          if (prev <= 1) {
+            stopRecording();
+            return 30;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+    } catch (error) {
+      alert("Erro ao iniciar gravação: " + error.message);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (tempoIntervalRef.current) {
+        clearInterval(tempoIntervalRef.current);
+      }
+      setTempoRestante(30);
+    }
+  };
+
+  const enviarDados = async () => {
+    if (!videoBlob) {
+      alert("Grave um vídeo antes de enviar.");
+      return;
+    }
+
+    if (!nome || !telefone || !dataEntrega || !horaEntrega) {
+      alert("Preencha todos os campos.");
+      return;
+    }
+
+    const telefoneLimpo = telefone.replace(/\D/g, '');
+    if (telefoneLimpo.length < 10) {
+      alert("Digite um telefone válido com DDD.");
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      const nomeArquivo = `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.webm`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('Midias')
+        .upload(nomeArquivo, videoBlob, {
+          contentType: 'video/webm',
+          cacheControl: '3600'
+        });
+
+      if (uploadError) {
+        throw new Error(`Falha no upload: ${uploadError.message}`);
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('Midias')
+        .getPublicUrl(nomeArquivo);
+
+      const orderID = localStorage.getItem("currentOrderId") || `VIDEO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const pagamentoStatus = localStorage.getItem("paymentStatus") || "pending";
+
+      const dadosParaWebhook = {
+        tipo: 'video',
+        orderID: orderID,
+        status: pagamentoStatus,
+        destinatario: nome,
+        telefone: telefoneLimpo,
+        data: dataEntrega,
+        hora: horaEntrega,
+        link_midia: publicUrl,
+        clienteId: localStorage.getItem("clienteId") || "sem-cadastro",
+        valor: 10.00,
+        origem: 'gravacao'
+      };
+
+      const webhookResponse = await fetch('/api/paypal-webhook', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(dadosParaWebhook)
+      });
+
+      let webhookResult;
+      try {
+        webhookResult = await webhookResponse.json();
+      } catch (jsonError) {
+        throw new Error("Resposta inválida do servidor");
+      }
+
+      if (!webhookResponse.ok) {
+        throw new Error(`Webhook falhou: ${webhookResult.error || 'Erro desconhecido'}`);
+      }
+
+      const dadosParaSaida = {
+        nome: nome,
+        dataEntrega: dataEntrega,
+        horario: horaEntrega,
+        telefone: telefoneLimpo,
+        tipo: 'video',
+        link_midia: publicUrl,
+        orderID: orderID
+      };
+
+      localStorage.setItem('lastAgendamento', JSON.stringify(dadosParaSaida));
+
+      alert(`🎉 Vídeo agendado com sucesso!\n\n📞 Para: ${nome}\n📅 Data: ${dataEntrega}\n🕒 Hora: ${horaEntrega}`);
+
+      setTimeout(() => {
+        window.location.href = '/saida';
+      }, 2000);
+
+      setVideoURL(null);
+      setVideoBlob(null);
+      setNome("");
+      setTelefone("");
+      setDataEntrega("");
+      setHoraEntrega("");
+
+    } catch (error) {
+      alert(`❌ Ocorreu um erro:\n\n${error.message}\n\nTente novamente.`);
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg,#667eea,#764ba2)', color: 'white', textAlign: 'center', padding: '20px' }}>
-      <h1 style={{ fontSize: '2.8rem' }}>Gravar Vídeo Surpresa</h1>
-      <h2>ID: {gravacaoId}</h2>
+    <div style={{ padding: 20, fontFamily: "Arial, sans-serif", maxWidth: "600px", margin: "0 auto" }}>
+      <h2>🎥 Gravador de Vídeo - Máx 30s</h2>
+      
+      <div style={{ 
+        fontSize: "24px", 
+        color: "#dc3545", 
+        fontWeight: "bold",
+        background: "#ffebee",
+        padding: "15px 25px",
+        borderRadius: "25px",
+        textAlign: "center",
+        marginBottom: "20px",
+        boxShadow: "0 4px 8px rgba(0,0,0,0.1)"
+      }}>
+        ⏱️ Tempo máximo: {tempoRestante}s
+      </div>
 
-      <video ref={videoRef} autoPlay muted playsInline style={{ width: '90%', maxWidth: '800px', borderRadius: '20px', background: '#000' }} />
-
-      {recordedBlob && (
-        <video src={URL.createObjectURL(recordedBlob)} controls autoPlay loop style={{ width: '90%', maxWidth: '800px', marginTop: '20px', borderRadius: '20px' }} />
-      )}
-
-      {recording && <div style={{ fontSize: '3rem', margin: '30px' }}>Gravando... {seconds}s</div>}
-
-      <div style={{ margin: '40px' }}>
-        {!recording && !recordedBlob && <button onClick={start} style={btnGreen}>Iniciar Gravação</button>}
-        {recording && <button onClick={stop} style={btnRed}>Parar</button>}
-        {recordedBlob && (
-          <>
-            <button onClick={salvar} style={btnOrange}>Salvar e Agendar</button>
-            <button onClick={regravar} style={btnGray}>Regravar</button>
-          </>
+      <div style={{ 
+        background: "#000", 
+        borderRadius: "10px", 
+        overflow: "hidden", 
+        marginBottom: "20px",
+        position: "relative"
+      }}>
+        <video 
+          ref={videoRef} 
+          autoPlay 
+          playsInline 
+          muted
+          style={{ 
+            width: "100%", 
+            maxHeight: "400px",
+            transform: "scaleX(-1)"
+          }}
+        />
+        {isRecording && (
+          <div style={{
+            position: "absolute",
+            top: "10px",
+            right: "10px",
+            background: "#dc3545",
+            color: "white",
+            padding: "5px 10px",
+            borderRadius: "5px",
+            fontWeight: "bold"
+          }}>
+            🔴 GRAVANDO
+          </div>
         )}
       </div>
+
+      {!isRecording ? (
+        <button 
+          onClick={startRecording} 
+          style={{ 
+            fontSize: "22px", 
+            padding: "18px 35px",
+            background: "#007bff",
+            color: "white",
+            border: "none",
+            borderRadius: "12px",
+            cursor: "pointer",
+            width: "100%",
+            marginBottom: "20px"
+          }}
+        >
+          🎬 Iniciar Gravação (30s máx)
+        </button>
+      ) : (
+        <div style={{ marginBottom: "20px" }}>
+          <button 
+            onClick={stopRecording} 
+            style={{ 
+              fontSize: "22px", 
+              padding: "18px 35px",
+              background: "#dc3545",
+              color: "white",
+              border: "none",
+              borderRadius: "12px",
+              cursor: "pointer",
+              width: "100%",
+              marginBottom: "15px"
+            }}
+          >
+            ⏹️ Parar Gravação ({tempoRestante}s)
+          </button>
+          <div style={{ 
+            fontSize: "20px", 
+            color: "#dc3545", 
+            fontWeight: "bold",
+            background: "#fff3cd",
+            padding: "12px 20px",
+            borderRadius: "20px",
+            textAlign: "center"
+          }}>
+            ⏳ Gravando... {tempoRestante} segundos restantes
+          </div>
+        </div>
+      )}
+
+      {videoURL && (
+        <div style={{ marginTop: 30 }}>
+          <p><strong>✅ Vídeo gravado (pronto para enviar):</strong></p>
+          <video 
+            controls 
+            src={videoURL} 
+            style={{ 
+              width: "100%", 
+              maxHeight: "400px",
+              borderRadius: "10px",
+              background: "#000",
+              marginBottom: "20px"
+            }} 
+          />
+        </div>
+      )}
+
+      <hr style={{ margin: "40px 0" }} />
+
+      <div style={{ display: "grid", gap: "15px" }}>
+        <input
+          type="text"
+          placeholder="👤 Nome do destinatário *"
+          value={nome}
+          onChange={(e) => setNome(e.target.value)}
+          style={{ padding: "12px", fontSize: "16px", borderRadius: "8px", border: "1px solid #ddd" }}
+          required
+        />
+        <input
+          type="tel"
+          placeholder="📱 Telefone com DDD (ex: 11999999999) *"
+          value={telefone}
+          onChange={(e) => setTelefone(e.target.value)}
+          style={{ padding: "12px", fontSize: "16px", borderRadius: "8px", border: "1px solid #ddd" }}
+          required
+        />
+        <input
+          type="date"
+          value={dataEntrega}
+          onChange={(e) => setDataEntrega(e.target.value)}
+          style={{ padding: "12px", fontSize: "16px", borderRadius: "8px", border: "1px solid #ddd" }}
+          required
+        />
+        <select
+          value={horaEntrega}
+          onChange={(e) => setHoraEntrega(e.target.value)}
+          style={{ padding: "12px", fontSize: "16px", borderRadius: "8px", border: "1px solid #ddd" }}
+          required
+        >
+          <option value="">🕒 Escolha o horário *</option>
+          <option value="09:00">09:00</option>
+          <option value="10:00">10:00</option>
+          <option value="11:00">11:00</option>
+          <option value="14:00">14:00</option>
+          <option value="15:00">15:00</option>
+          <option value="16:00">16:00</option>
+          <option value="17:00">17:00</option>
+        </select>
+      </div>
+
+      <button
+        onClick={enviarDados}
+        disabled={!videoBlob || isUploading}
+        style={{
+          marginTop: 30,
+          padding: "18px 40px",
+          fontSize: "20px",
+          background: (!videoBlob || isUploading) ? "#6c757d" : "#28a745",
+          color: "white",
+          border: "none",
+          borderRadius: "12px",
+          cursor: (!videoBlob || isUploading) ? "not-allowed" : "pointer",
+          width: "100%"
+        }}
+      >
+        {isUploading ? "📤 Enviando vídeo..." : "🚀 Enviar Vídeo Agendado"}
+      </button>
+
+      {isUploading && (
+        <div style={{
+          marginTop: "15px",
+          padding: "10px",
+          background: "#e3f2fd",
+          borderRadius: "8px",
+          textAlign: "center",
+          fontWeight: "bold"
+        }}>
+          ⏳ Enviando vídeo e agendando... Não feche a página!
+        </div>
+      )}
     </div>
   );
 };
 
-const btnGreen  = { padding: '20px 60px', fontSize: '1.8rem', background: '#4CAF50', color: 'white', border: 'none', borderRadius: '50px', margin: '10px' };
-const btnRed    = { ...btnGreen, background: '#f44336' };
-const btnOrange = { ...btnGreen, background: '#FF9800' };
-const btnGray   = { ...btnGreen, background: '#666' };
-
-export default VideoRecordPage;
-         
+export default VideoRecorder;
