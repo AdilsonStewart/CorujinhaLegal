@@ -33,25 +33,12 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ status: 'RECEIVED' });
       
     } else {
-      // 🚨 PARTE CORRIGIDA: FRONTEND APÓS PAGAMENTO (dados COMPLETOS)
+      // FRONTEND APÓS PAGAMENTO (dados simples)
       console.log('🔄 FRONTEND DETECTADO (após pagamento)');
-      console.log('📦 Dados recebidos:', JSON.stringify(req.body, null, 2));
       
-      // AGORA PEGAMOS TODOS OS DADOS DO FORMULÁRIO
-      const { 
-        tipo, 
-        orderID, 
-        status, 
-        destinatario, 
-        telefone, 
-        data, 
-        hora, 
-        link_midia,
-        clienteId,
-        valor 
-      } = req.body;
+      const { tipo, orderID, status } = req.body;
       
-      // VALIDAÇÃO COMPLETA
+      // VALIDAÇÃO SIMPLES
       if (!tipo || !orderID || !status) {
         console.error('❌ Dados mínimos não recebidos');
         return res.status(400).json({ 
@@ -61,73 +48,35 @@ module.exports = async function handler(req, res) {
       }
       
       console.log(`✅ Pagamento confirmado: ${orderID} - ${tipo}`);
-      console.log(`📞 Destinatário: ${destinatario || 'Não informado'}`);
-      console.log(`📅 Data: ${data || 'Não informada'}`);
-      console.log(`🕒 Hora: ${hora || 'Não informada'}`);
       
-      // 🚨 SALVAR TODOS OS DADOS NO BANCO (AGORA COM FORMULÁRIO)
+      // SALVAR NO BANCO
       const dadosParaSalvar = {
-        tipo: tipo || 'audio',
+        tipo: tipo,
         order_id: orderID,
-        status: status || 'pago',
-        
-        // DADOS DO DESTINATÁRIO (AGORA VÃO SER SALVOS)
-        destinatario: destinatario || 'Não informado',
-        telefone: telefone ? telefone.replace(/\D/g, '') : '00000000000',
-        
-        // DATA E HORA DO AGENDAMENTO
-        data_agendamento: data || new Date().toISOString().split('T')[0],
-        hora_agendamento: hora || '12:00',
-        
-        // Outros campos
-        link_midia: link_midia || null,
-        clienteId: clienteId || 'sem-cadastro',
-        valor: valor || 5.00,
+        status: status,
         criado_em: new Date().toISOString(),
         enviado: false
       };
       
-      console.log('💾 Dados a serem salvos:', dadosParaSalvar);
-      
-      // Verificar se já existe (para evitar duplicatas)
-      const { data: existe } = await supabase
+      const { data, error } = await supabase
         .from('agendamentos')
-        .select('id')
-        .eq('order_id', orderID)
-        .maybeSingle();
+        .insert([dadosParaSalvar])
+        .select();
       
-      let resultado;
-      
-      if (existe) {
-        // Atualizar registro existente
-        console.log('🔄 Atualizando registro existente:', existe.id);
-        const { data, error } = await supabase
-          .from('agendamentos')
-          .update(dadosParaSalvar)
-          .eq('id', existe.id)
-          .select();
-        
-        if (error) throw error;
-        resultado = data;
-      } else {
-        // Inserir novo registro
-        console.log('➕ Inserindo novo registro');
-        const { data, error } = await supabase
-          .from('agendamentos')
-          .insert([dadosParaSalvar])
-          .select();
-        
-        if (error) throw error;
-        resultado = data;
+      if (error) {
+        console.error('❌ Erro no banco:', error);
+        return res.status(500).json({ 
+          success: false,
+          error: 'Erro ao salvar' 
+        });
       }
       
-      console.log('✅ Dados SALVOS no Supabase:', resultado);
+      console.log('✅ Pagamento salvo no banco!');
       
       return res.status(200).json({ 
         success: true, 
-        message: 'Pagamento e dados salvos com sucesso!',
-        orderID: orderID,
-        registro: resultado[0]
+        message: 'Pagamento confirmado!',
+        orderID: orderID
       });
     }
     
