@@ -82,23 +82,36 @@ const AudioRecorder = () => {
     }
   };
 
-  // 🆕 FUNÇÃO PARA ATUALIZAR DADOS DO FORMULÁRIO NO SUPABASE
-  const atualizarDadosFormularioNoSupabase = async (orderID, nomeCliente, telefoneCliente, data, hora) => {
+  // 🆕 FUNÇÃO PARA ATUALIZAR DADOS DO FORMULÁRIO E REMETENTE NO SUPABASE
+  const atualizarDadosCompletosNoSupabase = async (orderID, nomeDestinatario, telefoneDestinatario, data, hora) => {
     try {
-      console.log('🔧 Atualizando dados do formulário no Supabase...');
+      console.log('🔧 Atualizando dados COMPLETOS no Supabase...');
       
-      const telefoneLimpo = telefoneCliente.replace(/\D/g, '');
+      const telefoneDestinatarioLimpo = telefoneDestinatario.replace(/\D/g, '');
       
-      // Dados para atualizar
+      // 🎯 PEGAR TELEFONE DO REMETENTE DO LOCALSTORAGE
+      const telefoneRemetente = localStorage.getItem("clienteTelefone");
+      const telefoneRemetenteLimpo = telefoneRemetente ? telefoneRemetente.replace(/\D/g, '') : "00000000000";
+      
+      console.log('📞 Telefone remetente (localStorage):', telefoneRemetenteLimpo);
+      console.log('📞 Telefone destinatário (formulário):', telefoneDestinatarioLimpo);
+      
+      // 🎯 DADOS PARA ATUALIZAR
       const dadosAtualizacao = {
-        destinatario: nomeCliente,
-        telefone: telefoneLimpo,
+        // Dados do DESTINATÁRIO
+        destinatario: nomeDestinatario,
+        telefone: telefoneDestinatarioLimpo,
         data_agendamento: data,
         hora_agendamento: hora,
+        
+        // 🆕 Dados do REMETENTE
+        Remetente: telefoneRemetenteLimpo,
+        
+        // Timestamp de atualização
         atualizado_em: new Date().toISOString()
       };
       
-      console.log('📝 Dados para atualizar:', dadosAtualizacao);
+      console.log('📝 Dados completos para atualizar:', dadosAtualizacao);
       console.log('🔍 Buscando registro com order_id:', orderID);
       
       // Primeiro, verificar se o registro existe
@@ -128,10 +141,10 @@ const AudioRecorder = () => {
         .select();
       
       if (error) {
-        console.error('❌ Erro ao atualizar dados do formulário:', error);
+        console.error('❌ Erro ao atualizar dados:', error);
         return false;
       } else {
-        console.log('✅ Dados do formulário atualizados no Supabase:', data);
+        console.log('✅ Dados COMPLETOS atualizados no Supabase:', data);
         return true;
       }
       
@@ -190,22 +203,16 @@ const AudioRecorder = () => {
 
       console.log("🔗 URL pública gerada:", publicUrl);
 
-      // 4. Preparar dados para o webhook
+      // 4. Preparar dados para o webhook (MÍNIMOS - como o webhook espera)
       const orderID = localStorage.getItem("currentOrderId") || `AUDIO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const dadosParaWebhook = {
         tipo: 'audio',
         orderID: orderID,
-        status: 'success', // Supondo pagamento já processado
-        destinatario: nome,
-        telefone: telefoneLimpo, // Telefone limpo (apenas números)
-        data: dataEntrega,
-        hora: horaEntrega,
-        link_midia: publicUrl, // URL do áudio no Supabase Storage
-        clienteId: localStorage.getItem("clienteId") || "sem-cadastro",
-        valor: 5.00
+        status: 'success', // Pagamento já processado
+        // 🚨 NÃO envia outros dados - webhook só aceita 3 campos
       };
 
-      console.log("📦 Dados para webhook:", dadosParaWebhook);
+      console.log("📦 Dados para webhook (apenas 3 campos):", dadosParaWebhook);
 
       // 5. Enviar dados para o webhook no Vercel
       const webhookResponse = await fetch('/api/paypal-webhook', {
@@ -233,9 +240,9 @@ const AudioRecorder = () => {
 
       console.log("✅ Webhook respondeu com sucesso:", webhookResult);
 
-      // 7. 🆕 ATUALIZAR DADOS DO FORMULÁRIO NO SUPABASE
-      console.log("🔄 Iniciando atualização dos dados do formulário...");
-      const atualizacaoSucesso = await atualizarDadosFormularioNoSupabase(
+      // 7. 🎯 ATUALIZAR DADOS COMPLETOS NO SUPABASE (DESTINATÁRIO + REMETENTE)
+      console.log("🔄 Iniciando atualização dos dados COMPLETOS...");
+      const atualizacaoSucesso = await atualizarDadosCompletosNoSupabase(
         orderID, 
         nome, 
         telefone, 
@@ -244,10 +251,15 @@ const AudioRecorder = () => {
       );
       
       if (atualizacaoSucesso) {
-        console.log("🎯 Dados do formulário (nome, telefone, data, hora) foram salvos no Supabase!");
+        console.log("🎯 Dados COMPLETOS salvos no Supabase!");
+        console.log("- Destinatário:", nome);
+        console.log("- Telefone destinatário:", telefoneLimpo);
+        console.log("- Data:", dataEntrega);
+        console.log("- Hora:", horaEntrega);
+        console.log("- Remetente (telefone):", localStorage.getItem("clienteTelefone") || "Não encontrado");
       } else {
-        console.log("⚠️ Os dados principais foram salvos, mas os dados do formulário podem não ter sido atualizados.");
-        // Não mostra alerta para o usuário - o processo principal já foi bem sucedido
+        console.log("⚠️ Webhook funcionou, mas os dados adicionais podem não ter sido atualizados.");
+        // Não mostra alerta para não assustar o usuário
       }
 
       // 8. 🆕 SALVAR NO LOCALSTORAGE PARA SAIDA.JS
@@ -258,7 +270,9 @@ const AudioRecorder = () => {
         telefone: telefoneLimpo,
         tipo: 'audio',
         link_midia: publicUrl,
-        orderID: orderID
+        orderID: orderID,
+        // 🆕 Adiciona remetente também
+        remetenteTelefone: localStorage.getItem("clienteTelefone") || "Não informado"
       };
 
       localStorage.setItem('lastAgendamento', JSON.stringify(dadosParaSaida));
