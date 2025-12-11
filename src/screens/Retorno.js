@@ -91,7 +91,44 @@ const Retorno = () => {
             evento_paypal: `PAYMENT.CAPTURE.COMPLETED_${tipo.toUpperCase()}`,
             valor: tipo === 'audio' ? 5.00 : 10.00
           };
-
+// 🔍 FUNÇÃO PARA VER EXATAMENTE O QUE TEM NA TABELA
+const verEstruturaTabela = async () => {
+  console.log('🔍 VERIFICANDO ESTRUTURA DA TABELA...');
+  
+  try {
+    // Ver a estrutura (colunas) da tabela
+    const { data: estrutura, error: errEstrutura } = await supabase
+      .from('agendamentos')
+      .select('*')
+      .limit(1);
+    
+    if (estrutura && estrutura.length > 0) {
+      console.log('📋 ESTRUTURA DO PRIMEIRO REGISTRO:');
+      console.log('Campos existentes:', Object.keys(estrutura[0]));
+      console.log('Primeiro registro:', estrutura[0]);
+    }
+    
+    // Ver TODOS os registros
+    const { data: todos, error: errTodos } = await supabase
+      .from('agendamentos')
+      .select('*');
+    
+    if (todos) {
+      console.log(`📊 TOTAL DE REGISTROS: ${todos.length}`);
+      todos.forEach(reg => {
+        console.log(`\n📌 ID ${reg.id}:`, {
+          data_agendamento: reg.data_agendamento,
+          hora_agendamento: reg.hora_agendamento,
+          dados_completos: reg.dados_completos,
+          enviado: reg.enviado
+        });
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro ao ver estrutura:', error);
+  }
+};
           console.log('📤 Dados a serem salvos:', dadosParaSalvar);
 
           // SALVAR NO BANCO DE DADOS
