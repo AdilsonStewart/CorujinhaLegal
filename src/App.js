@@ -10,14 +10,17 @@ import Saida from './screens/Saida';
 import VideoRecordPage from './screens/VideoRecordPage';
 import AdminDashboard from './screens/AdminDashboard';
 
-import SouCliente from './screens/SouCliente';
-import Retorno from './screens/Retorno'; // 🔥 ADICIONADO AQUI
+// 🔄 TROQUE ESTA LINHA:
+// import SouCliente from './screens/SouCliente';
+// POR ESTA:
+import Clientes from './screens/Clientes';
+
+import Retorno from './screens/Retorno';
 
 function App() {
   return (
     <Router>
       <Routes>
-
         <Route path="/" element={<Home />} />
         <Route path="/cadastro" element={<Cadastro />} />
         <Route path="/servicos" element={<Servicos />} />
@@ -27,14 +30,16 @@ function App() {
         <Route path="/videorecord" element={<VideoRecordPage />} />
         <Route path="/admin" element={<AdminDashboard />} />
 
-        <Route path="/soucliente" element={<SouCliente />} />
+        {/* 🔄 TROQUE ESTA ROTA: */}
+        {/* <Route path="/soucliente" element={<SouCliente />} /> */}
+        {/* POR ESTA: */}
+        <Route path="/soucliente" element={<Clientes />} />
 
         {/* ⭐ ROTA DE RETORNO DO PAYPAL */}
         <Route path="/retorno" element={<Retorno />} />
 
         {/* ROTA 404 */}
         <Route path="*" element={<Erro />} />
-
       </Routes>
     </Router>
   );
