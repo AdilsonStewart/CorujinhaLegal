@@ -1,4 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
+import { createClient } from '@supabase/supabase-js';
+
+// 🔧 CONFIGURAÇÃO DO SUPABASE (FRONTEND - SEGURO)
+const supabaseUrl = 'https://kuwsgvhjmjnhkteleczc.supabase.co';
+const supabaseKey = 'sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P'; // Chave pública - SEGURA
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const AudioRecorder = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -82,57 +88,128 @@ const AudioRecorder = () => {
       return;
     }
 
+    // Validações básicas
+    if (!nome || !telefone || !dataEntrega || !horaEntrega) {
+      alert("Preencha todos os campos: nome, telefone, data e horário.");
+      return;
+    }
+
+    // Validar telefone (mínimo 10 dígitos com DDD)
+    const telefoneLimpo = telefone.replace(/\D/g, '');
+    if (telefoneLimpo.length < 10) {
+      alert("Digite um telefone válido com DDD (ex: 11999999999).");
+      return;
+    }
+
     setIsUploading(true);
 
-    const reader = new FileReader();
-    reader.readAsDataURL(audioBlob);
-
-    reader.onloadend = async () => {
-      const base64data = reader.result;
-
-      try {
-        // URL CORRETA DO APP NO FLY.IO
-        const response = await fetch("https://deixacomigo-web.fly.dev/upload", {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-          },
-          body: JSON.stringify({
-            audioBase64: base64data,
-            nome,
-            telefone,
-            dataEntrega,
-            horaEntrega,
-            clienteId: localStorage.getItem("clienteId") || "sem-cadastro",
-          }),
+    try {
+      console.log("📤 Iniciando upload para Supabase Storage...");
+      
+      // 1. Criar nome único para o arquivo
+      const nomeArquivo = `audio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.webm`;
+      
+      // 2. Fazer upload para Supabase Storage (bucket 'Midias')
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('Midias')
+        .upload(nomeArquivo, audioBlob, {
+          contentType: 'audio/webm',
+          cacheControl: '3600'
         });
 
-        if (!response.ok) {
-          throw new Error(`Erro ${response.status}`);
-        }
-
-        const result = await response.json();
-
-        if (result.success) {
-          alert("✅ Áudio enviado com sucesso!\n\nLink: " + result.url);
-          setAudioURL(null);
-          setAudioBlob(null);
-          setNome("");
-          setTelefone("");
-          setDataEntrega("");
-          setHoraEntrega("");
-          localStorage.setItem("lastRecordingUrl", result.url);
-        } else {
-          alert("❌ Erro do servidor: " + (result.error || "Tente novamente"));
-        }
-      } catch (err) {
-        console.error("Erro completo:", err);
-        alert("❌ Sem conexão com servidor Fly.io.\n1. Verifique se o app está online\n2. Confirme a URL no fly.toml\n3. Tente em 1 minuto");
-      } finally {
-        setIsUploading(false);
+      if (uploadError) {
+        console.error("❌ Erro no upload para Storage:", uploadError);
+        throw new Error(`Falha no upload: ${uploadError.message}`);
       }
-    };
+
+      console.log("✅ Upload para Storage concluído:", uploadData);
+
+      // 3. Obter URL pública do arquivo
+      const { data: { publicUrl } } = supabase.storage
+        .from('Midias')
+        .getPublicUrl(nomeArquivo);
+
+      console.log("🔗 URL pública gerada:", publicUrl);
+
+      // 4. Preparar dados para o webhook
+      const orderID = localStorage.getItem("currentOrderId") || `AUDIO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const dadosParaWebhook = {
+        tipo: 'audio',
+        orderID: orderID,
+        status: 'success', // Supondo pagamento já processado
+        destinatario: nome,
+        telefone: telefoneLimpo, // Telefone limpo (apenas números)
+        data: dataEntrega,
+        hora: horaEntrega,
+        link_midia: publicUrl, // URL do áudio no Supabase Storage
+        clienteId: localStorage.getItem("clienteId") || "sem-cadastro",
+        valor: 5.00
+      };
+
+      console.log("📦 Dados para webhook:", dadosParaWebhook);
+
+      // 5. Enviar dados para o webhook no Vercel
+      const webhookResponse = await fetch('/api/paypal-webhook', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(dadosParaWebhook)
+      });
+
+      // 6. Processar resposta do webhook
+      let webhookResult;
+      try {
+        webhookResult = await webhookResponse.json();
+      } catch (jsonError) {
+        console.error("❌ Erro ao parsear JSON:", jsonError);
+        throw new Error("Resposta inválida do servidor");
+      }
+
+      if (!webhookResponse.ok) {
+        console.error("❌ Erro no webhook:", webhookResult);
+        throw new Error(`Webhook falhou: ${webhookResult.error || 'Erro desconhecido'}`);
+      }
+
+      console.log("✅ Webhook respondeu com sucesso:", webhookResult);
+
+      // 7. 🆕 SALVAR NO LOCALSTORAGE PARA SAIDA.JS
+      const dadosParaSaida = {
+        nome: nome,
+        dataEntrega: dataEntrega,
+        horario: horaEntrega,
+        telefone: telefoneLimpo,
+        tipo: 'audio',
+        link_midia: publicUrl,
+        orderID: orderID
+      };
+
+      localStorage.setItem('lastAgendamento', JSON.stringify(dadosParaSaida));
+      console.log("📱 Dados salvos no localStorage para Saida.js:", dadosParaSaida);
+
+      // 8. Sucesso completo!
+      alert(`🎉 Áudio agendado com sucesso!\n\n📞 Para: ${nome}\n📅 Data: ${dataEntrega}\n🕒 Hora: ${horaEntrega}\n\nO SMS será enviado no dia e hora agendados.`);
+
+      // 9. 🆕 REDIRECIONAR PARA SAIDA.JS APÓS 2 SEGUNDOS
+      setTimeout(() => {
+        window.location.href = '/saida';
+      }, 2000);
+
+      // 10. Limpar formulário (opcional, já vai redirecionar)
+      setAudioURL(null);
+      setAudioBlob(null);
+      setNome("");
+      setTelefone("");
+      setDataEntrega("");
+      setHoraEntrega("");
+
+    } catch (error) {
+      console.error("❌ Erro no processo completo:", error);
+      alert(`❌ Ocorreu um erro:\n\n${error.message}\n\nTente novamente ou contate o suporte.`);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -214,30 +291,34 @@ const AudioRecorder = () => {
       <div style={{ display: "grid", gap: "15px" }}>
         <input
           type="text"
-          placeholder="👤 Nome do destinatário"
+          placeholder="👤 Nome do destinatário *"
           value={nome}
           onChange={(e) => setNome(e.target.value)}
           style={{ padding: "12px", fontSize: "16px", borderRadius: "8px", border: "1px solid #ddd" }}
+          required
         />
         <input
           type="tel"
-          placeholder="📱 Telefone com DDD (ex: 11999999999)"
+          placeholder="📱 Telefone com DDD (ex: 11999999999) *"
           value={telefone}
           onChange={(e) => setTelefone(e.target.value)}
           style={{ padding: "12px", fontSize: "16px", borderRadius: "8px", border: "1px solid #ddd" }}
+          required
         />
         <input
           type="date"
           value={dataEntrega}
           onChange={(e) => setDataEntrega(e.target.value)}
           style={{ padding: "12px", fontSize: "16px", borderRadius: "8px", border: "1px solid #ddd" }}
+          required
         />
         <select
           value={horaEntrega}
           onChange={(e) => setHoraEntrega(e.target.value)}
           style={{ padding: "12px", fontSize: "16px", borderRadius: "8px", border: "1px solid #ddd" }}
+          required
         >
-          <option value="">🕒 Escolha o horário</option>
+          <option value="">🕒 Escolha o horário *</option>
           <option value="09:00">09:00</option>
           <option value="10:00">10:00</option>
           <option value="11:00">11:00</option>
@@ -263,7 +344,7 @@ const AudioRecorder = () => {
           width: "100%"
         }}
       >
-        {isUploading ? "📤 Enviando... Aguarde" : "🚀 Enviar Pedido com Áudio"}
+        {isUploading ? "📤 Enviando para Supabase..." : "🚀 Enviar Áudio Agendado"}
       </button>
 
       {isUploading && (
@@ -275,9 +356,26 @@ const AudioRecorder = () => {
           textAlign: "center",
           fontWeight: "bold"
         }}>
-          ⏳ Enviando para Fly.io... Não feche a página!
+          ⏳ Enviando áudio e agendando... Não feche a página!
         </div>
       )}
+
+      <div style={{
+        marginTop: "20px",
+        padding: "15px",
+        background: "#f8f9fa",
+        borderRadius: "8px",
+        fontSize: "14px",
+        color: "#666"
+      }}>
+        <p><strong>ℹ️ Como funciona:</strong></p>
+        <ol style={{ marginLeft: "20px" }}>
+          <li>Seu áudio é enviado para o Supabase Storage</li>
+          <li>Os dados são salvos no banco de dados</li>
+          <li>No dia e hora agendados, um SMS será enviado automaticamente</li>
+          <li>O destinatário recebe um link para ouvir sua mensagem</li>
+        </ol>
+      </div>
     </div>
   );
 };
