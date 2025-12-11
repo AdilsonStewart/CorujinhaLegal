@@ -39,48 +39,57 @@ const Retorno = () => {
       if (status === 'success') {
         console.log(`✅ Pagamento ${tipo.toUpperCase()} aprovado!`);
         
-        // 5. BUSCAR DADOS DO CLIENTE DO LOCALSTORAGE (do Cadastro.js)
+        // 5. BUSCAR DADOS DO CLIENTE DO LOCALSTORAGE
         const clienteNome = localStorage.getItem('clienteNome') || 'Cliente não identificado';
         const clienteTelefone = localStorage.getItem('clienteTelefone') || 'Não informado';
-        const clienteEmail = localStorage.getItem('clienteEmail') || '';
 
         console.log('👤 Dados do cliente:', {
           nome: clienteNome,
-          telefone: clienteTelefone,
-          email: clienteEmail
+          telefone: clienteTelefone
         });
 
-        // 6. SALVAR NO SUPABASE (IMPORTANTE!)
+        // 6. SALVAR NO SUPABASE - USANDO APENAS COLUNAS EXISTENTES
         try {
           console.log('💾 Tentando salvar no Supabase...');
           
+          // FORMATAR DATA para o padrão do Supabase (YYYY-MM-DD)
+          const hoje = new Date();
+          const dataFormatada = hoje.toISOString().split('T')[0];
+          
+          // Dados para salvar - APENAS colunas que EXISTEM na sua tabela
           const dadosParaSalvar = {
-            // Dados básicos do pagamento
-            tipo: tipo,
-            order_id: orderID,
-            paypal_order_id: paypalOrderID || '',
-            valor: tipo === 'audio' ? 5.00 : 10.00,
-            status: 'pago',
-            
-            // Dados do cliente (CRÍTICO para a busca depois!)
-            cliente_nome: clienteNome,
-            cliente_telefone: clienteTelefone.replace(/\D/g, ''), // Apenas números
-            cliente_email: clienteEmail,
-            
-            // Outros dados
-            data_pagamento: new Date().toISOString(),
+            // COLUNAS QUE VOCÊ TEM NA TABELA (conforme você me mostrou):
+            data_agendamento: dataFormatada, // Data de hoje como padrão
+            hora_agendamento: '12:00:00',    // Hora padrão (será atualizada depois)
+            link_midia: '',                   // Vazio por enquanto (será preenchido na gravação)
             criado_em: new Date().toISOString(),
             enviado: false,
             
-            // Campo dados_completos (para compatibilidade)
+            // ⭐⭐ IMPORTANTE: Dados do cliente dentro de 'dados_completos'
             dados_completos: {
+              // Dados básicos do pagamento
               tipo: tipo,
               order_id: orderID,
-              cliente_nome: clienteNome,
-              cliente_telefone: clienteTelefone,
+              paypal_order_id: paypalOrderID || '',
               valor: tipo === 'audio' ? 5.00 : 10.00,
-              data_pagamento: new Date().toISOString()
-            }
+              status: 'pago',
+              
+              // ⭐⭐ DADOS DO CLIENTE (CRÍTICO para busca depois!)
+              cliente_nome: clienteNome,
+              cliente_telefone: clienteTelefone.replace(/\D/g, ''), // Apenas números
+              
+              // Outros dados úteis
+              data_pagamento: new Date().toISOString(),
+              
+              // Campos para compatibilidade com busca anterior
+              destinatario: clienteNome,    // Para compatibilidade
+              telefone: clienteTelefone,    // Para compatibilidade
+              remetente: clienteNome        // Para compatibilidade
+            },
+            
+            // Campos extras se existirem (ajuste conforme sua tabela)
+            evento_paypal: `PAYMENT.CAPTURE.COMPLETED_${tipo.toUpperCase()}`,
+            valor: tipo === 'audio' ? 5.00 : 10.00
           };
 
           console.log('📤 Dados a serem salvos:', dadosParaSalvar);
@@ -92,17 +101,45 @@ const Retorno = () => {
 
           if (error) {
             console.error('❌ Erro ao salvar no Supabase:', error);
-            alert('Pagamento aprovado, mas houve erro ao salvar dados. Contate suporte.');
+            
+            // Tentativa alternativa: salvar sem campos problemáticos
+            console.log('🔄 Tentando salvar forma alternativa...');
+            
+            const dadosAlternativos = {
+              data_agendamento: dataFormatada,
+              hora_agendamento: '12:00:00',
+              criado_em: new Date().toISOString(),
+              enviado: false,
+              dados_completos: {
+                tipo: tipo,
+                order_id: orderID,
+                cliente_nome: clienteNome,
+                cliente_telefone: clienteTelefone.replace(/\D/g, ''),
+                status: 'pago'
+              }
+            };
+            
+            const { data: altData, error: altError } = await supabase
+              .from('agendamentos')
+              .insert([dadosAlternativos]);
+              
+            if (altError) {
+              console.error('❌ Erro na tentativa alternativa:', altError);
+              alert('Pagamento aprovado! Mas não foi possível salvar todos os dados.');
+            } else {
+              console.log('✅ Dados salvos (forma alternativa) com ID:', altData?.[0]?.id);
+            }
+            
           } else {
             console.log('✅ Dados salvos no Supabase com ID:', data?.[0]?.id);
           }
 
         } catch (error) {
           console.error('❌ Erro geral ao salvar:', error);
-          // Continua mesmo com erro (não bloqueia o usuário)
+          // Continua mesmo com erro
         }
 
-        // 7. SALVAR NO LOCALSTORAGE TAMBÉM (para usar na gravação)
+        // 7. SALVAR NO LOCALSTORAGE TAMBÉM
         const dadosPagamento = {
           tipo: tipo,
           orderID: orderID,
@@ -173,7 +210,7 @@ const Retorno = () => {
       }}>
         <p>📱 <strong>Processando seu pedido</strong></p>
         <p>• Verificando pagamento ✅</p>
-        <p>• Salvando seus dados no banco... ✅</p>
+        <p>• Salvando seus dados no banco... ⏳</p>
         <p>• Preparando gravação...</p>
       </div>
       
@@ -182,7 +219,7 @@ const Retorno = () => {
         fontSize: '12px',
         color: '#888'
       }}>
-        <p>🦉 <em>Em instantes você será redirecionado</em></p>
+        <p>🦉 <em>Em instantes você será redirecionado para gravar</em></p>
       </div>
     </div>
   );
