@@ -54,7 +54,8 @@ function Clientes() {
 
       console.log(`✅ ${mensagensData?.length || 0} mensagens encontradas`);
       
-      // 2. Buscar créditos do cliente (simulação - ajuste conforme sua lógica)
+      // 2. Buscar créditos do cliente (simulação - você pode ajustar depois)
+      // Para começar, vamos inicializar com 0 créditos
       // Você pode criar uma tabela 'creditos' no Supabase depois
       const creditosIniciais = {
         audio: 0,
@@ -73,7 +74,7 @@ function Clientes() {
     }
   };
 
-  // Função para fazer login do cliente - AGORA COM preventDefault
+  // Função para fazer login do cliente
   const fazerLoginCliente = (e) => {
     e.preventDefault(); // 🔥 IMPORTANTE: Impede que a página recarregue
     
@@ -95,7 +96,7 @@ function Clientes() {
     buscarMensagensCliente(nome, telefone);
   };
 
-  // Função para cancelar envio de mensagem
+  // Função para cancelar envio de mensagem e dar crédito
   const cancelarEnvio = async (mensagemId, orderId, tipo) => {
     // Verificar se já cancelou esta mensagem antes
     if (mensagensCanceladas.includes(mensagemId)) {
@@ -108,7 +109,7 @@ function Clientes() {
     }
     
     try {
-      // 1. Atualizar créditos localmente
+      // 1. Atualizar créditos localmente (dá 1 crédito do tipo cancelado)
       setCreditos(prev => ({
         ...prev,
         [tipo]: prev[tipo] + 1
@@ -132,10 +133,7 @@ function Clientes() {
         alert('Mensagem cancelada, mas houve um erro ao atualizar o banco.');
       }
       
-      // 4. Aqui você pode adicionar lógica para salvar crédito no banco
-      // (Crie uma tabela 'creditos_clientes' se quiser permanente)
-      
-      alert('✅ Envio cancelado com sucesso!\n\n🎉 1 crédito de ' + (tipo === 'audio' ? 'ÁUDIO' : 'VÍDEO') + ' foi adicionado à sua conta.');
+      alert('✅ Envio cancelado com sucesso!\n\n🎉 1 crédito de ' + (tipo === 'audio' ? 'ÁUDIO' : 'VÍDEO') + ' foi adicionado à sua conta!');
       
     } catch (error) {
       console.error('❌ Erro ao cancelar:', error);
@@ -143,10 +141,15 @@ function Clientes() {
     }
   };
 
-  // Função para criar nova mensagem usando crédito
+  // Função para criar nova mensagem usando crédito (vai DIRETO para gravação)
   const criarNovaMensagemComCredito = (tipo) => {
     if (creditos[tipo] <= 0) {
       alert(`❌ Você não tem créditos de ${tipo === 'audio' ? 'ÁUDIO' : 'VÍDEO'} disponíveis.`);
+      return;
+    }
+    
+    // Confirmar com o cliente
+    if (!window.confirm(`Usar 1 crédito de ${tipo === 'audio' ? 'ÁUDIO' : 'VÍDEO'} para criar uma nova mensagem?`)) {
       return;
     }
     
@@ -162,16 +165,9 @@ function Clientes() {
     localStorage.setItem('usandoCredito', 'true');
     localStorage.setItem('tipoCredito', tipo);
     
-    // Navegar para gravação
+    // 🚨 IMPORTANTE: Navegar DIRETO para gravação (NÃO vai para /servicos)
+    // /servicos é apenas para NOVOS pagamentos via PayPal
     navigate(tipo === 'audio' ? '/audiorecord' : '/videorecord');
-  };
-
-  // Função para criar nova mensagem normal (sem crédito)
-  const criarNovaMensagem = () => {
-    // Salvar dados do cliente para usar no cadastro
-    localStorage.setItem('clienteNome', clienteNome);
-    localStorage.setItem('clienteTelefone', telefone);
-    navigate('/servicos');
   };
 
   // Função para fazer logout
@@ -216,7 +212,6 @@ function Clientes() {
             <h2>👋 Acesse Suas Mensagens</h2>
             <p className="subtitulo">Digite seu nome e telefone para ver seus agendamentos</p>
             
-            {/* 🔥 CORREÇÃO AQUI: onSubmit no form, removeu onClick do botão */}
             <form onSubmit={fazerLoginCliente} className="login-form">
               <div className="form-group">
                 <label>Seu nome completo:</label>
@@ -245,7 +240,6 @@ function Clientes() {
               
               {erro && <div className="erro-mensagem">{erro}</div>}
               
-              {/* 🔥 BOTÃO CORRIGIDO: type="submit" (sem onClick) */}
               <button type="submit" className="btn-primary" disabled={carregando}>
                 {carregando ? '🔍 Buscando seus dados...' : '📱 Entrar na Minha Conta'}
               </button>
@@ -288,7 +282,8 @@ function Clientes() {
                 </div>
               </div>
               
-              {(creditos.audio > 0 || creditos.video > 0) && (
+              {/* 🚨 IMPORTANTE: Mostra opção de usar crédito APENAS se tiver crédito */}
+              {(creditos.audio > 0 || creditos.video > 0) ? (
                 <div className="usar-creditos">
                   <p className="instrucao">💡 <strong>Usar crédito para criar mensagem:</strong></p>
                   <div className="credito-botoes">
@@ -309,7 +304,12 @@ function Clientes() {
                       </button>
                     )}
                   </div>
-                  <small className="dica-credito">Usando crédito, você não precisa pagar novamente!</small>
+                  <small className="dica-credito">Usando crédito, você vai DIRETO para gravação!</small>
+                </div>
+              ) : (
+                <div className="sem-creditos">
+                  <p className="instrucao">💡 <strong>Como conseguir créditos?</strong></p>
+                  <p>Cancele uma mensagem agendada e você ganha 1 crédito do mesmo tipo!</p>
                 </div>
               )}
             </div>
@@ -328,18 +328,14 @@ function Clientes() {
                   <p>Verificamos no banco de dados e não encontramos nenhuma mensagem pendente para entrega no seu nome.</p>
                   
                   <div className="acoes-vazio">
-                    <button 
-                      className="btn-primary"
-                      onClick={criarNovaMensagem}
-                    >
-                      ➕ Criar Nova Mensagem
-                    </button>
-                    <button 
-                      className="btn-secundario"
-                      onClick={() => navigate('/servicos')}
-                    >
-                      ℹ️ Ver Planos e Preços
-                    </button>
+                    {/* 🚨 REMOVIDO: Botão para /servicos */}
+                    {/* 🚨 NÃO tem opção de criar nova mensagem sem crédito aqui */}
+                    <p className="aviso-compra">
+                      <strong>Para criar uma nova mensagem:</strong><br/>
+                      1. Vá para a página inicial e clique em "Criar Meu Lembrete"<br/>
+                      2. Faça o pagamento via PayPal<br/>
+                      3. Você será redirecionado para gravar sua mensagem
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -401,17 +397,8 @@ function Clientes() {
               )}
             </div>
             
-            {/* BOTÃO PARA CRIAR NOVA MENSAGEM (SEM CRÉDITO) */}
-            <div className="nova-mensagem-section">
-              <h3>📨 Quer enviar mais uma mensagem?</h3>
-              <button 
-                className="btn-nova-mensagem"
-                onClick={criarNovaMensagem}
-              >
-                🎁 Criar Nova Mensagem
-              </button>
-              <small className="dica">Se não tiver créditos, você pode comprar um novo pacote</small>
-            </div>
+            {/* 🚨 REMOVIDA: Seção "Quer enviar mais uma mensagem?" */}
+            {/* NÃO pode direcionar para /servicos daqui */}
           </div>
         )}
       </main>
