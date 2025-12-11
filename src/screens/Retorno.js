@@ -1,132 +1,90 @@
 import React, { useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { createClient } from '@supabase/supabase-js';
-
-// CONEXÃO COM SUPABASE
-const supabaseUrl = 'https://kuwsgvhjmjnhkteleczc.supabase.co';
-const supabaseKey = 'sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P';
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 const Retorno = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const processarPagamento = async () => {
-      // PEGA DADOS DA URL DO PAYPAL
-      const tipo = searchParams.get('tipo');
-      const status = searchParams.get('status');
-      const orderID = searchParams.get('orderID');
-      const paypalOrderID = searchParams.get('paypalOrderID');
+    // 1. PEGA OS DADOS DO PAYPAL
+    const tipo = searchParams.get('tipo');
+    const status = searchParams.get('status');
+    const orderID = searchParams.get('orderID');
+    const paypalOrderID = searchParams.get('paypalOrderID');
 
-      // SE CANCELOU, VOLTA
-      if (status === 'cancel') {
-        alert('Pagamento cancelado');
-        navigate('/servicos');
-        return;
-      }
+    console.log('📱 DADOS DO PAYPAL:', { tipo, status, orderID });
 
-      // SE PAGOU, CONTINUA
-      if (status === 'success') {
-        
-        // BUSCA DADOS DO CLIENTE (do cadastro)
-        const clienteNome = localStorage.getItem('clienteNome') || '';
-        const clienteTelefone = localStorage.getItem('clienteTelefone') || '';
-        
-        console.log('💾 SALVANDO NO BANCO:', {
-          nome: clienteNome,
-          telefone: clienteTelefone,
-          tipo: tipo,
-          orderID: orderID
-        });
-
-        // ⭐⭐ SALVA NO SUPABASE ⭐⭐
-        try {
-          // PREPARA DADOS
-          const dadosParaSalvar = {
-            data_agendamento: new Date().toISOString().split('T')[0],
-            hora_agendamento: '12:00:00',
-            criado_em: new Date().toISOString(),
-            enviado: false,
-            dados_completos: {
-              // ⭐ DADOS DO CLIENTE (para a área "Sou Cliente" encontrar depois)
-              remetente: clienteNome,
-              telefone_remetente: clienteTelefone,
-              cliente_nome: clienteNome,
-              cliente_telefone: clienteTelefone,
-              // Dados do pedido
-              tipo: tipo,
-              order_id: orderID,
-              status: 'pago',
-              valor: tipo === 'audio' ? 5.00 : 10.00
-            },
-            evento_paypal: `PAYMENT_${orderID}`,
-            valor: tipo === 'audio' ? 5.00 : 10.00
-          };
-
-          // ENVIA PARA O BANCO
-          const { error } = await supabase
-            .from('agendamentos')
-            .insert([dadosParaSalvar]);
-
-          if (error) {
-            console.error('Erro ao salvar:', error);
-          } else {
-            console.log('✅ Dados salvos no banco!');
-          }
-
-        } catch (erro) {
-          console.error('Erro geral:', erro);
-        }
-
-        // SALVA NO LOCALSTORAGE TAMBÉM
-        localStorage.setItem('dadosPagamento', JSON.stringify({
-          tipo: tipo,
-          orderID: orderID,
-          clienteNome: clienteNome,
-          clienteTelefone: clienteTelefone
-        }));
-
-        // REDIRECIONA PARA GRAVAR
-        setTimeout(() => {
-          if (tipo === 'audio') {
-            navigate(`/audiorecord?orderID=${orderID}`);
-          } else {
-            navigate(`/videorecord?orderID=${orderID}`);
-          }
-        }, 1500);
-
-        return;
-      }
-
-      // SE DEU ERRADO
-      alert('Erro no pagamento');
+    // 2. SE CANCELOU
+    if (status === 'cancel') {
+      alert('❌ Pagamento cancelado');
       navigate('/servicos');
-    };
+      return;
+    }
 
-    processarPagamento();
+    // 3. SE PAGOU
+    if (status === 'success') {
+      console.log('✅ PAGAMENTO APROVADO');
+      
+      // 4. PEGA DADOS DO LOCALSTORAGE (do Cadastro)
+      const clienteNome = localStorage.getItem('clienteNome');
+      const clienteTelefone = localStorage.getItem('clienteTelefone');
+      
+      console.log('👤 DADOS DO CLIENTE:', {
+        nome: clienteNome,
+        telefone: clienteTelefone
+      });
+
+      // 5. ⭐⭐ SALVA TUDO NO LOCALSTORAGE PARA O WEBHOOK PEGAR ⭐⭐
+      const dadosCompletos = {
+        // Dados do cliente (CRÍTICO)
+        remetente: clienteNome || 'Cliente',
+        telefone_remetente: clienteTelefone || '',
+        cliente_nome: clienteNome || 'Cliente',
+        cliente_telefone: clienteTelefone || '',
+        
+        // Dados do pedido
+        tipo: tipo,
+        order_id: orderID,
+        paypal_order_id: paypalOrderID || '',
+        status: 'pago',
+        valor: tipo === 'audio' ? 5.00 : 10.00,
+        
+        // Data/hora
+        data_pagamento: new Date().toISOString(),
+        criado_em: new Date().toISOString()
+      };
+
+      // ⭐⭐ SALVA EM 3 LUGARES DIFERENTES PARA GARANTIR ⭐⭐
+      localStorage.setItem('dadosPagamento', JSON.stringify(dadosCompletos));
+      localStorage.setItem('ultimoPagamento', JSON.stringify(dadosCompletos));
+      localStorage.setItem('paypal_data', JSON.stringify(dadosCompletos));
+      
+      console.log('💾 DADOS SALVOS NO LOCALSTORAGE:', dadosCompletos);
+
+      // 6. REDIRECIONA PARA GRAVAR
+      setTimeout(() => {
+        if (tipo === 'audio') {
+          navigate(`/audiorecord?orderID=${orderID}`);
+        } else {
+          navigate(`/videorecord?orderID=${orderID}`);
+        }
+      }, 2000);
+
+      return;
+    }
+
+    // 7. SE DEU ERRADO
+    alert('Erro no processamento');
+    navigate('/servicos');
+
   }, [searchParams, navigate]);
 
-  // TELA DE CARREGAMENTO
+  // TELA SIMPLES
   return (
-    <div style={{
-      textAlign: 'center',
-      padding: '100px 20px',
-      maxWidth: '600px',
-      margin: '0 auto'
-    }}>
-      <div style={{ fontSize: '60px', color: 'green' }}>✅</div>
-      <h1>Pagamento Confirmado!</h1>
+    <div style={{ textAlign: 'center', padding: '100px 20px' }}>
+      <h1 style={{ color: 'green' }}>✅ Pagamento Aprovado!</h1>
       <p>Salvando seus dados...</p>
-      <div style={{
-        marginTop: '30px',
-        padding: '15px',
-        backgroundColor: '#f5f5f5',
-        borderRadius: '8px'
-      }}>
-        <p>🦉 <strong>Processando seu pedido</strong></p>
-        <p>• Salvando seus dados no sistema...</p>
-      </div>
+      <p>🦉 Aguarde, você será redirecionado</p>
     </div>
   );
 };
