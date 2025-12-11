@@ -26,14 +26,30 @@ export default function Cadastro() {
       return;
     }
 
+    // Validar telefone
+    const telefoneLimpo = telefone.replace(/\D/g, '');
+    if (telefoneLimpo.length < 10) {
+      setErro("Digite um telefone válido com DDD (ex: 11999998888)");
+      return;
+    }
+
     setLoading(true);
     setErro("");
 
     // Simulação de cadastro
     setTimeout(() => {
-      seguroSet("clienteId", "temp_" + Date.now());
+      // 🎯 AGORA SALVA DADOS COMPLETOS DO CLIENTE
+      seguroSet("clienteId", "CLI_" + Date.now());
       seguroSet("clienteNome", nome);
-      seguroSet("clienteTelefone", telefone);
+      seguroSet("clienteTelefone", telefoneLimpo); // 🆕 Telefone limpo
+      seguroSet("clienteEmail", email);
+      seguroSet("clienteCPF", cpfCnpj);
+      seguroSet("clienteDataNascimento", dataNascimento);
+
+      console.log("✅ Cliente cadastrado:");
+      console.log("- Nome:", nome);
+      console.log("- Telefone:", telefoneLimpo);
+      console.log("- Email:", email);
 
       setLoading(false);
       navigate("/servicos");
@@ -47,7 +63,7 @@ export default function Cadastro() {
         <div className="cadastro-form">
           <input
             type="text"
-            placeholder="Nome completo"
+            placeholder="Nome completo *"
             value={nome}
             onChange={(e) => setNome(e.target.value)}
             className="cadastro-input"
@@ -56,16 +72,17 @@ export default function Cadastro() {
 
           <input
             type="tel"
-            placeholder="Telefone"
+            placeholder="Telefone com DDD * (ex: 11999998888)"
             value={telefone}
             onChange={(e) => setTelefone(e.target.value)}
             className="cadastro-input"
             autoComplete="off"
           />
+          <small className="dica-telefone">Somente números, com DDD</small>
 
           <input
             type="text"
-            placeholder="Data de nascimento"
+            placeholder="Data de nascimento *"
             value={dataNascimento}
             onChange={(e) => setDataNascimento(e.target.value)}
             className="cadastro-input"
@@ -74,7 +91,7 @@ export default function Cadastro() {
 
           <input
             type="text"
-            placeholder="CPF ou CNPJ"
+            placeholder="CPF ou CNPJ *"
             value={cpfCnpj}
             onChange={(e) => setCpfCnpj(e.target.value)}
             className="cadastro-input"
@@ -83,7 +100,7 @@ export default function Cadastro() {
 
           <input
             type="email"
-            placeholder="Email"
+            placeholder="Email *"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="cadastro-input"
