@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Agendamento.css';
+import { createClient } from '@supabase/supabase-js';
+
+// 🔧 CONEXÃO COM SUPABASE
+const supabaseUrl = 'https://kuwsgvhjmjnhkteleczc.supabase.co';
+const supabaseKey = 'sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const Agendamento = () => {
   const navigate = useNavigate();
@@ -48,7 +54,7 @@ const Agendamento = () => {
     return d.toISOString().split('T')[0];
   };
 
-  // Função de agendamento - ATUALIZADA PARA SEU FLUXO
+  // ⭐⭐ FUNÇÃO PRINCIPAL DE AGENDAMENTO - CORRIGIDA ⭐⭐
   const handleSchedule = async () => {
     if (!nome || !telefone || !selectedDate || !selectedTime) {
       alert('Preencha todos os campos!');
@@ -75,7 +81,16 @@ const Agendamento = () => {
     setLoading(true);
 
     try {
-      // 1) Salva no localStorage para o Retorno.js processar
+      // 1) Buscar dados do CLIENTE (remetente) do localStorage
+      const clienteNome = localStorage.getItem('clienteNome') || 'Cliente';
+      const clienteTelefone = localStorage.getItem('clienteTelefone') || '';
+      const dadosPagamentoStr = localStorage.getItem('dadosPagamento');
+      const dadosPagamento = dadosPagamentoStr ? JSON.parse(dadosPagamentoStr) : {};
+      const orderID = dadosPagamento.orderID || 'ORDER-' + Date.now();
+      
+      console.log('👤 Dados do cliente:', { clienteNome, clienteTelefone, orderID });
+
+      // 2) Salvar no localStorage (como já fazia)
       const agendamentoDados = {
         nome: nome.trim(),
         telefone: telefoneFull,
@@ -85,7 +100,6 @@ const Agendamento = () => {
         timestamp: new Date().toISOString()
       };
 
-      // SALVA DUAS VEZES PARA GARANTIR
       localStorage.setItem('agendamento_corujinha', JSON.stringify(agendamentoDados));
       localStorage.setItem('lastAgendamento', JSON.stringify({
         nome: nome.trim(),
@@ -97,19 +111,76 @@ const Agendamento = () => {
 
       console.log('📝 Agendamento salvo no localStorage:', agendamentoDados);
 
-      // 2) Aqui o sistema vai enviar para o webhook
-      // (O Retorno.js vai lidar com isso após o pagamento)
+      // ⭐⭐ 3) SALVAR NO SUPABASE (NOVO - CRÍTICO) ⭐⭐
+      console.log('💾 Iniciando salvamento no Supabase...');
       
-      // 3) Mensagem de sucesso
+      const dadosSupabase = {
+        // Campos EXATOS da sua tabela 'agendamentos'
+        data_agendamento: selectedDate,
+        hora_agendamento: selectedTime + ':00',
+        link_midia: linkMensagem,
+        criado_em: new Date().toISOString(),
+        enviado: false,
+        
+        // ⭐⭐ DADOS COMPLETOS (com TUDO) ⭐⭐
+        dados_completos: {
+          // Dados do PAGAMENTO
+          tipo: dadosPagamento.tipo || 'audio',
+          order_id: orderID,
+          paypal_order_id: dadosPagamento.paypalOrderID || '',
+          valor: dadosPagamento.valor || (dadosPagamento.tipo === 'audio' ? 5.00 : 10.00),
+          status: 'pago',
+          
+          // ⭐⭐ Dados do REMETENTE (CLIENTE) - para "Sou Cliente" ⭐⭐
+          remetente: clienteNome,
+          telefone_remetente: clienteTelefone.replace(/\D/g, ''),
+          cliente_nome: clienteNome,
+          cliente_telefone: clienteTelefone.replace(/\D/g, ''),
+          
+          // ⭐⭐ Dados do DESTINATÁRIO (AGENDAMENTO) - para enviar SMS ⭐⭐
+          destinatario: nome.trim(),
+          telefone: telefoneFull,
+          data_agendamento: selectedDate,
+          hora_agendamento: selectedTime,
+          
+          // Link da mensagem
+          link_midia: linkMensagem,
+          
+          // Datas
+          data_pagamento: dadosPagamento.dataPagamento || new Date().toISOString(),
+          criado_em: new Date().toISOString()
+        },
+        
+        // Outros campos da sua tabela
+        evento_paypal: `AGENDAMENTO_${orderID}`,
+        valor: dadosPagamento.valor || (dadosPagamento.tipo === 'audio' ? 5.00 : 10.00)
+      };
+
+      console.log('📤 Salvando no Supabase:', dadosSupabase);
+      
+      // SALVAR DIRETO NO SUPABASE
+      const { data, error } = await supabase
+        .from('agendamentos')
+        .insert([dadosSupabase])
+        .select();
+      
+      if (error) {
+        console.error('❌ ERRO AO SALVAR NO SUPABASE:', error);
+        alert('Agendamento salvo localmente, mas houve erro no banco de dados.');
+      } else {
+        console.log('✅ SUCESSO! Salvo no Supabase com ID:', data[0]?.id);
+      }
+
+      // 4) Mensagem de sucesso
       alert(`✅ Agendado com sucesso!\nPara: ${nome.trim()}\nData: ${selectedDate}\nHorário: ${selectedTime}`);
 
-      // 4) Redireciona para página de saída
+      // 5) Redireciona para página de saída
       setTimeout(() => {
         navigate('/saida');
       }, 2000);
 
     } catch (error) {
-      console.error('Erro ao salvar agendamento:', error);
+      console.error('❌ Erro geral no agendamento:', error);
       alert('Erro ao salvar agendamento. Tente novamente.');
       setLoading(false);
     }
