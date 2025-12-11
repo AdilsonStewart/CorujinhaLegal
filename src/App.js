@@ -10,35 +10,38 @@ import Saida from './screens/Saida';
 import VideoRecordPage from './screens/VideoRecordPage';
 import AdminDashboard from './screens/AdminDashboard';
 
-// 🔄 TROQUE ESTA LINHA:
-// import SouCliente from './screens/SouCliente';
-// POR ESTA:
+// ✅ USE A NOVA TELA CLIENTES NO LUGAR DE SOUCLIENTE
 import Clientes from './screens/Clientes';
-
 import Retorno from './screens/Retorno';
 
 function App() {
   return (
     <Router>
       <Routes>
+        {/* 🏠 PÁGINA INICIAL */}
         <Route path="/" element={<Home />} />
+        
+        {/* 📝 FLUXO PRINCIPAL DE CRIAÇÃO */}
         <Route path="/cadastro" element={<Cadastro />} />
         <Route path="/servicos" element={<Servicos />} />
         <Route path="/agendamento" element={<Agendamento />} />
         <Route path="/saida" element={<Saida />} />
+        
+        {/* 🎤 GRAVAÇÃO */}
         <Route path="/audiorecord" element={<AudioRecordPage />} />
         <Route path="/videorecord" element={<VideoRecordPage />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-
-        {/* 🔄 TROQUE ESTA ROTA: */}
-        {/* <Route path="/soucliente" element={<SouCliente />} /> */}
-        {/* POR ESTA: */}
+        
+        {/* 👥 ÁREA DO CLIENTE */}
+        {/* ✅ Botão "Sou Cliente" na Home vai para /soucliente */}
         <Route path="/soucliente" element={<Clientes />} />
-
-        {/* ⭐ ROTA DE RETORNO DO PAYPAL */}
+        
+        {/* 💰 RETORNO DO PAYPAL (CRÍTICO - NÃO MEXER) */}
         <Route path="/retorno" element={<Retorno />} />
-
-        {/* ROTA 404 */}
+        
+        {/* 🔧 ADMIN */}
+        <Route path="/admin" element={<AdminDashboard />} />
+        
+        {/* ❌ PÁGINA DE ERRO 404 */}
         <Route path="*" element={<Erro />} />
       </Routes>
     </Router>
