@@ -26,42 +26,16 @@ module.exports = async function handler(req, res) {
     
     if (isPayPal) {
       console.log('💰 PAYPAL DETECTADO!');
-      
-      // CÓDIGO DO PAYPAL (mantenha o SEU código atual aqui)
-      // NÃO MEXA NESTA PARTE SE JÁ ESTIVER FUNCIONANDO
-      
+      // Seu código PayPal aqui (não mude)
       return res.status(200).json({ status: 'RECEIVED' });
       
     } else {
       console.log('🔄 FRONTEND DETECTADO (após pagamento)');
       
-      // 🎯 LOG COMPLETO DO QUE ESTÁ RECEBENDO
-      console.log('📦 DADOS RECEBIDOS DO FRONTEND:');
-      console.log('- tipo:', req.body.tipo);
-      console.log('- orderID:', req.body.orderID);
-      console.log('- status:', req.body.status);
-      console.log('- destinatario:', req.body.destinatario);
-      console.log('- telefone:', req.body.telefone);
-      console.log('- data:', req.body.data);
-      console.log('- hora:', req.body.hora);
-      console.log('- link_midia:', req.body.link_midia);
-      console.log('- clienteId:', req.body.clienteId);
-      console.log('- valor:', req.body.valor);
+      // 🎯 PEGA APENAS OS 3 CAMPOS QUE O ANTIGO USA
+      const { tipo, orderID, status } = req.body;
       
-      const { 
-        tipo, 
-        orderID, 
-        status, 
-        destinatario, 
-        telefone, 
-        data, 
-        hora, 
-        link_midia,
-        clienteId,
-        valor 
-      } = req.body;
-      
-      // VALIDAÇÃO
+      // VALIDAÇÃO SIMPLES (igual ao antigo)
       if (!tipo || !orderID || !status) {
         console.error('❌ Dados mínimos não recebidos');
         return res.status(400).json({ 
@@ -72,80 +46,64 @@ module.exports = async function handler(req, res) {
       
       console.log(`✅ Pagamento confirmado: ${orderID} - ${tipo}`);
       
-      // 🎯 PREPARAR DADOS PARA SALVAR (COM TODOS OS CAMPOS)
+      // 🎯 DADOS BÁSICOS (IGUAL AO ANTIGO)
       const dadosParaSalvar = {
-        // Campos principais
-        tipo: tipo || 'audio',
+        tipo: tipo,
         order_id: orderID,
-        status: status || 'pago',
-        
-        // 🚨 AGORA SALVANDO OS DADOS DO FORMULÁRIO
-        destinatario: destinatario || 'Não informado',
-        telefone: telefone ? telefone.replace(/\D/g, '') : '00000000000',
-        data_agendamento: data || new Date().toISOString().split('T')[0],
-        hora_agendamento: hora || '12:00',
-        
-        // Outros campos
-        link_midia: link_midia || null,
-        clienteId: clienteId || 'sem-cadastro',
-        valor: valor || 5.00,
+        status: status,
         criado_em: new Date().toISOString(),
         enviado: false
       };
       
-      console.log('💾 DADOS PARA SALVAR NO BANCO:');
-      console.log(JSON.stringify(dadosParaSalvar, null, 2));
-      
-      // Verificar se já existe
-      const { data: existe } = await supabase
-        .from('agendamentos')
-        .select('id')
-        .eq('order_id', orderID)
-        .maybeSingle();
-      
-      let resultado;
-      
-      if (existe) {
-        // Atualizar registro existente
-        console.log(`🔄 Atualizando registro existente ID: ${existe.id}`);
-        const { data, error } = await supabase
-          .from('agendamentos')
-          .update(dadosParaSalvar)
-          .eq('id', existe.id)
-          .select();
-        
-        if (error) {
-          console.error('❌ Erro ao atualizar:', error);
-          throw error;
-        }
-        resultado = data;
-      } else {
-        // Inserir novo registro
-        console.log('➕ Inserindo novo registro');
-        const { data, error } = await supabase
-          .from('agendamentos')
-          .insert([dadosParaSalvar])
-          .select();
-        
-        if (error) {
-          console.error('❌ Erro ao inserir:', error);
-          throw error;
-        }
-        resultado = data;
+      // 🎯 SE TIVER DADOS DO FORMULÁRIO, ADICIONA
+      if (req.body.destinatario) {
+        dadosParaSalvar.destinatario = req.body.destinatario;
+        console.log('👤 Destinatário recebido:', req.body.destinatario);
       }
       
-      console.log('✅ REGISTRO SALVO COM SUCESSO!');
-      console.log('📊 ID:', resultado[0]?.id);
-      console.log('🎯 Order ID:', resultado[0]?.order_id);
-      console.log('👤 Destinatário:', resultado[0]?.destinatario);
-      console.log('📅 Data:', resultado[0]?.data_agendamento);
-      console.log('🕒 Hora:', resultado[0]?.hora_agendamento);
+      if (req.body.telefone) {
+        dadosParaSalvar.telefone = req.body.telefone.replace(/\D/g, '');
+        console.log('📞 Telefone recebido:', req.body.telefone);
+      }
+      
+      if (req.body.data) {
+        dadosParaSalvar.data_agendamento = req.body.data;
+        console.log('📅 Data recebida:', req.body.data);
+      }
+      
+      if (req.body.hora) {
+        dadosParaSalvar.hora_agendamento = req.body.hora;
+        console.log('🕒 Hora recebida:', req.body.hora);
+      }
+      
+      if (req.body.link_midia) {
+        dadosParaSalvar.link_midia = req.body.link_midia;
+        console.log('🔗 Link mídia recebido:', req.body.link_midia);
+      }
+      
+      console.log('💾 Dados para salvar:', dadosParaSalvar);
+      
+      // 🎯 SALVAR NO BANCO (SIMPLES COMO ANTIGO)
+      const { data, error } = await supabase
+        .from('agendamentos')
+        .insert([dadosParaSalvar])
+        .select();
+      
+      if (error) {
+        console.error('❌ Erro no banco:', error);
+        return res.status(500).json({ 
+          success: false,
+          error: 'Erro ao salvar no banco' 
+        });
+      }
+      
+      console.log('✅ Registro salvo no banco!');
+      console.log('📊 ID:', data[0]?.id);
       
       return res.status(200).json({ 
         success: true, 
-        message: 'Pagamento e dados salvos com sucesso!',
-        orderID: orderID,
-        registro: resultado[0]
+        message: 'Pagamento confirmado e dados salvos!',
+        orderID: orderID
       });
     }
     
@@ -153,7 +111,7 @@ module.exports = async function handler(req, res) {
     console.error('❌ ERRO GERAL:', error);
     return res.status(500).json({ 
       success: false,
-      error: 'Erro interno' 
+      error: 'Erro interno no servidor' 
     });
   }
 };
