@@ -13,7 +13,7 @@ export default function Home() {
 
   const handleAdminAccess = () => {
     if (adminPassword === ADMIN_PASSWORD) {
-      navigate('/admin/painel');
+      navigate('/admin');
     } else {
       setPasswordError(true);
       setAdminPassword('');
