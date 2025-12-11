@@ -10,7 +10,12 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const Retorno = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-
+useEffect(() => {
+  // 🔍 PRIMEIRO: Ver o que já tem na tabela
+  verEstruturaTabela();
+  
+  // ... resto do seu código
+}, [searchParams, navigate]);
   useEffect(() => {
     const processarPagamento = async () => {
       // 1. PEGAR DADOS DA URL
