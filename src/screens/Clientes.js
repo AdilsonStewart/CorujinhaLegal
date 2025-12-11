@@ -73,9 +73,9 @@ function Clientes() {
     }
   };
 
-  // Função para fazer login do cliente
+  // Função para fazer login do cliente - AGORA COM preventDefault
   const fazerLoginCliente = (e) => {
-    e.preventDefault();
+    e.preventDefault(); // 🔥 IMPORTANTE: Impede que a página recarregue
     
     // Validação básica
     if (!nome.trim() || !telefone.trim()) {
@@ -216,6 +216,7 @@ function Clientes() {
             <h2>👋 Acesse Suas Mensagens</h2>
             <p className="subtitulo">Digite seu nome e telefone para ver seus agendamentos</p>
             
+            {/* 🔥 CORREÇÃO AQUI: onSubmit no form, removeu onClick do botão */}
             <form onSubmit={fazerLoginCliente} className="login-form">
               <div className="form-group">
                 <label>Seu nome completo:</label>
@@ -244,8 +245,9 @@ function Clientes() {
               
               {erro && <div className="erro-mensagem">{erro}</div>}
               
+              {/* 🔥 BOTÃO CORRIGIDO: type="submit" (sem onClick) */}
               <button type="submit" className="btn-primary" disabled={carregando}>
-                {carregando ? '🔍 Buscando seus dados...' : '📱 Acessar Minhas Mensagens'}
+                {carregando ? '🔍 Buscando seus dados...' : '📱 Entrar na Minha Conta'}
               </button>
             </form>
             
