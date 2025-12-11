@@ -53,49 +53,79 @@ useEffect(() => {
           telefone: clienteTelefone
         });
 
-        // 6. SALVAR NO SUPABASE - USANDO APENAS COLUNAS EXISTENTES
-        try {
-          console.log('💾 Tentando salvar no Supabase...');
-          
-          // FORMATAR DATA para o padrão do Supabase (YYYY-MM-DD)
-          const hoje = new Date();
-          const dataFormatada = hoje.toISOString().split('T')[0];
-          
-          // Dados para salvar - APENAS colunas que EXISTEM na sua tabela
-          const dadosParaSalvar = {
-            // COLUNAS QUE VOCÊ TEM NA TABELA (conforme você me mostrou):
-            data_agendamento: dataFormatada, // Data de hoje como padrão
-            hora_agendamento: '12:00:00',    // Hora padrão (será atualizada depois)
-            link_midia: '',                   // Vazio por enquanto (será preenchido na gravação)
-            criado_em: new Date().toISOString(),
-            enviado: false,
-            
-            // ⭐⭐ IMPORTANTE: Dados do cliente dentro de 'dados_completos'
-            dados_completos: {
-              // Dados básicos do pagamento
-              tipo: tipo,
-              order_id: orderID,
-              paypal_order_id: paypalOrderID || '',
-              valor: tipo === 'audio' ? 5.00 : 10.00,
-              status: 'pago',
-              
-              // ⭐⭐ DADOS DO CLIENTE (CRÍTICO para busca depois!)
-              cliente_nome: clienteNome,
-              cliente_telefone: clienteTelefone.replace(/\D/g, ''), // Apenas números
-              
-              // Outros dados úteis
-              data_pagamento: new Date().toISOString(),
-              
-              // Campos para compatibilidade com busca anterior
-              destinatario: clienteNome,    // Para compatibilidade
-              telefone: clienteTelefone,    // Para compatibilidade
-              remetente: clienteNome        // Para compatibilidade
-            },
-            
-            // Campos extras se existirem (ajuste conforme sua tabela)
-            evento_paypal: `PAYMENT.CAPTURE.COMPLETED_${tipo.toUpperCase()}`,
-            valor: tipo === 'audio' ? 5.00 : 10.00
-          };
+        // 6. SALVAR NO SUPABASE - FORMA SUPER SIMPLES
+try {
+  console.log('💾 Salvando no Supabase...');
+  
+  // Dados MÍNIMOS que vão funcionar
+  const dadosSimples = {
+    data_agendamento: new Date().toISOString().split('T')[0], // Data de hoje
+    hora_agendamento: '12:00:00', // Hora padrão
+    criado_em: new Date().toISOString(),
+    enviado: false,
+    
+    // ⭐⭐ DADOS DO CLIENTE AQUI DENTRO ⭐⭐
+    dados_completos: {
+      // Identificação do cliente (CRÍTICO)
+      remetente: clienteNome,
+      telefone_remetente: clienteTelefone.replace(/\D/g, ''),
+      cliente_nome: clienteNome,
+      cliente_telefone: clienteTelefone.replace(/\D/g, ''),
+      
+      // Dados do pagamento
+      tipo: tipo,
+      order_id: orderID,
+      paypal_order_id: paypalOrderID || '',
+      status: 'pago',
+      valor: tipo === 'audio' ? 5.00 : 10.00,
+      
+      // Para compatibilidade
+      destinatario: clienteNome,
+      telefone: clienteTelefone
+    }
+  };
+
+  console.log('📤 Salvando dados:', dadosSimples);
+
+  const { data, error } = await supabase
+    .from('agendamentos')
+    .insert([dadosSimples]);
+
+  if (error) {
+    console.error('❌ Erro ao salvar:', error);
+    
+    // Tentativa MAIS SIMPLES AINDA
+    console.log('🔄 Tentando forma ultra simples...');
+    
+    const dadosUltraSimples = {
+      data_agendamento: new Date().toISOString().split('T')[0],
+      hora_agendamento: '12:00:00',
+      criado_em: new Date().toISOString(),
+      enviado: false,
+      dados_completos: JSON.stringify({
+        remetente: clienteNome,
+        telefone: clienteTelefone,
+        tipo: tipo
+      })
+    };
+    
+    const { data: data2, error: error2 } = await supabase
+      .from('agendamentos')
+      .insert([dadosUltraSimples]);
+      
+    if (error2) {
+      console.error('❌ Erro na forma simples:', error2);
+    } else {
+      console.log('✅ Salvo (forma simples) ID:', data2?.[0]?.id);
+    }
+    
+  } else {
+    console.log('✅ Salvo com sucesso! ID:', data?.[0]?.id);
+  }
+
+} catch (error) {
+  console.error('❌ Erro geral:', error);
+}
 // 🔍 FUNÇÃO PARA VER EXATAMENTE O QUE TEM NA TABELA
 const verEstruturaTabela = async () => {
   console.log('🔍 VERIFICANDO ESTRUTURA DA TABELA...');
