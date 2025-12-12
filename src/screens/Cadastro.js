@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { db } from "../firebaseConfig"; // ← UM PONTO SÓ!
+import { db } from "../firebase/config"; // ← CAMINHO CORRETO!
 import { collection, addDoc } from "firebase/firestore";
 import "./Cadastro.css";
 
