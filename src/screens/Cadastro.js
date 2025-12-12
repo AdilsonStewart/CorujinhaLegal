@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { db } from "../firebase/config"; // IMPORT ESTÁTICO CORRETO
+import { collection, addDoc } from "firebase/firestore"; // IMPORT ESTÁTICO CORRETO
 import "./Cadastro.css";
 
 export default function Cadastro() {
@@ -15,7 +17,6 @@ export default function Cadastro() {
   const handleCadastro = async () => {
     console.log("🚀 handleCadastro INICIADO");
     
-    // Validações básicas
     if (!nome || !telefone || !dataNascimento || !cpfCnpj || !email) {
       setErro("Preencha todos os campos!");
       return;
@@ -30,7 +31,6 @@ export default function Cadastro() {
     setLoading(true);
     setErro("");
 
-    // Dados do cliente
     const clienteData = {
       id: "CLI_" + Date.now(),
       nome: nome.trim(),
@@ -47,44 +47,25 @@ export default function Cadastro() {
       localStorage.setItem('clienteTelefone', telefoneLimpo);
       console.log("✅ localStorage salvo");
 
-      console.log("2. Carregando Firebase do CDN...");
+      console.log("2. Preparando para salvar no Firebase...");
       
-      // 🎯 IMPORTANTE: Firebase DIRETO do CDN (FUNCIONA SEMPRE)
-      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js");
-      const { getFirestore, collection, addDoc } = await import("https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js");
-      
-      // Configuração do SEU Firebase (usei as suas chaves)
-      const firebaseConfig = {
-        apiKey: "AIzaSyASmPjNdBFly7ndXk0n-FFbWT-2DQLlevI",
-        authDomain: "corujinhalegal2-5c7c9.firebaseapp.com",
-        projectId: "corujinhalegal2-5c7c9",
-        storageBucket: "corujinhalegal2-5c7c9.firebasestorage.app",
-        messagingSenderId: "711736746096",
-        appId: "1:711736746096:web:dd3a64784367133dd414b5"
-      };
-      
-      console.log("3. Inicializando Firebase...");
-      const app = initializeApp(firebaseConfig);
-      const db = getFirestore(app);
-      
-      console.log("4. Salvando no Firestore...");
+      // 🎯 IMPORT ESTÁTICO JÁ FEITO NAS LINHAS 3 e 4 ACIMA!
+      // Não precisa mais de import() dinâmico!
+      console.log("3. Firebase já importado, salvando...");
       const docRef = await addDoc(collection(db, "Clientes"), clienteData);
       
       console.log("✅ FIREBASE SUCESSO! ID:", docRef.id);
       
-      // Atualiza localStorage com ID real do Firebase
       clienteData.id = docRef.id;
       localStorage.setItem('clienteCorujinha', JSON.stringify(clienteData));
       
-      console.log("5. Redirecionando...");
+      console.log("4. Redirecionando...");
       setLoading(false);
       navigate("/servicos");
       
     } catch (error) {
       console.error("❌ ERRO no Firebase:", error.message);
-      console.error("Detalhes:", error);
       
-      // Mesmo com erro no Firebase, redireciona (localStorage já salvou)
       setErro("Cadastro realizado com sucesso!");
       setLoading(false);
       
