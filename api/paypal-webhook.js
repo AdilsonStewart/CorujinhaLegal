@@ -9,188 +9,139 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
+
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
-  
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método não permitido' });
   }
 
   console.log('=== WEBHOOK CHAMADO ===');
   console.log('📦 Dados recebidos:', JSON.stringify(req.body, null, 2));
-  
+
   try {
     // VERIFICAR SE É PAYPAL (tem event_type)
     const isPayPal = req.body.event_type && req.body.resource;
-    
+
     if (isPayPal) {
       console.log('💰 PAYPAL WEBHOOK DETECTADO!');
-      
-      // DADOS DO PAYPAL
+
       const eventType = req.body.event_type;
       const resource = req.body.resource;
       const orderID = resource.id || resource.order_id || 'UNKNOWN';
       const status = resource.status || 'COMPLETED';
       const valor = parseFloat(resource.amount?.value || '0');
-      
+
       console.log(`🔄 Evento: ${eventType}`);
       console.log(`📋 Order ID: ${orderID}`);
       console.log(`💰 Valor: ${valor}`);
-      
-      // SÓ PROCESSAR SE FOR PAGAMENTO COMPLETO
+
       if (eventType === 'PAYMENT.CAPTURE.COMPLETED' || status === 'COMPLETED') {
         console.log('✅ PAGAMENTO COMPLETO DETECTADO!');
-        
-        // PEGAR DADOS ADICIONAIS (custom_id do frontend)
+
         const customID = resource.custom_id || '';
         const tipo = customID.includes('AUDIO') ? 'audio' : 
                     customID.includes('VIDEO') ? 'video' : 'audio';
-        
-        // ⭐⭐ DADOS PARA SALVAR NO SUPABASE ⭐⭐
+
+        const telefoneRemetente = localStorage?.getItem?.("clienteTelefone") || "00000000000";
+
         const dadosParaSalvar = {
-          // Campos da sua tabela
-          data_agendamento: new Date().toISOString().split('T')[0], // Data atual
-          hora_agendamento: '12:00:00', // Será atualizado no agendamento
+          data_agendamento: new Date().toISOString().split('T')[0],
+          hora_agendamento: '12:00:00',
           criado_em: new Date().toISOString(),
           enviado: false,
-          link_midia: '', // Será preenchido na gravação
-          
-          // ⭐⭐ DADOS COMPLETOS (com cliente) ⭐⭐
+          link_midia: '',
           dados_completos: {
-            // Dados do pagamento
             tipo: tipo,
             order_id: customID || orderID,
             paypal_order_id: orderID,
             status: 'pago',
             valor: valor,
-            
-            // ⭐⭐ DADOS DO CLIENTE (do frontend via Retorno.js) ⭐⭐
-            // Se vier do frontend, usar esses dados
             cliente_nome: req.body.cliente_nome || 'Cliente não informado',
             cliente_telefone: req.body.cliente_telefone || '',
             remetente: req.body.remetente || req.body.cliente_nome || 'Cliente',
             telefone_remetente: req.body.telefone_remetente || req.body.cliente_telefone || '',
-            
-            // Para compatibilidade
             destinatario: req.body.destinatario || 'A definir',
             telefone: req.body.telefone || '',
-            
-            // Informações do PayPal
             evento_paypal: eventType,
             data_pagamento: new Date().toISOString()
           },
-          
-          // Campos extras
           evento_paypal: eventType,
           valor: valor
         };
-        
+
         console.log('📤 Salvando no Supabase:', dadosParaSalvar);
-        
-        // SALVAR NO BANCO
+
         const { data, error } = await supabase
           .from('agendamentos')
           .insert([dadosParaSalvar])
           .select();
-        
+
         if (error) {
           console.error('❌ Erro ao salvar no Supabase:', error);
-          return res.status(500).json({ 
-            success: false,
-            error: 'Erro no banco' 
-          });
+          return res.status(500).json({ success: false, error: 'Erro no banco' });
         }
-        
+
         console.log('✅ Dados salvos com ID:', data?.[0]?.id);
-        
-        return res.status(200).json({ 
-          success: true, 
-          message: 'Pagamento processado e salvo',
-          orderID: orderID
-        });
+        return res.status(200).json({ success: true, message: 'Pagamento processado e salvo', orderID: orderID });
       }
-      
+
       return res.status(200).json({ status: 'RECEIVED' });
-      
+
     } else {
-      // ⭐⭐ FRONTEND (Retorno.js) ENVIANDO DADOS ⭐⭐
       console.log('🔄 FRONTEND ENVIOU DADOS APÓS PAGAMENTO');
-      
+
       const { tipo, orderID, status, cliente_nome, cliente_telefone } = req.body;
-      
-      // VALIDAÇÃO
+
       if (!tipo || !orderID || !status) {
         console.error('❌ Dados mínimos faltando');
-        return res.status(400).json({ 
-          success: false,
-          error: 'Dados incompletos' 
-        });
+        return res.status(400).json({ success: false, error: 'Dados incompletos' });
       }
-      
+
       console.log(`✅ Processando: ${orderID} - ${tipo}`);
       console.log(`👤 Cliente: ${cliente_nome} - ${cliente_telefone}`);
-      
-      // SALVAR NO BANCO COM DADOS DO CLIENTE
+
       const dadosParaSalvar = {
         data_agendamento: new Date().toISOString().split('T')[0],
         hora_agendamento: '12:00:00',
         criado_em: new Date().toISOString(),
         enviado: false,
         link_midia: '',
-        
-        // ⭐⭐ DADOS COMPLETOS COM CLIENTE ⭐⭐
         dados_completos: {
           tipo: tipo,
           order_id: orderID,
           status: status,
           valor: tipo === 'audio' ? 5.00 : 10.00,
-          
-          // DADOS DO CLIENTE (CRÍTICO)
           cliente_nome: cliente_nome || 'Cliente',
           cliente_telefone: cliente_telefone || '',
           remetente: cliente_nome || 'Cliente',
           telefone_remetente: cliente_telefone || '',
-          
-          // Para compatibilidade
           destinatario: cliente_nome || 'Cliente',
           telefone: cliente_telefone || '',
-          
           data_pagamento: new Date().toISOString()
         },
-        
         evento_paypal: `FRONTEND_${orderID}`,
         valor: tipo === 'audio' ? 5.00 : 10.00
       };
-      
+
       const { data, error } = await supabase
         .from('agendamentos')
         .insert([dadosParaSalvar])
         .select();
-      
+
       if (error) {
         console.error('❌ Erro no banco:', error);
-        return res.status(500).json({ 
-          success: false,
-          error: 'Erro ao salvar' 
-        });
+        return res.status(500).json({ success: false, error: 'Erro ao salvar' });
       }
-      
+
       console.log('✅ Pagamento salvo no banco! ID:', data?.[0]?.id);
-      
-      return res.status(200).json({ 
-        success: true, 
-        message: 'Dados salvos com sucesso!',
-        orderID: orderID
-      });
+      return res.status(200).json({ success: true, message: 'Dados salvos com sucesso!', orderID: orderID });
     }
-    
+
   } catch (error) {
     console.error('❌ ERRO GERAL:', error);
-    return res.status(500).json({ 
-      success: false,
-      error: 'Erro interno' 
-    });
+    return res.status(500).json({ success: false, error: 'Erro interno' });
   }
 };
