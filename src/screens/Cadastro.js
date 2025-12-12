@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Cadastro.css";
 
-// IMPORTS DO FIREBASE
-import { db } from "../firebaseConfig";
+// IMPORT CORRIGIDO DO FIREBASE (AGORA FUNCIONA)
+import { db } from "../firebase/config";
 import { collection, addDoc } from "firebase/firestore";
 
 export default function Cadastro() {
