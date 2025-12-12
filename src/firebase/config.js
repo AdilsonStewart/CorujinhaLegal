@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -11,7 +11,8 @@ const firebaseConfig = {
   appId: "1:711736746096:web:dd3a64784367133dd414b5"
 };
 
-const app = initializeApp(firebaseConfig);
+// garante que só cria UMA instância do Firebase
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 export const db = getFirestore(app);
 export const storage = getStorage(app);
