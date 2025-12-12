@@ -1,169 +1,393 @@
-import React, { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import "./AudioRecordPage.css";
+import React, { useState, useRef, useEffect } from "react";
+import { createClient } from '@supabase/supabase-js';
 
-// SUPABASE
-import { createClient } from "@supabase/supabase-js";
+// 🔧 CONFIGURAÇÃO DO SUPABASE
+const supabaseUrl = 'https://kuwsgvhjmjnhkteleczc.supabase.co';
+const supabaseKey = 'sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-// FIREBASE
-import { db } from "../firebase/config";
-import { doc, collection, addDoc } from "firebase/firestore";
-
-// 🔧 Conexão Supabase
-const supabase = createClient(
-  "https://kuwsgvhjmjnhkteleczc.supabase.co",
-  "sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P"
-);
-
-export default function AudioRecordPage() {
-  const navigate = useNavigate();
-  const mediaRecorderRef = useRef(null);
+const AudioRecorder = () => {
+  const [isRecording, setIsRecording] = useState(false);
   const [audioURL, setAudioURL] = useState(null);
-  const [blobAudio, setBlobAudio] = useState(null);
-  const [recording, setRecording] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [nome, setNome] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [dataEntrega, setDataEntrega] = useState("");
+  const [horaEntrega, setHoraEntrega] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [tempoRestante, setTempoRestante] = useState(30);
 
-  // ▶️ INICIAR GRAVAÇÃO
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const tempoIntervalRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (tempoIntervalRef.current) {
+        clearInterval(tempoIntervalRef.current);
+      }
+    };
+  }, []);
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-      mediaRecorderRef.current = new MediaRecorder(stream);
-      const chunks = [];
+      audioChunksRef.current = [];
+      setAudioURL(null);
+      setAudioBlob(null);
 
-      mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
+      const mediaRecorder = new MediaRecorder(stream);
 
-      mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(chunks, { type: "audio/webm" });
-        const url = URL.createObjectURL(blob);
-        setAudioURL(url);
-        setBlobAudio(blob);
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
       };
 
-      mediaRecorderRef.current.start();
-      setRecording(true);
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        setAudioBlob(blob);
+        setAudioURL(URL.createObjectURL(blob));
+
+        stream.getTracks().forEach((track) => track.stop());
+
+        if (tempoIntervalRef.current) clearInterval(tempoIntervalRef.current);
+        setTempoRestante(30);
+      };
+
+      mediaRecorder.start();
+      mediaRecorderRef.current = mediaRecorder;
+      setIsRecording(true);
+
+      tempoIntervalRef.current = setInterval(() => {
+        setTempoRestante((prev) => {
+          if (prev <= 1) {
+            stopRecording();
+            return 30;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
     } catch (error) {
-      alert("Erro ao acessar microfone!");
+      alert("Não consegui acessar o microfone. Verifique as permissões.");
     }
   };
 
-  // ⏹️ PARAR GRAVAÇÃO
   const stopRecording = () => {
-    mediaRecorderRef.current.stop();
-    setRecording(false);
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+
+      if (tempoIntervalRef.current) clearInterval(tempoIntervalRef.current);
+
+      setTempoRestante(30);
+    }
   };
 
-  // 💾 ENVIAR ÁUDIO PARA SUPABASE
-  const uploadToSupabase = async () => {
-    if (!blobAudio) {
-      alert("Grave algo antes de continuar!");
-      return null;
-    }
-
-    const fileName = `audio_${Date.now()}.webm`;
-    const file = new File([blobAudio], fileName, { type: "audio/webm" });
-
-    const { data, error } = await supabase.storage
-      .from("audios")
-      .upload(fileName, file);
-
-    if (error) {
-      console.error("Erro Supabase:", error);
-      alert("Erro ao enviar arquivo");
-      return null;
-    }
-
-    const { data: publicUrl } = supabase.storage
-      .from("audios")
-      .getPublicUrl(fileName);
-
-    return publicUrl.publicUrl;
-  };
-
-  // ⭐ SALVAR NO FIRESTORE
-  const salvarNoFirestore = async (audioUrl) => {
+  // 🆕 ATUALIZA DADOS COMPLETOS NO SUPABASE
+  const atualizarDadosCompletosNoSupabase = async (orderID, nomeDestinatario, telefoneDestinatario, data, hora) => {
     try {
-      const clienteId = localStorage.getItem("clienteId");
+      const telefoneDestinatarioLimpo = telefoneDestinatario.replace(/\D/g, '');
+      const telefoneRemetente = localStorage.getItem("clienteTelefone");
+      const telefoneRemetenteLimpo = telefoneRemetente ? telefoneRemetente.replace(/\D/g, '') : "00000000000";
 
-      if (!clienteId) {
-        alert("Erro: cliente não encontrado!");
-        return;
-      }
+      const dadosAtualizacao = {
+        destinatario: nomeDestinatario,
+        telefone: telefoneDestinatarioLimpo,
+        data_agendamento: data,
+        hora_agendamento: hora,
+        Remetente: telefoneRemetenteLimpo,
+        atualizado_em: new Date().toISOString()
+      };
 
-      await addDoc(
-        collection(db, "clientes", clienteId, "mensagens"),
-        {
-          link: audioUrl,
-          criadoEm: new Date().toISOString(),
-          timestamp: Date.now(),
-        }
-      );
-    } catch (err) {
-      console.error("Erro Firestore:", err);
+      const { data: registroExistente } = await supabase
+        .from('agendamentos')
+        .select('id, order_id')
+        .eq('order_id', orderID)
+        .maybeSingle();
+
+      if (!registroExistente) return false;
+
+      const { error } = await supabase
+        .from('agendamentos')
+        .update(dadosAtualizacao)
+        .eq('order_id', orderID);
+
+      return !error;
+
+    } catch (error) {
+      console.error("Erro na atualização:", error);
+      return false;
     }
   };
 
-  // ⭐ BOTÃO FINAL - PROCESSO COMPLETO
-  const finalizar = async () => {
-    if (!blobAudio) {
-      alert("Grave algo antes!");
+  const enviarDados = async () => {
+    if (!audioBlob) {
+      alert("Grave um áudio antes de enviar.");
       return;
     }
 
-    setLoading(true);
-
-    // 1) Sobe para Supabase
-    const linkFinal = await uploadToSupabase();
-
-    if (!linkFinal) {
-      setLoading(false);
+    if (!nome || !telefone || !dataEntrega || !horaEntrega) {
+      alert("Preencha todos os campos: nome, telefone, data e horário.");
       return;
     }
 
-    // 2) Salva no localStorage (usado pelo agendamento)
-    localStorage.setItem("lastRecordingUrl", linkFinal);
+    const telefoneLimpo = telefone.replace(/\D/g, '');
+    if (telefoneLimpo.length < 10) {
+      alert("Digite um telefone válido com DDD (ex: 11999999999).");
+      return;
+    }
 
-    // 3) Salva no Firestore dentro do cliente
-    await salvarNoFirestore(linkFinal);
+    setIsUploading(true);
 
-    setLoading(false);
+    try {
+      // 1. Nome do arquivo CORRIGIDO
+      const nomeArquivo = `audio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.webm`;
 
-    navigate("/agendamento");
+      // 2. Upload
+      const { error: uploadError } = await supabase.storage
+        .from("Midias")
+        .upload(nomeArquivo, audioBlob, {
+          contentType: "audio/webm",
+          cacheControl: "3600"
+        });
+
+      if (uploadError) throw new Error(`Falha no upload: ${uploadError.message}`);
+
+      // 3. URL pública
+      const { data: { publicUrl } } = supabase
+        .storage
+        .from("Midias")
+        .getPublicUrl(nomeArquivo);
+
+      // 4. OrderID
+      const orderID =
+        localStorage.getItem("currentOrderId") ||
+        `AUDIO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      const dadosParaWebhook = {
+        tipo: "audio",
+        orderID,
+        status: "success"
+      };
+
+      // 5. Webhook
+      const webhookResponse = await fetch("/api/paypal-webhook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dadosParaWebhook)
+      });
+
+      const webhookResult = await webhookResponse.json();
+      if (!webhookResponse.ok) throw new Error(webhookResult.error);
+
+      // 6. Atualizar dados completos
+      await atualizarDadosCompletosNoSupabase(orderID, nome, telefone, dataEntrega, horaEntrega);
+
+      // 7. Salvar para Saida.js
+      const dadosParaSaida = {
+        nome,
+        dataEntrega,
+        horario: horaEntrega,
+        telefone: telefoneLimpo,
+        tipo: "audio",
+        link_midia: publicUrl,
+        orderID,
+        remetenteTelefone: localStorage.getItem("clienteTelefone") || "Não informado"
+      };
+
+      localStorage.setItem("lastAgendamento", JSON.stringify(dadosParaSaida));
+
+      // 8. Mensagem corrigida
+      alert(
+        `🎉 Áudio agendado com sucesso!\n\n📞 Para: ${nome}\n📅 Data: ${dataEntrega}\n🕒 Hora: ${horaEntrega}`
+      );
+
+      // 9. Redirecionar
+      setTimeout(() => {
+        window.location.href = "/saida";
+      }, 2000);
+
+    } catch (error) {
+      alert(`❌ Ocorreu um erro:\n\n${error.message}`);
+    }
+
+    setIsUploading(false);
   };
 
   return (
-    <div className="audio-page">
-      <h1 className="titulo">Gravar Mensagem de Áudio</h1>
+    <div style={{ padding: 20, maxWidth: 600, margin: "0 auto" }}>
+      <h2>🎤 Gravador de Áudio - Máx 30s</h2>
 
-      {!recording && !audioURL && (
-        <button className="btn iniciar" onClick={startRecording}>
-          🎙️ Iniciar Gravação
-        </button>
-      )}
+      <div
+        style={{
+          fontSize: 24,
+          color: "#dc3545",
+          fontWeight: "bold",
+          background: "#ffebee",
+          padding: "15px 25px",
+          borderRadius: 25,
+          textAlign: "center",
+          marginBottom: 20
+        }}
+      >
+        ⏱️ Tempo máximo: {tempoRestante}s
+      </div>
 
-      {recording && (
-        <button className="btn parar" onClick={stopRecording}>
-          ⏹️ Parar Gravação
+      {!isRecording ? (
+        <button
+          onClick={startRecording}
+          style={{
+            fontSize: 22,
+            padding: "18px 35px",
+            background: "#007bff",
+            color: "white",
+            border: "none",
+            borderRadius: 12,
+            cursor: "pointer",
+            width: "100%",
+            marginBottom: 20
+          }}
+        >
+          🎙️ Iniciar Gravação (30s máx)
         </button>
+      ) : (
+        <div>
+          <button
+            onClick={stopRecording}
+            style={{
+              fontSize: 22,
+              padding: "18px 35px",
+              background: "#dc3545",
+              color: "white",
+              border: "none",
+              borderRadius: 12,
+              cursor: "pointer",
+              width: "100%",
+              marginBottom: 15
+            }}
+          >
+            ⏹️ Parar Gravação ({tempoRestante}s)
+          </button>
+
+          <div
+            style={{
+              fontSize: 20,
+              color: "#dc3545",
+              fontWeight: "bold",
+              background: "#fff3cd",
+              padding: "12px 20px",
+              borderRadius: 20,
+              textAlign: "center"
+            }}
+          >
+            ⏳ Gravando... {tempoRestante}s restantes
+          </div>
+        </div>
       )}
 
       {audioURL && (
-        <>
-          <audio controls src={audioURL} className="player" />
-
-          <button className="btn gravar-novamente" onClick={startRecording}>
-            🔁 Gravar Novamente
-          </button>
-
-          <button
-            className="btn finalizar"
-            onClick={finalizar}
-            disabled={loading}
-          >
-            {loading ? "Enviando..." : "Salvar e Continuar"}
-          </button>
-        </>
+        <div style={{ marginTop: 30 }}>
+          <p><strong>✅ Áudio gravado (pronto para enviar):</strong></p>
+          <audio controls src={audioURL} style={{ width: "100%", marginBottom: 20 }} />
+        </div>
       )}
+
+      <hr style={{ margin: "40px 0" }} />
+
+      <div style={{ display: "grid", gap: 15 }}>
+        <input
+          type="text"
+          placeholder="👤 Nome do destinatário *"
+          value={nome}
+          onChange={(e) => setNome(e.target.value)}
+          style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
+        />
+
+        <input
+          type="tel"
+          placeholder="📱 Telefone com DDD (ex: 11999999999) *"
+          value={telefone}
+          onChange={(e) => setTelefone(e.target.value)}
+          style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
+        />
+
+        <input
+          type="date"
+          value={dataEntrega}
+          onChange={(e) => setDataEntrega(e.target.value)}
+          style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
+        />
+
+        <select
+          value={horaEntrega}
+          onChange={(e) => setHoraEntrega(e.target.value)}
+          style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
+        >
+          <option value="">🕒 Escolha o horário *</option>
+          <option value="09:00">09:00</option>
+          <option value="10:00">10:00</option>
+          <option value="11:00">11:00</option>
+          <option value="14:00">14:00</option>
+          <option value="15:00">15:00</option>
+          <option value="16:00">16:00</option>
+          <option value="17:00">17:00</option>
+        </select>
+      </div>
+
+      <button
+        onClick={enviarDados}
+        disabled={!audioBlob || isUploading}
+        style={{
+          marginTop: 30,
+          padding: "18px 40px",
+          fontSize: 20,
+          background: (!audioBlob || isUploading) ? "#6c757d" : "#28a745",
+          color: "white",
+          border: "none",
+          borderRadius: 12,
+          cursor: (!audioBlob || isUploading) ? "not-allowed" : "pointer",
+          width: "100%"
+        }}
+      >
+        {isUploading ? "📤 Enviando para Supabase..." : "🚀 Enviar Áudio Agendado"}
+      </button>
+
+      {isUploading && (
+        <div
+          style={{
+            marginTop: 15,
+            padding: 10,
+            background: "#e3f2fd",
+            borderRadius: 8,
+            textAlign: "center",
+            fontWeight: "bold"
+          }}
+        >
+          ⏳ Enviando áudio e agendando... Não feche a página!
+        </div>
+      )}
+
+      <div
+        style={{
+          marginTop: 20,
+          padding: 15,
+          background: "#f8f9fa",
+          borderRadius: 8,
+          fontSize: 14,
+          color: "#666"
+        }}
+      >
+        <p><strong>ℹ️ Como funciona:</strong></p>
+        <ol style={{ marginLeft: 20 }}>
+          <li>Seu áudio é enviado para o Supabase Storage</li>
+          <li>Os dados são salvos no banco de dados</li>
+          <li>No dia e hora agendados, um SMS será enviado automaticamente</li>
+          <li>O destinatário recebe um link para ouvir sua mensagem</li>
+        </ol>
+      </div>
     </div>
   );
-}
+};
+
+export default AudioRecorder;
