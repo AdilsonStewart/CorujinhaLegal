@@ -1,6 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createClient } from '@supabase/supabase-js';
 
+// FIRESTORE
+import { db } from "../firebase/config";
+import { collection, addDoc } from "firebase/firestore";
+
 // 🔧 CONFIGURAÇÃO DO SUPABASE (FRONTEND - SEGURO)
 const supabaseUrl = 'https://kuwsgvhjmjnhkteleczc.supabase.co';
 const supabaseKey = 'sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P'; // Chave pública - SEGURA
@@ -203,66 +207,89 @@ const AudioRecorder = () => {
 
       console.log("🔗 URL pública gerada:", publicUrl);
 
-      // 4. Preparar dados para o webhook (MÍNIMOS - como o webhook espera)
+      // SALVA O LINK PARA USO FUTURO (Agendamento / Saida.js)
+      localStorage.setItem("lastRecordingUrl", publicUrl);
+
+      // 4. Preparar dados para salvar no Supabase (agendamentos)
       const orderID = localStorage.getItem("currentOrderId") || `AUDIO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const dadosParaWebhook = {
-        tipo: 'audio',
-        orderID: orderID,
-        status: 'success', // Pagamento já processado
-        // 🚨 NÃO envia outros dados - webhook só aceita 3 campos
+      const dadosSupabase = {
+        data_agendamento: dataEntrega,
+        hora_agendamento: horaEntrega + ":00",
+        link_midia: publicUrl,
+        criado_em: new Date().toISOString(),
+        enviado: false,
+        order_id: orderID,
+        dados_completos: {
+          destinatario: nome.trim(),
+          telefone_destinatario: telefoneLimpo,
+          data_agendamento: dataEntrega,
+          hora_agendamento: horaEntrega,
+          link_midia: publicUrl,
+          criado_em: new Date().toISOString()
+        },
+        valor: 5.00
       };
 
-      console.log("📦 Dados para webhook (apenas 3 campos):", dadosParaWebhook);
+      console.log("📤 Inserindo agendamento no Supabase:", dadosSupabase);
 
-      // 5. Enviar dados para o webhook no Vercel
-      const webhookResponse = await fetch('/api/paypal-webhook', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(dadosParaWebhook)
-      });
+      const { data: sData, error: sError } = await supabase
+        .from('agendamentos')
+        .insert([dadosSupabase])
+        .select();
 
-      // 6. Processar resposta do webhook
-      let webhookResult;
-      try {
-        webhookResult = await webhookResponse.json();
-      } catch (jsonError) {
-        console.error("❌ Erro ao parsear JSON:", jsonError);
-        throw new Error("Resposta inválida do servidor");
+      if (sError) {
+        console.error("❌ ERRO AO SALVAR NO SUPABASE:", sError);
+        alert('Agendamento salvo localmente, mas houve erro no banco de dados.');
+      } else {
+        console.log('✅ SUCESSO! Salvo no Supabase com ID:', sData[0]?.id, 'order_id:', orderID);
       }
 
-      if (!webhookResponse.ok) {
-        console.error("❌ Erro no webhook:", webhookResult);
-        throw new Error(`Webhook falhou: ${webhookResult.error || 'Erro desconhecido'}`);
-      }
-
-      console.log("✅ Webhook respondeu com sucesso:", webhookResult);
-
-      // 7. 🎯 ATUALIZAR DADOS COMPLETOS NO SUPABASE (DESTINATÁRIO + REMETENTE)
-      console.log("🔄 Iniciando atualização dos dados COMPLETOS...");
+      // 5. Atualizar dados completos no Supabase (remetente + destinatário)
+      console.log("🔄 Atualizando dados COMPLETOS no Supabase (Remetente/Detalhes)...");
       const atualizacaoSucesso = await atualizarDadosCompletosNoSupabase(
-        orderID, 
-        nome, 
-        telefone, 
-        dataEntrega, 
+        orderID,
+        nome,
+        telefone,
+        dataEntrega,
         horaEntrega
       );
-      
+
       if (atualizacaoSucesso) {
-        console.log("🎯 Dados COMPLETOS salvos no Supabase!");
-        console.log("- Destinatário:", nome);
-        console.log("- Telefone destinatário:", telefoneLimpo);
-        console.log("- Data:", dataEntrega);
-        console.log("- Hora:", horaEntrega);
-        console.log("- Remetente (telefone):", localStorage.getItem("clienteTelefone") || "Não encontrado");
+        console.log("🎯 Dados COMPLETOS atualizados com sucesso.");
       } else {
-        console.log("⚠️ Webhook funcionou, mas os dados adicionais podem não ter sido atualizados.");
-        // Não mostra alerta para não assustar o usuário
+        console.log("⚠️ Não foi possível atualizar dados COMPLETOS (verifique order_id).");
       }
 
-      // 8. 🆕 SALVAR NO LOCALSTORAGE PARA SAIDA.JS
+      // 6. SALVAR NO FIRESTORE dentro do cliente (se clienteId existir)
+      try {
+        const clienteId = localStorage.getItem("clienteId");
+        if (clienteId) {
+          const agendamentoFirestore = {
+            destinatario: nome.trim(),
+            telefone: telefoneLimpo,
+            dataEntrega: dataEntrega,
+            horarioEntrega: horaEntrega,
+            linkMensagem: publicUrl,
+            criadoEm: new Date().toISOString(),
+            orderID: orderID,
+            tipo: 'audio',
+            valor: 5.00
+          };
+
+          await addDoc(
+            collection(db, "clientes", clienteId, "agendamentos"),
+            agendamentoFirestore
+          );
+
+          console.log("✅ Agendamento salvo no Firestore (clienteId):", clienteId);
+        } else {
+          console.warn("⚠️ clienteId não encontrado no localStorage — não foi salvo no Firestore.");
+        }
+      } catch (fireErr) {
+        console.error("❌ Erro ao salvar no Firestore:", fireErr);
+      }
+
+      // 7. 🆕 SALVAR NO LOCALSTORAGE PARA SAIDA.JS
       const dadosParaSaida = {
         nome: nome,
         dataEntrega: dataEntrega,
@@ -271,22 +298,21 @@ const AudioRecorder = () => {
         tipo: 'audio',
         link_midia: publicUrl,
         orderID: orderID,
-        // 🆕 Adiciona remetente também
         remetenteTelefone: localStorage.getItem("clienteTelefone") || "Não informado"
       };
 
       localStorage.setItem('lastAgendamento', JSON.stringify(dadosParaSaida));
       console.log("📱 Dados salvos no localStorage para Saida.js:", dadosParaSaida);
 
-      // 9. Sucesso completo!
+      // 8. Sucesso completo!
       alert(`🎉 Áudio agendado com sucesso!\n\n📞 Para: ${nome}\n📅 Data: ${dataEntrega}\n🕒 Hora: ${horaEntrega}\n\nO SMS será enviado no dia e hora agendados.`);
 
-      // 10. 🆕 REDIRECIONAR PARA SAIDA.JS APÓS 2 SEGUNDOS
+      // 9. REDIRECIONAR PARA SAIDA.JS APÓS 2 SEGUNDOS
       setTimeout(() => {
         window.location.href = '/saida';
       }, 2000);
 
-      // 11. Limpar formulário (opcional, já vai redirecionar)
+      // 10. Limpar formulário (opcional)
       setAudioURL(null);
       setAudioBlob(null);
       setNome("");
