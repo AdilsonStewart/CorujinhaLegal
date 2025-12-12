@@ -1,7 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
-// Configuração do Firebase
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
   authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
@@ -11,24 +10,7 @@ const firebaseConfig = {
   appId: process.env.REACT_APP_FIREBASE_APP_ID
 };
 
-console.log("🔥 Firebase config carregada");
-
-// Inicializações SEPARADAS com try-catch
-let app;
-let db;
-
-try {
-  app = initializeApp(firebaseConfig);
-  console.log("✅ Firebase App inicializado");
-  
-  // Configuração SIMPLES - sem opções extras
-  db = getFirestore(app);
-  console.log("✅ Firestore conectado");
-  
-} catch (error) {
-  console.error("❌ ERRO ao inicializar Firebase:", error.message);
-  // db fica como null, mas não quebra
-  db = null;
-}
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 export { db };
