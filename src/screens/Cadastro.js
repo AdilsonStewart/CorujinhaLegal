@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { db } from "../firebase/config"; // ← CAMINHO CORRETO!
+import { db } from "../firebase/config";
 import { collection, addDoc } from "firebase/firestore";
 import "./Cadastro.css";
 
@@ -15,6 +15,8 @@ export default function Cadastro() {
   const [erro, setErro] = useState("");
 
   const handleCadastro = async () => {
+    console.log("1️⃣ handleCadastro iniciado");
+    
     if (!nome || !telefone || !dataNascimento || !cpfCnpj || !email) {
       setErro("Preencha todos os campos!");
       return;
@@ -28,12 +30,33 @@ export default function Cadastro() {
 
     setLoading(true);
     setErro("");
+    
+    console.log("2️⃣ Validações passadas, loading=true");
 
     try {
-      console.log("📤 Salvando cliente no Firebase...");
+      console.log("📤 3️⃣ Entrou no try-catch");
+      console.log("📤 db existe?", !!db);
+      console.log("📤 Tipo de db:", typeof db);
       
-      // 🎯 SALVAR NO FIREBASE FIRESTORE
-      const docRef = await addDoc(collection(db, "Clientes"), {
+      // Teste SIMPLES primeiro
+      console.log("4️⃣ Criando dados de teste...");
+      const dadosTeste = {
+        mensagem: "Teste Firebase " + Date.now(),
+        timestamp: new Date().toISOString(),
+        teste: true
+      };
+      
+      console.log("5️⃣ Tentando salvar TESTE...");
+      console.log("📤 Dados teste:", dadosTeste);
+      
+      // Tenta salvar um documento de TESTE em coleção separada
+      const testeRef = await addDoc(collection(db, "TesteDebug"), dadosTeste);
+      
+      console.log("✅ 6️⃣ TESTE OK! Documento salvo com ID:", testeRef.id);
+      
+      // Se passar, tenta salvar o cliente real
+      console.log("7️⃣ Agora salvando cliente real...");
+      const dadosCliente = {
         nome: nome.trim(),
         telefone: telefoneLimpo,
         email: email.trim().toLowerCase(),
@@ -41,13 +64,17 @@ export default function Cadastro() {
         dataNascimento: dataNascimento,
         criadoEm: new Date().toISOString(),
         tipo: "cliente"
-      });
+      };
+      
+      console.log("📤 Dados cliente:", dadosCliente);
+      
+      const clienteRef = await addDoc(collection(db, "Clientes"), dadosCliente);
 
-      console.log("✅ Cliente salvo no Firebase! ID:", docRef.id);
+      console.log("✅ 8️⃣ CLIENTE SALVO! ID:", clienteRef.id);
 
-      // 🎯 SALVAR NO localStorage
+      // Salvar no localStorage também (para compatibilidade)
       const clienteData = {
-        id: docRef.id,
+        id: clienteRef.id,
         nome: nome.trim(),
         telefone: telefoneLimpo,
         email: email.trim().toLowerCase(),
@@ -58,15 +85,41 @@ export default function Cadastro() {
       localStorage.setItem('clienteCorujinha', JSON.stringify(clienteData));
       localStorage.setItem('clienteTelefone', telefoneLimpo);
 
-      console.log("✅ Cliente salvo no localStorage");
+      console.log("✅ 9️⃣ localStorage atualizado");
 
       setLoading(false);
+      console.log("🔟 Redirecionando para /servicos...");
+      
       navigate("/servicos");
 
     } catch (error) {
-      console.error("❌ Erro ao salvar no Firebase:", error);
-      setErro("Erro ao cadastrar. Tente novamente.");
+      console.error("❌ ERRO COMPLETO no Firebase:");
+      console.error("❌ Nome do erro:", error.name);
+      console.error("❌ Mensagem:", error.message);
+      console.error("❌ Código:", error.code);
+      console.error("❌ Stack:", error.stack);
+      
+      // Fallback: salvar apenas no localStorage
+      console.log("🔄 Fallback: salvando apenas no localStorage");
+      const clienteData = {
+        id: "CLI_" + Date.now(),
+        nome: nome.trim(),
+        telefone: telefoneLimpo,
+        email: email.trim().toLowerCase(),
+        cpfCnpj: cpfCnpj.replace(/\D/g, ''),
+        dataNascimento: dataNascimento
+      };
+      
+      localStorage.setItem('clienteCorujinha', JSON.stringify(clienteData));
+      localStorage.setItem('clienteTelefone', telefoneLimpo);
+      
+      setErro(`Cadastro realizado! (Firebase offline)`);
       setLoading(false);
+      
+      // Redireciona mesmo com erro no Firebase
+      setTimeout(() => {
+        navigate("/servicos");
+      }, 1500);
     }
   };
 
