@@ -39,6 +39,9 @@ export default function Home() {
         />
       </div>
 
+      {/* ADICIONADO "Corujinha Legal" abaixo do mascote */}
+      <h2 className="corujinha-legal">Corujinha Legal</h2>
+      
       <h1 className="titulo">DeixaComigo</h1>
       <p className="slogan">Lembrou agora?<br />Programe o parabéns!</p>
 
