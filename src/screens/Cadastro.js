@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Cadastro.css";
+// Importação DIRETA do Firebase que já está configurado
+import { db } from "../firebase/config.js";
+import { collection, addDoc } from "firebase/firestore";
 
 export default function Cadastro() {
   const navigate = useNavigate();
@@ -31,13 +34,13 @@ export default function Cadastro() {
 
     // Dados do cliente
     const clienteData = {
-      id: "CLI_" + Date.now(),
       nome: nome.trim(),
       telefone: telefoneLimpo,
       email: email.trim().toLowerCase(),
       cpfCnpj: cpfCnpj.replace(/\D/g, ''),
       dataNascimento: dataNascimento,
-      criadoEm: new Date().toISOString()
+      criadoEm: new Date().toISOString(),
+      timestamp: Date.now()
     };
 
     try {
@@ -46,36 +49,38 @@ export default function Cadastro() {
       localStorage.setItem('clienteTelefone', telefoneLimpo);
       console.log("✅ localStorage salvo");
 
-      console.log("2. Tentando Firebase...");
+      console.log("2. Salvando no Firestore...");
       
-      // USANDO AS IMPORTAÇÕES QUE JÁ EXISTEM
-      const { db } = await import("../firebase/config.js");
-      const { collection, addDoc } = await import("firebase/firestore");
-      
-      console.log("3. Salvando no Firestore...");
+      // AGORA SIMPLES: usa o 'db' que já foi inicializado no config.js
       const docRef = await addDoc(collection(db, "Clientes"), clienteData);
       
       console.log("✅ FIREBASE SUCESSO! ID:", docRef.id);
       
-      // Atualiza localStorage com ID real
-      clienteData.id = docRef.id;
-      localStorage.setItem('clienteCorujinha', JSON.stringify(clienteData));
+      // Salva o ID real no localStorage também
+      const clienteComID = {
+        ...clienteData,
+        idFirebase: docRef.id,
+        idLocal: "CLI_" + Date.now()
+      };
+      localStorage.setItem('clienteCorujinha', JSON.stringify(clienteComID));
       
       setLoading(false);
-      navigate("/servicos");
+      setErro("✅ Cadastro realizado com sucesso!");
       
-    } catch (error) {
-      console.error("❌ ERRO no Firebase:", error);
-      console.error("Detalhes do erro:", error.message);
-      
-      // Mostra erro mais detalhado
-      setErro("Cadastro salvo localmente! Erro Firebase: " + error.message);
-      setLoading(false);
-      
-      // Mesmo com erro, redireciona depois de 2 segundos
       setTimeout(() => {
         navigate("/servicos");
-      }, 2000);
+      }, 1500);
+      
+    } catch (error) {
+      console.error("❌ ERRO no Firebase:", error.message);
+      
+      // Mesmo com erro, redireciona (localStorage já salvou)
+      setErro("✅ Cadastro salvo localmente! Redirecionando...");
+      setLoading(false);
+      
+      setTimeout(() => {
+        navigate("/servicos");
+      }, 1500);
     }
   };
 
@@ -143,7 +148,11 @@ export default function Cadastro() {
             {loading ? "Salvando..." : "Cadastrar e Continuar"}
           </button>
 
-          {erro && <p className="cadastro-erro">{erro}</p>}
+          {erro && (
+            <p className={erro.includes("✅") ? "cadastro-sucesso" : "cadastro-erro"}>
+              {erro}
+            </p>
+          )}
         </div>
       </div>
     </div>
