@@ -1,16 +1,19 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
+// 🎯 CONFIGURAÇÃO DIRETA COM SUAS CHAVES REAIS
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID
+  apiKey: "AIzaSyASmPjNdBFly7ndXk0n-FFbWT-2DQLlevI",
+  authDomain: "corujinhalegal2-5c7c9.firebaseapp.com",
+  projectId: "corujinhalegal2-5c7c9",
+  storageBucket: "corujinhalegal2-5c7c9.firebasestorage.app",
+  messagingSenderId: "711736746096",
+  appId: "1:711736746096:web:dd3a64784367133dd414b5"
 };
 
+// Inicializações
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+console.log("✅ Firebase configurado. Pronto para usar 'db'.");
 export { db };
