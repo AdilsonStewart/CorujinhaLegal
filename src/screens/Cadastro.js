@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { db } from "../firebaseConfig"; // Importa o Firebase
+import { db } from "/src/firebaseConfig"; // Importa o Firebase
 import { collection, addDoc } from "firebase/firestore";
 import "./Cadastro.css";
 
