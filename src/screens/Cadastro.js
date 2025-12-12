@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { db } from "/src/firebaseConfig"; // Importa o Firebase
+import { db } from "../firebaseConfig"; // ← UM PONTO SÓ!
 import { collection, addDoc } from "firebase/firestore";
 import "./Cadastro.css";
 
@@ -15,23 +15,14 @@ export default function Cadastro() {
   const [erro, setErro] = useState("");
 
   const handleCadastro = async () => {
-    // Validar campos obrigatórios
     if (!nome || !telefone || !dataNascimento || !cpfCnpj || !email) {
       setErro("Preencha todos os campos!");
       return;
     }
 
-    // Validar telefone
     const telefoneLimpo = telefone.replace(/\D/g, '');
     if (telefoneLimpo.length < 10) {
       setErro("Digite um telefone válido com DDD (ex: 11999998888)");
-      return;
-    }
-
-    // Validar email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setErro("Digite um email válido!");
       return;
     }
 
@@ -46,7 +37,7 @@ export default function Cadastro() {
         nome: nome.trim(),
         telefone: telefoneLimpo,
         email: email.trim().toLowerCase(),
-        cpfCnpj: cpfCnpj.replace(/\D/g, ''), // Remove pontos/traços
+        cpfCnpj: cpfCnpj.replace(/\D/g, ''),
         dataNascimento: dataNascimento,
         criadoEm: new Date().toISOString(),
         tipo: "cliente"
@@ -54,7 +45,7 @@ export default function Cadastro() {
 
       console.log("✅ Cliente salvo no Firebase! ID:", docRef.id);
 
-      // 🎯 SALVAR NO localStorage PARA USO IMEDIATO
+      // 🎯 SALVAR NO localStorage
       const clienteData = {
         id: docRef.id,
         nome: nome.trim(),
@@ -66,13 +57,10 @@ export default function Cadastro() {
       
       localStorage.setItem('clienteCorujinha', JSON.stringify(clienteData));
       localStorage.setItem('clienteTelefone', telefoneLimpo);
-      localStorage.setItem('clienteId', docRef.id);
 
-      console.log("✅ Cliente salvo no localStorage:", clienteData);
+      console.log("✅ Cliente salvo no localStorage");
 
       setLoading(false);
-      
-      // Redirecionar para serviços
       navigate("/servicos");
 
     } catch (error) {
