@@ -2,6 +2,10 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Cadastro.css";
 
+// IMPORTS DO FIREBASE
+import { db } from "../firebaseConfig";
+import { collection, addDoc } from "firebase/firestore";
+
 export default function Cadastro() {
   const navigate = useNavigate();
   const [nome, setNome] = useState("");
@@ -12,7 +16,7 @@ export default function Cadastro() {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
 
-  const handleCadastro = () => {
+  const handleCadastro = async () => {
     console.log("🚀 Cadastro SIMPLIFICADO iniciado");
     
     if (!nome || !telefone || !dataNascimento || !cpfCnpj || !email) {
@@ -46,17 +50,19 @@ export default function Cadastro() {
       localStorage.setItem('clienteTelefone', telefoneLimpo);
       console.log("✅ localStorage salvo");
 
+      console.log("2. Salvando no Firestore...");
+      await addDoc(collection(db, "clientes"), clienteData);
+      console.log("✅ Firestore salvo");
+
       setLoading(false);
       setErro("✅ Cadastro salvo com sucesso!");
-      
-      // Redireciona imediatamente
+
       navigate("/servicos");
-      
+
     } catch (error) {
-      console.error("❌ ERRO:", error);
-      setErro("✅ Cadastro salvo localmente!");
+      console.error("❌ ERRO ao salvar no Firestore:", error);
+      setErro("❌ Erro ao salvar no Firestore!");
       setLoading(false);
-      navigate("/servicos");
     }
   };
 
