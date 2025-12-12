@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Cadastro.css";
 
-// IMPORT CORRIGIDO DO FIREBASE (AGORA FUNCIONA)
+// IMPORT CORRIGIDO DO FIREBASE
 import { db } from "../firebase/config";
 import { collection, addDoc } from "firebase/firestore";
 
@@ -51,8 +51,11 @@ export default function Cadastro() {
       console.log("✅ localStorage salvo");
 
       console.log("2. Salvando no Firestore...");
-      await addDoc(collection(db, "clientes"), clienteData);
-      console.log("✅ Firestore salvo");
+      const docRef = await addDoc(collection(db, "clientes"), clienteData);
+      console.log("✅ Firestore salvo, ID:", docRef.id);
+
+      // 🔥 SALVA O ID DO CLIENTE PARA USARMOS DEPOIS NO AGENDAMENTO
+      localStorage.setItem("clienteId", docRef.id);
 
       setLoading(false);
       setErro("✅ Cadastro salvo com sucesso!");
