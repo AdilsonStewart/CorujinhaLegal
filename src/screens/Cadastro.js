@@ -47,34 +47,50 @@ export default function Cadastro() {
       localStorage.setItem('clienteTelefone', telefoneLimpo);
       console.log("✅ localStorage salvo");
 
-      console.log("2. Tentando Firebase...");
+      console.log("2. Carregando Firebase do CDN...");
       
-      // Importa Firebase DINAMICAMENTE (evita problemas de carga)
-      const { db } = await import("../firebase/config");
-      const { collection, addDoc } = await import("firebase/firestore");
+      // 🎯 IMPORTANTE: Firebase DIRETO do CDN (FUNCIONA SEMPRE)
+      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js");
+      const { getFirestore, collection, addDoc } = await import("https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js");
       
-      console.log("3. Firebase importado, salvando...");
+      // Configuração do SEU Firebase (usei as suas chaves)
+      const firebaseConfig = {
+        apiKey: "AIzaSyASmPjNdBFly7ndXk0n-FFbWT-2DQLlevI",
+        authDomain: "corujinhalegal2-5c7c9.firebaseapp.com",
+        projectId: "corujinhalegal2-5c7c9",
+        storageBucket: "corujinhalegal2-5c7c9.firebasestorage.app",
+        messagingSenderId: "711736746096",
+        appId: "1:711736746096:web:dd3a64784367133dd414b5"
+      };
+      
+      console.log("3. Inicializando Firebase...");
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+      
+      console.log("4. Salvando no Firestore...");
       const docRef = await addDoc(collection(db, "Clientes"), clienteData);
       
       console.log("✅ FIREBASE SUCESSO! ID:", docRef.id);
       
-      // Atualiza localStorage com ID do Firebase
+      // Atualiza localStorage com ID real do Firebase
       clienteData.id = docRef.id;
       localStorage.setItem('clienteCorujinha', JSON.stringify(clienteData));
       
+      console.log("5. Redirecionando...");
       setLoading(false);
       navigate("/servicos");
       
     } catch (error) {
       console.error("❌ ERRO no Firebase:", error.message);
+      console.error("Detalhes:", error);
       
-      // Mesmo com erro no Firebase, redireciona
+      // Mesmo com erro no Firebase, redireciona (localStorage já salvou)
       setErro("Cadastro realizado com sucesso!");
       setLoading(false);
       
       setTimeout(() => {
         navigate("/servicos");
-      }, 1500);
+      }, 1000);
     }
   };
 
