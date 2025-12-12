@@ -46,45 +46,37 @@ export default function Cadastro() {
       localStorage.setItem('clienteTelefone', telefoneLimpo);
       console.log("✅ localStorage salvo");
 
-      console.log("2. Tentando Firebase...");
+      console.log("2. Salvando no Firebase via fetch...");
       
-      // FIREBASE DIRETO - VERSÃO SIMPLES
-      // Carrega o Firebase do CDN (funciona em qualquer lugar)
-      const firebaseScript = document.createElement('script');
-      firebaseScript.src = 'https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js';
-      document.head.appendChild(firebaseScript);
+      // MÉTODO ALTERNATIVO: usa uma função serverless do Firebase
+      const response = await fetch(
+        `https://firestore.googleapis.com/v1/projects/corujinhalegal2-5c7c9/databases/(default)/documents/Clientes`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fields: {
+              nome: { stringValue: clienteData.nome },
+              telefone: { stringValue: clienteData.telefone },
+              email: { stringValue: clienteData.email },
+              cpfCnpj: { stringValue: clienteData.cpfCnpj },
+              dataNascimento: { stringValue: clienteData.dataNascimento },
+              criadoEm: { stringValue: clienteData.criadoEm },
+              timestamp: { integerValue: clienteData.timestamp }
+            }
+          })
+        }
+      );
       
-      const firestoreScript = document.createElement('script');
-      firestoreScript.src = 'https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js';
-      document.head.appendChild(firestoreScript);
+      const result = await response.json();
+      console.log("✅ FIREBASE SUCESSO via fetch:", result);
       
-      // Espera os scripts carregarem
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Configuração do Firebase (MESMAS CHAVES)
-      const firebaseConfig = {
-        apiKey: "AIzaSyASmPjNdBFly7ndXk0n-FFbWT-2DQLlevI",
-        authDomain: "corujinhalegal2-5c7c9.firebaseapp.com",
-        projectId: "corujinhalegal2-5c7c9",
-        storageBucket: "corujinhalegal2-5c7c9.firebasestorage.app",
-        messagingSenderId: "711736746096",
-        appId: "1:711736746096:web:dd3a64784367133dd414b5"
-      };
-      
-      // Inicializa o Firebase
-      const app = window.firebase.initializeApp(firebaseConfig);
-      const db = window.firebase.firestore();
-      
-      console.log("3. Salvando no Firestore...");
-      
-      // Salva no Firebase
-      const docRef = await db.collection("Clientes").add(clienteData);
-      
-      console.log("✅ FIREBASE SUCESSO! ID:", docRef.id);
-      
-      // Adiciona o ID ao localStorage
-      clienteData.idFirebase = docRef.id;
-      localStorage.setItem('clienteCorujinha', JSON.stringify(clienteData));
+      if (result.name) {
+        clienteData.idFirebase = result.name.split('/').pop();
+        localStorage.setItem('clienteCorujinha', JSON.stringify(clienteData));
+      }
       
       setLoading(false);
       setErro("✅ Cadastro realizado com sucesso!");
@@ -94,7 +86,7 @@ export default function Cadastro() {
       }, 1500);
       
     } catch (error) {
-      console.error("❌ ERRO no Firebase:", error.message || error);
+      console.error("❌ ERRO:", error.message || error);
       
       // Mesmo com erro, redireciona
       setErro("✅ Cadastro salvo localmente! Redirecionando...");
