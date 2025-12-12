@@ -12,8 +12,8 @@ export default function Cadastro() {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
 
-  const handleCadastro = async () => {
-    console.log("🚀 handleCadastro INICIADO");
+  const handleCadastro = () => {
+    console.log("🚀 Cadastro SIMPLIFICADO iniciado");
     
     if (!nome || !telefone || !dataNascimento || !cpfCnpj || !email) {
       setErro("Preencha todos os campos!");
@@ -46,23 +46,17 @@ export default function Cadastro() {
       localStorage.setItem('clienteTelefone', telefoneLimpo);
       console.log("✅ localStorage salvo");
 
-      console.log("2. Cadastro concluído. O Firebase será salvo na próxima página.");
-      
       setLoading(false);
       setErro("✅ Cadastro salvo com sucesso!");
       
-      setTimeout(() => {
-        navigate("/servicos");
-      }, 1500);
+      // Redireciona imediatamente
+      navigate("/servicos");
       
     } catch (error) {
-      console.error("❌ ERRO:", error.message || error);
+      console.error("❌ ERRO:", error);
       setErro("✅ Cadastro salvo localmente!");
       setLoading(false);
-      
-      setTimeout(() => {
-        navigate("/servicos");
-      }, 1500);
+      navigate("/servicos");
     }
   };
 
