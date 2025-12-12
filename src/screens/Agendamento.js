@@ -1,202 +1,177 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import './Agendamento.css';
-import { createClient } from '@supabase/supabase-js';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
-// 🔧 FIRESTORE
+// FIREBASE
 import { db } from "../firebase/config";
 import { collection, addDoc } from "firebase/firestore";
 
-// 🔧 SUPABASE
-const supabaseUrl = 'https://kuwsgvhjmjnhkteleczc.supabase.co';
-const supabaseKey = 'sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P';
-const supabase = createClient(supabaseUrl, supabaseKey);
+// SUPABASE
+import { createClient } from '@supabase/supabase-js';
+const supabase = createClient(
+  "https://kuwsgvhjmjnhkteleczc.supabase.co",
+  "sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P"
+);
 
-const Agendamento = () => {
+export default function Agendamento() {
   const navigate = useNavigate();
 
-  // Estados
-  const [nome, setNome] = useState('');
-  const [telefone, setTelefone] = useState('');
-  const [selectedDate, setSelectedDate] = useState('');
-  const [selectedTime, setSelectedTime] = useState('');
+  const [destinatario, setDestinatario] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [dataEntrega, setDataEntrega] = useState("");
+  const [horaEntrega, setHoraEntrega] = useState("");
+  const [linkMensagem, setLinkMensagem] = useState(""); // LINK DO ÁUDIO
   const [loading, setLoading] = useState(false);
 
-  // Link da gravação salva na Supabase
-  const [linkMensagem, setLinkMensagem] = useState('');
   useEffect(() => {
-    const link = localStorage.getItem('lastRecordingUrl') || '';
-    setLinkMensagem(link);
-    console.log('🔗 Link da mensagem carregado:', link);
+    // 🔗 Carrega o link gerado no AudioRecordPage
+    const link = localStorage.getItem("lastRecordingUrl");
+    if (link) setLinkMensagem(link);
   }, []);
 
-  // Ler o clienteId salvo no cadastro
-  const clienteId = localStorage.getItem("clienteId");
-
-  const horariosFixos = ["08:00", "10:00", "12:00", "16:00", "18:00"];
-
-  const formatPhone = (v) => {
-    const n = v.replace(/\D/g, '');
-    return n.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
-  };
-
-  const minDate = () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 2);
-    return d.toISOString().split('T')[0];
-  };
-
-  const maxDate = () => {
-    const d = new Date();
-    d.setFullYear(d.getFullYear() + 1);
-    return d.toISOString().split('T')[0];
-  };
-
-  // ⭐⭐ FUNÇÃO DE AGENDAMENTO ⭐⭐
-  const handleSchedule = async () => {
-    if (!nome || !telefone || !selectedDate || !selectedTime) {
-      alert('Preencha todos os campos!');
+  const salvarAgendamento = async () => {
+    if (!destinatario || !telefone || !dataEntrega || !horaEntrega) {
+      alert("Preencha todos os campos.");
       return;
     }
 
-    if (!clienteId) {
-      alert('Erro: Cliente não encontrado. Refaça o cadastro.');
+    const telefoneLimpo = telefone.replace(/\D/g, "");
+    if (telefoneLimpo.length < 10) {
+      alert("Telefone inválido.");
       return;
     }
 
-    const digits = telefone.replace(/\D/g, '');
-    if (digits.length < 10 || digits.length > 11) {
-      alert('Telefone inválido!');
+    if (!linkMensagem) {
+      alert("Nenhum áudio gravado!");
       return;
     }
-
-    const telefoneFull = `55${digits}`;
 
     setLoading(true);
 
     try {
-      // Dados do agendamento
-      const agendamento = {
-        destinatario: nome.trim(),
-        telefone: telefoneFull,
-        data: selectedDate,
-        hora: selectedTime,
-        linkMensagem: linkMensagem,
-        criadoEm: new Date().toISOString(),
-        timestamp: Date.now(),
+      // Gerar ID do pedido
+      const orderID = `AGD-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+
+      // Cliente logado previamente
+      const clienteId = localStorage.getItem("clienteId");
+      const telefoneRemetente = localStorage.getItem("clienteTelefone");
+
+      // Dados para salvar
+      const dados = {
+        destinatario,
+        telefone: telefoneLimpo,
+        dataEntrega,
+        horaEntrega,
+        linkMensagem,
+        tipo: "audio",
+        orderID,
+        remetenteTelefone: telefoneRemetente,
+        criadoEm: new Date().toISOString()
       };
 
-      // ⭐⭐ 1. SALVAR NO LOCALSTORAGE (continua) ⭐⭐
-      localStorage.setItem("agendamento_corujinha", JSON.stringify(agendamento));
-
-      // ⭐⭐ 2. SALVAR NO SUPABASE (continua igual) ⭐⭐
-      const dadosSupabase = {
-        data_agendamento: selectedDate,
-        hora_agendamento: selectedTime + ":00",
-        link_midia: linkMensagem,
-        criado_em: new Date().toISOString(),
-        enviado: false,
-        dados_completos: agendamento,
-        valor: 5,
-      };
-
-      const { data: sData, error: sError } = await supabase
-        .from("agendamentos")
-        .insert([dadosSupabase])
-        .select();
-
-      if (sError) {
-        console.error("❌ Erro Supabase:", sError);
-      } else {
-        console.log("✅ Supabase OK:", sData);
+      // 🔥 Salvar no Firestore (cliente → agendamentos)
+      if (clienteId) {
+        await addDoc(
+          collection(db, "clientes", clienteId, "agendamentos"),
+          dados
+        );
       }
 
-      // ⭐⭐ 3. SALVAR NO FIRESTORE (NOVO, IMPORTANTE!) ⭐⭐
-      console.log("🔥 Salvando no Firestore dentro do cliente:", clienteId);
+      // 🔥 Salvar no Supabase
+      await supabase.from("agendamentos").insert([
+        {
+          data_agendamento: dataEntrega,
+          hora_agendamento: horaEntrega + ":00",
+          link_midia: linkMensagem,
+          destinatario,
+          telefone: telefoneLimpo,
+          criado_em: new Date().toISOString(),
+          valor: 5.00,
+          enviado: false,
+          order_id: orderID,
+          Remetente: telefoneRemetente
+        }
+      ]);
 
-      await addDoc(
-        collection(db, "clientes", clienteId, "agendamentos"),
-        agendamento
-      );
+      // Salvar local
+      localStorage.setItem("lastAgendamento", JSON.stringify(dados));
 
-      console.log("✅ Agendamento salvo no Firestore!");
+      alert("🎉 Agendamento salvo com sucesso!");
 
-      alert(`✔ Agendado com sucesso para ${selectedDate} às ${selectedTime}`);
+      // Ir para a tela final
       navigate("/saida");
 
-    } catch (err) {
-      console.error("❌ ERRO GERAL:", err);
-      alert("Erro ao agendar.");
+    } catch (error) {
+      console.error("Erro no agendamento:", error);
+      alert("Erro ao salvar agendamento.");
     }
 
     setLoading(false);
   };
 
-  const handlePhoneChange = (e) => {
-    setTelefone(formatPhone(e.target.value));
-  };
-
   return (
-    <div className="agendamento-container">
-      <div className="agendamento-card">
-        <h1 className="agendamento-titulo">🦉 Agendar Envio</h1>
+    <div style={{ padding: 20 }}>
+      <h2>📅 Agendar Entrega</h2>
 
-        <div className="agendamento-form">
+      <div style={{ display: "grid", gap: 15, marginTop: 20 }}>
+        <input
+          type="text"
+          placeholder="Nome do destinatário"
+          value={destinatario}
+          onChange={(e) => setDestinatario(e.target.value)}
+        />
 
-          {/* Nome */}
-          <div className="form-group">
-            <label>Nome do Destinatário *</label>
-            <input
-              type="text"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-            />
-          </div>
+        <input
+          type="tel"
+          placeholder="Telefone do destinatário (DDD + Número)"
+          value={telefone}
+          onChange={(e) => setTelefone(e.target.value)}
+        />
 
-          {/* Telefone */}
-          <div className="form-group">
-            <label>Telefone *</label>
-            <input
-              type="tel"
-              value={telefone}
-              onChange={handlePhoneChange}
-            />
-          </div>
+        <input
+          type="date"
+          value={dataEntrega}
+          onChange={(e) => setDataEntrega(e.target.value)}
+        />
 
-          {/* Data */}
-          <div className="form-group">
-            <label>Data *</label>
-            <input
-              type="date"
-              value={selectedDate}
-              min={minDate()}
-              max={maxDate()}
-              onChange={(e) => setSelectedDate(e.target.value)}
-            />
-          </div>
-
-          {/* Horário */}
-          <div className="form-group">
-            <label>Horário *</label>
-            <select
-              value={selectedTime}
-              onChange={(e) => setSelectedTime(e.target.value)}
-            >
-              <option value="">Selecione</option>
-              {horariosFixos.map((h, i) => (
-                <option key={i}>{h}</option>
-              ))}
-            </select>
-          </div>
-
-          <button onClick={handleSchedule} disabled={loading} className="btn-agendar">
-            {loading ? "Agendando..." : "Confirmar Agendamento"}
-          </button>
-
-        </div>
+        <select
+          value={horaEntrega}
+          onChange={(e) => setHoraEntrega(e.target.value)}
+        >
+          <option value="">Selecione o horário</option>
+          <option value="09:00">09:00</option>
+          <option value="10:00">10:00</option>
+          <option value="11:00">11:00</option>
+          <option value="14:00">14:00</option>
+          <option value="15:00">15:00</option>
+          <option value="16:00">16:00</option>
+          <option value="17:00">17:00</option>
+        </select>
       </div>
+
+      {linkMensagem && (
+        <div style={{ marginTop: 25 }}>
+          <p>🎧 <b>Mensagem gravada:</b></p>
+          <audio controls src={linkMensagem} style={{ width: "100%" }} />
+        </div>
+      )}
+
+      <button
+        onClick={salvarAgendamento}
+        style={{
+          marginTop: 30,
+          padding: "15px",
+          width: "100%",
+          background: "#28a745",
+          color: "white",
+          border: "none",
+          borderRadius: "10px",
+          fontSize: "18px",
+          cursor: "pointer"
+        }}
+        disabled={loading}
+      >
+        {loading ? "Salvando..." : "Salvar Agendamento"}
+      </button>
     </div>
   );
-};
-
-export default Agendamento;
+}
