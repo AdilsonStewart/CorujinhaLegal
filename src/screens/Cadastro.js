@@ -46,24 +46,11 @@ export default function Cadastro() {
       localStorage.setItem('clienteTelefone', telefoneLimpo);
       console.log("✅ localStorage salvo");
 
-      console.log("2. Tentando Firebase do CDN...");
+      console.log("2. Tentando Firebase...");
       
-      // 🎯 FIREBASE DIRETO DO CDN (MESMO QUE FUNCIONOU NO CONSOLE)
-      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js");
-      const { getFirestore, collection, addDoc } = await import("https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js");
-      
-      // Configuração DIRETA (as mesmas chaves do console)
-      const firebaseConfig = {
-        apiKey: "AIzaSyASmPjNdBFly7ndXk0n-FFbWT-2DQLlevI",
-        authDomain: "corujinhalegal2-5c7c9.firebaseapp.com",
-        projectId: "corujinhalegal2-5c7c9",
-        storageBucket: "corujinhalegal2-5c7c9.firebasestorage.app",
-        messagingSenderId: "711736746096",
-        appId: "1:711736746096:web:dd3a64784367133dd414b5"
-      };
-      
-      const app = initializeApp(firebaseConfig);
-      const db = getFirestore(app);
+      // USANDO AS IMPORTAÇÕES QUE JÁ EXISTEM
+      const { db } = await import("../firebase/config.js");
+      const { collection, addDoc } = await import("firebase/firestore");
       
       console.log("3. Salvando no Firestore...");
       const docRef = await addDoc(collection(db, "Clientes"), clienteData);
@@ -78,15 +65,17 @@ export default function Cadastro() {
       navigate("/servicos");
       
     } catch (error) {
-      console.error("❌ ERRO no Firebase:", error.message);
+      console.error("❌ ERRO no Firebase:", error);
+      console.error("Detalhes do erro:", error.message);
       
-      // Mesmo com erro, redireciona (localStorage já salvou)
-      setErro("Cadastro realizado com sucesso!");
+      // Mostra erro mais detalhado
+      setErro("Cadastro salvo localmente! Erro Firebase: " + error.message);
       setLoading(false);
       
+      // Mesmo com erro, redireciona depois de 2 segundos
       setTimeout(() => {
         navigate("/servicos");
-      }, 1000);
+      }, 2000);
     }
   };
 
