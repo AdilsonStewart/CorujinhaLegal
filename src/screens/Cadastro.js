@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { db } from "../firebaseConfig"; // Importa o Firebase
+import { collection, addDoc } from "firebase/firestore";
 import "./Cadastro.css";
 
 export default function Cadastro() {
@@ -12,15 +14,8 @@ export default function Cadastro() {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
 
-  const seguroSet = (key, value) => {
-    try {
-      localStorage.setItem(key, value);
-    } catch (e) {
-      console.warn("⚠ localStorage bloqueado:", e);
-    }
-  };
-
   const handleCadastro = async () => {
+    // Validar campos obrigatórios
     if (!nome || !telefone || !dataNascimento || !cpfCnpj || !email) {
       setErro("Preencha todos os campos!");
       return;
@@ -33,27 +28,58 @@ export default function Cadastro() {
       return;
     }
 
+    // Validar email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setErro("Digite um email válido!");
+      return;
+    }
+
     setLoading(true);
     setErro("");
 
-    // Simulação de cadastro
-    setTimeout(() => {
-      // 🎯 AGORA SALVA DADOS COMPLETOS DO CLIENTE
-      seguroSet("clienteId", "CLI_" + Date.now());
-      seguroSet("clienteNome", nome);
-      seguroSet("clienteTelefone", telefoneLimpo); // 🆕 Telefone limpo
-      seguroSet("clienteEmail", email);
-      seguroSet("clienteCPF", cpfCnpj);
-      seguroSet("clienteDataNascimento", dataNascimento);
+    try {
+      console.log("📤 Salvando cliente no Firebase...");
+      
+      // 🎯 SALVAR NO FIREBASE FIRESTORE
+      const docRef = await addDoc(collection(db, "Clientes"), {
+        nome: nome.trim(),
+        telefone: telefoneLimpo,
+        email: email.trim().toLowerCase(),
+        cpfCnpj: cpfCnpj.replace(/\D/g, ''), // Remove pontos/traços
+        dataNascimento: dataNascimento,
+        criadoEm: new Date().toISOString(),
+        tipo: "cliente"
+      });
 
-      console.log("✅ Cliente cadastrado:");
-      console.log("- Nome:", nome);
-      console.log("- Telefone:", telefoneLimpo);
-      console.log("- Email:", email);
+      console.log("✅ Cliente salvo no Firebase! ID:", docRef.id);
+
+      // 🎯 SALVAR NO localStorage PARA USO IMEDIATO
+      const clienteData = {
+        id: docRef.id,
+        nome: nome.trim(),
+        telefone: telefoneLimpo,
+        email: email.trim().toLowerCase(),
+        cpfCnpj: cpfCnpj.replace(/\D/g, ''),
+        dataNascimento: dataNascimento
+      };
+      
+      localStorage.setItem('clienteCorujinha', JSON.stringify(clienteData));
+      localStorage.setItem('clienteTelefone', telefoneLimpo);
+      localStorage.setItem('clienteId', docRef.id);
+
+      console.log("✅ Cliente salvo no localStorage:", clienteData);
 
       setLoading(false);
+      
+      // Redirecionar para serviços
       navigate("/servicos");
-    }, 1000);
+
+    } catch (error) {
+      console.error("❌ Erro ao salvar no Firebase:", error);
+      setErro("Erro ao cadastrar. Tente novamente.");
+      setLoading(false);
+    }
   };
 
   return (
@@ -68,6 +94,7 @@ export default function Cadastro() {
             onChange={(e) => setNome(e.target.value)}
             className="cadastro-input"
             autoComplete="off"
+            disabled={loading}
           />
 
           <input
@@ -77,16 +104,18 @@ export default function Cadastro() {
             onChange={(e) => setTelefone(e.target.value)}
             className="cadastro-input"
             autoComplete="off"
+            disabled={loading}
           />
           <small className="dica-telefone">Somente números, com DDD</small>
 
           <input
-            type="text"
+            type="date"
             placeholder="Data de nascimento *"
             value={dataNascimento}
             onChange={(e) => setDataNascimento(e.target.value)}
             className="cadastro-input"
             autoComplete="off"
+            disabled={loading}
           />
 
           <input
@@ -96,6 +125,7 @@ export default function Cadastro() {
             onChange={(e) => setCpfCnpj(e.target.value)}
             className="cadastro-input"
             autoComplete="off"
+            disabled={loading}
           />
 
           <input
@@ -105,6 +135,7 @@ export default function Cadastro() {
             onChange={(e) => setEmail(e.target.value)}
             className="cadastro-input"
             autoComplete="off"
+            disabled={loading}
           />
 
           <button
@@ -112,7 +143,7 @@ export default function Cadastro() {
             onClick={handleCadastro}
             disabled={loading}
           >
-            {loading ? "Salvando…" : "Cadastrar e Continuar"}
+            {loading ? "Salvando no Firebase…" : "Cadastrar e Continuar"}
           </button>
 
           {erro && <p className="cadastro-erro">{erro}</p>}
