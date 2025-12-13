@@ -1,68 +1,88 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import './OrfeuIntro.css'; // Se quiser customizar depois
 
 export default function OrfeuIntro() {
   const navigate = useNavigate();
 
+  const handlePagamento = (tipo) => {
+    const valor = tipo === "audio" ? 5.00 : 10.00;
+
+    // Salva o tipo no localStorage para referência depois
+    localStorage.setItem("tipoSelecionado", tipo);
+
+    // Redireciona para a página de pagamento
+    navigate(`/servicos?tipo=${tipo}&valor=${valor}`);
+  };
+
   return (
-    <div style={{
-      padding: 20,
-      textAlign: "center",
-      maxWidth: 600,
-      margin: "0 auto",
-      fontFamily: "Arial, sans-serif"
-    }}>
-      <h2>👋 Olá! Eu sou o Orfeu</h2>
-      <p>
-        Sou seu amigo Orfeu e vou cuidar da sua mensagem e garantir que ela chegue no momento certo..
+    <div style={{ padding: 20, textAlign: "center" }}>
+      <div className="orfeu-gif-container">
+        <img
+          src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExZXIyZ2p3cmt2ZmZhenFtbndyOHlnamdnZG05ZjNnNG5hdnJoNHRzYyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Gb4EpNvhkIO6HSiotj/giphy.gif"
+          alt="Orfeu Corujinha"
+          className="orfeu-gif"
+        />
+      </div>
+
+      <h2>Olá! Eu sou o Orfeu 🦉</h2>
+      <p style={{ maxWidth: 400, margin: "0 auto", marginTop: 15 }}>
+        Seu amigo Orfeu vai gravar sua mensagem e entregar para aquela pessoa no dia, mês e hora que você me disser.
+      </p>
+      <p style={{ maxWidth: 400, margin: "0 auto", marginTop: 10 }}>
+        Escolha uma das opções abaixo para começar:
       </p>
 
-      <img
-        src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExZXIyZ2p3cmt2ZmZhenFtbndyOHlnamdnZG05ZjNnNG5hdnJoNHRzYyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Gb4EpNvhkIO6HSiotj/giphy.gif"
-        alt="Orfeu GIF"
-        style={{ width: "100%", maxWidth: 300, margin: "20px 0" }}
-      />
-
-      <p>
-        Para começar, escolha uma das opções de gravação que deseja:
-      </p>
-
-      <div style={{ display: "flex", justifyContent: "center", gap: 20, marginTop: 20 }}>
+      <div style={{ marginTop: 30 }}>
         <button
-          onClick={() => navigate("/audiorecord")}
+          onClick={() => handlePagamento("audio")}
           style={{
             padding: "15px 25px",
-            fontSize: "16px",
-            borderRadius: "10px",
-            border: "none",
-            background: "#28a745",
+            margin: "10px",
+            backgroundColor: "#28a745",
             color: "white",
+            border: "none",
+            borderRadius: "10px",
+            fontSize: "18px",
             cursor: "pointer"
           }}
         >
-          Áudio (30s)
+          🎤 Áudio - R$5
         </button>
 
         <button
-          onClick={() => navigate("/videorecord")}
+          onClick={() => handlePagamento("video")}
           style={{
             padding: "15px 25px",
-            fontSize: "16px",
-            borderRadius: "10px",
-            border: "none",
-            background: "#007bff",
+            margin: "10px",
+            backgroundColor: "#007bff",
             color: "white",
+            border: "none",
+            borderRadius: "10px",
+            fontSize: "18px",
             cursor: "pointer"
           }}
         >
-          Vídeo (30s)
+          📹 Vídeo - R$10
         </button>
       </div>
 
-      <p style={{ marginTop: 30, fontSize: "14px", color: "#555" }}>
-        Lembrando: são até 30 segundos. Se precisar de mais tempo, acesse a opção
-        <b> Gravação livre</b>.
-      </p>
+      <div style={{ marginTop: 20 }}>
+        <button
+          onClick={() => navigate("/livre-record")}
+          style={{
+            padding: "10px 20px",
+            backgroundColor: "#6c757d",
+            color: "white",
+            border: "none",
+            borderRadius: "8px",
+            fontSize: "16px",
+            cursor: "pointer"
+          }}
+        >
+          ⏱ Gravação Livre
+        </button>
+      </div>
     </div>
   );
 }
