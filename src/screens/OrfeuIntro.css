@@ -1,0 +1,11 @@
+.orfeu-gif-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.orfeu-gif {
+  width: 200px;
+  max-width: 80%;
+  border-radius: 10px;
+}
