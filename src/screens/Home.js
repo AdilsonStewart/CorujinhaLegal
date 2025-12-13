@@ -39,7 +39,6 @@ export default function Home() {
         />
       </div>
 
-      {/* ADICIONADO "Corujinha Legal" abaixo do mascote */}
       <h2 className="corujinha-legal">Corujinha Legal</h2>
       
       <h1 className="titulo">DeixaComigo</h1>
@@ -48,7 +47,7 @@ export default function Home() {
       {/* NOVO FLUXO */}
       <button
         className="botao criar-lembrete"
-        onClick={() => navigate('/cadastro')}
+        onClick={() => navigate('/orfeu-intro')} // <- Alterado para a tela do Orfeu
       >
         Criar Meu Lembrete
       </button>
