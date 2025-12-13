@@ -14,6 +14,11 @@ import AdminDashboard from './screens/AdminDashboard';
 import Clientes from './screens/Clientes';
 import Retorno from './screens/Retorno';
 
+// 🔹 NOVA TELA DO ORFEU
+import OrfeuIntro from './screens/OrfeuIntro';
+// 🔹 GRAVAÇÃO LIVRE (ainda não implementada)
+import LivreRecordPage from './screens/LivreRecordPage'; // pode criar depois
+
 function App() {
   return (
     <Router>
@@ -27,12 +32,15 @@ function App() {
         <Route path="/agendamento" element={<Agendamento />} />
         <Route path="/saida" element={<Saida />} />
         
+        {/* 🔹 TELA DO ORFEU */}
+        <Route path="/orfeu-intro" element={<OrfeuIntro />} />
+
         {/* 🎤 GRAVAÇÃO */}
         <Route path="/audiorecord" element={<AudioRecordPage />} />
         <Route path="/videorecord" element={<VideoRecordPage />} />
-        
+        <Route path="/livre-record" element={<LivreRecordPage />} />
+
         {/* 👥 ÁREA DO CLIENTE */}
-        {/* ✅ Botão "Sou Cliente" na Home vai para /soucliente */}
         <Route path="/soucliente" element={<Clientes />} />
         
         {/* 💰 RETORNO DO PAYPAL (CRÍTICO - NÃO MEXER) */}
