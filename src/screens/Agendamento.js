@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 // FIREBASE
 import { db } from "../firebase/config";
-import { collection, addDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 
 // SUPABASE
 import { createClient } from '@supabase/supabase-js';
@@ -53,10 +53,11 @@ export default function Agendamento() {
 
       // Cliente logado previamente
       const clienteId = localStorage.getItem("clienteId");
+      const clienteNome = localStorage.getItem("clienteNome");
       const telefoneRemetente = localStorage.getItem("clienteTelefone");
 
-      // Dados para salvar
-      const dados = {
+      // Dados do agendamento
+      const agendamento = {
         destinatario,
         telefone: telefoneLimpo,
         dataEntrega,
@@ -64,15 +65,23 @@ export default function Agendamento() {
         linkMensagem,
         tipo: "audio",
         orderID,
+        remetenteNome: clienteNome,
         remetenteTelefone: telefoneRemetente,
         criadoEm: new Date().toISOString()
       };
 
-      // 🔥 Salvar no Firestore (cliente → agendamentos)
+      // 🔥 Salvar no Firestore (CorujinhaLegal2) no documento do cliente
       if (clienteId) {
-        await addDoc(
-          collection(db, "clientes", clienteId, "agendamentos"),
-          dados
+        const clienteRef = doc(db, "CorujinhaLegal2", clienteId);
+
+        await setDoc(
+          clienteRef,
+          {
+            agendamentos: {
+              [orderID]: agendamento // salva por orderID, merge automático
+            }
+          },
+          { merge: true } // NÃO sobrescreve dados existentes do cliente
         );
       }
 
@@ -93,11 +102,9 @@ export default function Agendamento() {
       ]);
 
       // Salvar local
-      localStorage.setItem("lastAgendamento", JSON.stringify(dados));
+      localStorage.setItem("lastAgendamento", JSON.stringify(agendamento));
 
       alert("🎉 Agendamento salvo com sucesso!");
-
-      // Ir para a tela final
       navigate("/saida");
 
     } catch (error) {
