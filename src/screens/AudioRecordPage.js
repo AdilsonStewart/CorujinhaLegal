@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createClient } from '@supabase/supabase-js';
+import { db } from "../firebase/config";
+import { collection, addDoc } from "firebase/firestore";
 
 // 🔧 CONFIGURAÇÃO DO SUPABASE
 const supabaseUrl = 'https://kuwsgvhjmjnhkteleczc.supabase.co';
@@ -23,33 +25,25 @@ const AudioRecorder = () => {
 
   useEffect(() => {
     return () => {
-      if (tempoIntervalRef.current) {
-        clearInterval(tempoIntervalRef.current);
-      }
+      if (tempoIntervalRef.current) clearInterval(tempoIntervalRef.current);
     };
   }, []);
 
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
       audioChunksRef.current = [];
       setAudioURL(null);
       setAudioBlob(null);
 
       const mediaRecorder = new MediaRecorder(stream);
-
-      mediaRecorder.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
-      };
+      mediaRecorder.ondataavailable = (event) => audioChunksRef.current.push(event.data);
 
       mediaRecorder.onstop = () => {
         const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         setAudioBlob(blob);
         setAudioURL(URL.createObjectURL(blob));
-
         stream.getTracks().forEach((track) => track.stop());
-
         if (tempoIntervalRef.current) clearInterval(tempoIntervalRef.current);
         setTempoRestante(30);
       };
@@ -59,7 +53,7 @@ const AudioRecorder = () => {
       setIsRecording(true);
 
       tempoIntervalRef.current = setInterval(() => {
-        setTempoRestante((prev) => {
+        setTempoRestante(prev => {
           if (prev <= 1) {
             stopRecording();
             return 30;
@@ -77,115 +71,75 @@ const AudioRecorder = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-
       if (tempoIntervalRef.current) clearInterval(tempoIntervalRef.current);
-
       setTempoRestante(30);
     }
   };
 
-  // 🆕 ATUALIZA DADOS COMPLETOS NO SUPABASE
-  const atualizarDadosCompletosNoSupabase = async (orderID, nomeDestinatario, telefoneDestinatario, data, hora) => {
-    try {
-      const telefoneDestinatarioLimpo = telefoneDestinatario.replace(/\D/g, '');
-      const telefoneRemetente = localStorage.getItem("clienteTelefone");
-      const telefoneRemetenteLimpo = telefoneRemetente ? telefoneRemetente.replace(/\D/g, '') : "00000000000";
-
-      const dadosAtualizacao = {
-        destinatario: nomeDestinatario,
-        telefone: telefoneDestinatarioLimpo,
-        data_agendamento: data,
-        hora_agendamento: hora,
-        Remetente: telefoneRemetenteLimpo,
-        atualizado_em: new Date().toISOString()
-      };
-
-      const { data: registroExistente } = await supabase
-        .from('agendamentos')
-        .select('id, order_id')
-        .eq('order_id', orderID)
-        .maybeSingle();
-
-      if (!registroExistente) return false;
-
-      const { error } = await supabase
-        .from('agendamentos')
-        .update(dadosAtualizacao)
-        .eq('order_id', orderID);
-
-      return !error;
-
-    } catch (error) {
-      console.error("Erro na atualização:", error);
-      return false;
-    }
-  };
-
   const enviarDados = async () => {
-    if (!audioBlob) {
-      alert("Grave um áudio antes de enviar.");
-      return;
-    }
-
-    if (!nome || !telefone || !dataEntrega || !horaEntrega) {
-      alert("Preencha todos os campos: nome, telefone, data e horário.");
-      return;
-    }
+    if (!audioBlob) return alert("Grave um áudio antes de enviar.");
+    if (!nome || !telefone || !dataEntrega || !horaEntrega)
+      return alert("Preencha todos os campos: nome, telefone, data e horário.");
 
     const telefoneLimpo = telefone.replace(/\D/g, '');
-    if (telefoneLimpo.length < 10) {
-      alert("Digite um telefone válido com DDD (ex: 11999999999).");
-      return;
-    }
+    if (telefoneLimpo.length < 10)
+      return alert("Digite um telefone válido com DDD (ex: 11999999999).");
 
     setIsUploading(true);
 
     try {
-      // 1. Nome do arquivo CORRIGIDO
+      // 1. Upload do áudio no Supabase
       const nomeArquivo = `audio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.webm`;
-
-      // 2. Upload
       const { error: uploadError } = await supabase.storage
         .from("Midias")
-        .upload(nomeArquivo, audioBlob, {
-          contentType: "audio/webm",
-          cacheControl: "3600"
-        });
-
+        .upload(nomeArquivo, audioBlob, { contentType: "audio/webm", cacheControl: "3600" });
       if (uploadError) throw new Error(`Falha no upload: ${uploadError.message}`);
 
-      // 3. URL pública
-      const { data: { publicUrl } } = supabase
-        .storage
-        .from("Midias")
-        .getPublicUrl(nomeArquivo);
+      const { data: { publicUrl } } = supabase.storage.from("Midias").getPublicUrl(nomeArquivo);
 
-      // 4. OrderID
-      const orderID =
-        localStorage.getItem("currentOrderId") ||
+      // 2. Gerar OrderID
+      const orderID = localStorage.getItem("currentOrderId") ||
         `AUDIO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-      const dadosParaWebhook = {
+      // 3. Dados do remetente
+      const remetenteTelefone = localStorage.getItem("clienteTelefone") || "00000000000";
+
+      // 4. Salvar no Supabase (completo)
+      await supabase.from("agendamentos").insert([{
         tipo: "audio",
-        orderID,
-        status: "success"
-      };
+        order_id: orderID,
+        link_midia: publicUrl,
+        destinatario: nome,
+        telefone: telefoneLimpo,
+        data_agendamento: dataEntrega,
+        hora_agendamento: horaEntrega + ":00",
+        Remetente: remetenteTelefone,
+        criado_em: new Date().toISOString(),
+        enviado: false,
+        valor: 5.00
+      }]);
 
-      // 5. Webhook
-      const webhookResponse = await fetch("/api/paypal-webhook", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(dadosParaWebhook)
-      });
+      // 5. Salvar no Firestore (cliente → agendamentos)
+      const clienteId = localStorage.getItem("clienteId");
+      if (clienteId) {
+        await addDoc(
+          collection(db, "clientes", clienteId, "agendamentos"),
+          {
+            tipo: "audio",
+            orderID,
+            link_midia: publicUrl,
+            destinatario: nome,
+            telefone: telefoneLimpo,
+            dataEntrega,
+            horaEntrega,
+            remetenteTelefone,
+            criadoEm: new Date().toISOString()
+          }
+        );
+      }
 
-      const webhookResult = await webhookResponse.json();
-      if (!webhookResponse.ok) throw new Error(webhookResult.error);
-
-      // 6. Atualizar dados completos
-      await atualizarDadosCompletosNoSupabase(orderID, nome, telefone, dataEntrega, horaEntrega);
-
-      // 7. Salvar para Saida.js
-      const dadosParaSaida = {
+      // 6. Salvar apenas os dados necessários no localStorage para a Saida.js
+      localStorage.setItem("lastAgendamento", JSON.stringify({
         nome,
         dataEntrega,
         horario: horaEntrega,
@@ -193,20 +147,11 @@ const AudioRecorder = () => {
         tipo: "audio",
         link_midia: publicUrl,
         orderID,
-        remetenteTelefone: localStorage.getItem("clienteTelefone") || "Não informado"
-      };
+        remetenteTelefone
+      }));
 
-      localStorage.setItem("lastAgendamento", JSON.stringify(dadosParaSaida));
-
-      // 8. Mensagem corrigida
-      alert(
-        `🎉 Áudio agendado com sucesso!\n\n📞 Para: ${nome}\n📅 Data: ${dataEntrega}\n🕒 Hora: ${horaEntrega}`
-      );
-
-      // 9. Redirecionar
-      setTimeout(() => {
-        window.location.href = "/saida";
-      }, 2000);
+      alert(`🎉 Áudio agendado com sucesso!\n\n📞 Para: ${nome}\n📅 Data: ${dataEntrega}\n🕒 Hora: ${horaEntrega}`);
+      setTimeout(() => window.location.href = "/saida", 1500);
 
     } catch (error) {
       alert(`❌ Ocorreu um erro:\n\n${error.message}`);
@@ -303,7 +248,6 @@ const AudioRecorder = () => {
           onChange={(e) => setNome(e.target.value)}
           style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
         />
-
         <input
           type="tel"
           placeholder="📱 Telefone com DDD (ex: 11999999999) *"
@@ -311,14 +255,12 @@ const AudioRecorder = () => {
           onChange={(e) => setTelefone(e.target.value)}
           style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
         />
-
         <input
           type="date"
           value={dataEntrega}
           onChange={(e) => setDataEntrega(e.target.value)}
           style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
         />
-
         <select
           value={horaEntrega}
           onChange={(e) => setHoraEntrega(e.target.value)}
@@ -350,42 +292,8 @@ const AudioRecorder = () => {
           width: "100%"
         }}
       >
-        {isUploading ? "📤 Enviando para Supabase..." : "🚀 Enviar Áudio Agendado"}
+        {isUploading ? "📤 Enviando e agendando..." : "🚀 Enviar Áudio Agendado"}
       </button>
-
-      {isUploading && (
-        <div
-          style={{
-            marginTop: 15,
-            padding: 10,
-            background: "#e3f2fd",
-            borderRadius: 8,
-            textAlign: "center",
-            fontWeight: "bold"
-          }}
-        >
-          ⏳ Enviando áudio e agendando... Não feche a página!
-        </div>
-      )}
-
-      <div
-        style={{
-          marginTop: 20,
-          padding: 15,
-          background: "#f8f9fa",
-          borderRadius: 8,
-          fontSize: 14,
-          color: "#666"
-        }}
-      >
-        <p><strong>ℹ️ Como funciona:</strong></p>
-        <ol style={{ marginLeft: 20 }}>
-          <li>Seu áudio é enviado para o Supabase Storage</li>
-          <li>Os dados são salvos no banco de dados</li>
-          <li>No dia e hora agendados, um SMS será enviado automaticamente</li>
-          <li>O destinatário recebe um link para ouvir sua mensagem</li>
-        </ol>
-      </div>
     </div>
   );
 };
