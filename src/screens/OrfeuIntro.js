@@ -14,8 +14,7 @@ export default function OrfeuIntro() {
     }}>
       <h2>👋 Olá! Eu sou o Orfeu</h2>
       <p>
-        Seu amigo corujinha vai gravar sua mensagem e entregar para aquela pessoa
-        no dia, mês e hora que você me disser.
+        Sou seu amigo Orfeu e vou cuidar da sua mensagem e garantir que ela chegue no momento certo..
       </p>
 
       <img
