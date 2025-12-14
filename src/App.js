@@ -7,6 +7,7 @@ import Servicos from './screens/Servicos';
 import Agendamento from './screens/Agendamento';
 import Saida from './screens/Saida';
 import Erro from './screens/Erro';
+import GravarAudio from './screens/GravarAudio';
 
 // 🎤 Gravações
 import AudioRecordPage from './screens/AudioRecordPage';
@@ -38,6 +39,7 @@ function App() {
         <Route path="/servicos" element={<Servicos />} />
         <Route path="/agendamento" element={<Agendamento />} />
         <Route path="/saida" element={<Saida />} />
+        <Route path="/gravar-audio" element={<GravarAudio />} />
 
         {/* 🔹 TELA DE ORFEU - introdução da gravação */}
         <Route path="/orfeu-intro" element={<OrfeuIntro />} />
