@@ -1,3 +1,4 @@
+console.log("🔥 AUDIO RECORD PAGE — BUILD NOVO 🔥", Date.now());
 import React, { useState, useRef, useEffect } from "react";
 import { createClient } from '@supabase/supabase-js';
 
