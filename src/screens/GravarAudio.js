@@ -1,7 +1,8 @@
 import React, { useState, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
+import "./GravarAudio.css";
 
-// 🔧 SUPABASE (use as mesmas chaves que já funcionam no projeto)
+// 🔧 SUPABASE (mesmas chaves do projeto)
 const supabaseUrl = "https://kuwsgvhjmjnhkteleczc.supabase.co";
 const supabaseKey = "sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P";
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -16,30 +17,39 @@ const GravarAudio = () => {
   const chunksRef = useRef([]);
 
   const iniciar = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    chunksRef.current = [];
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunksRef.current = [];
 
-    const mediaRecorder = new MediaRecorder(stream);
-    mediaRecorder.ondataavailable = (e) => chunksRef.current.push(e.data);
-    mediaRecorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-      setAudioBlob(blob);
-      setAudioURL(URL.createObjectURL(blob));
-      stream.getTracks().forEach((t) => t.stop());
-    };
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.ondataavailable = (e) => chunksRef.current.push(e.data);
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        setAudioBlob(blob);
+        setAudioURL(URL.createObjectURL(blob));
+        stream.getTracks().forEach((t) => t.stop());
+      };
 
-    mediaRecorder.start();
-    mediaRecorderRef.current = mediaRecorder;
-    setGravando(true);
+      mediaRecorder.start();
+      mediaRecorderRef.current = mediaRecorder;
+      setGravando(true);
+    } catch (err) {
+      alert("❌ Não foi possível acessar o microfone");
+    }
   };
 
   const parar = () => {
-    mediaRecorderRef.current.stop();
-    setGravando(false);
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      setGravando(false);
+    }
   };
 
   const enviar = async () => {
-    if (!audioBlob) return alert("Grave o áudio primeiro");
+    if (!audioBlob) {
+      alert("Grave o áudio primeiro");
+      return;
+    }
 
     setEnviando(true);
 
@@ -58,7 +68,7 @@ const GravarAudio = () => {
         .from("Midias")
         .getPublicUrl(nomeArquivo);
 
-      // 3️⃣ Salvar agendamento SIMPLES
+      // 3️⃣ Registro simples no banco
       const payload = {
         tipo: "audio",
         link_midia: data.publicUrl,
@@ -74,34 +84,49 @@ const GravarAudio = () => {
 
       alert("✅ Áudio salvo com sucesso");
 
+      setAudioBlob(null);
+      setAudioURL(null);
+
     } catch (err) {
-      alert("❌ Erro: " + err.message);
+      alert("❌ Erro ao enviar: " + err.message);
     }
 
     setEnviando(false);
   };
 
   return (
-    <div style={{ maxWidth: 500, margin: "50px auto", textAlign: "center" }}>
-      <h2>🦉 Gravar Áudio (página nova)</h2>
+    <div className="gravar-audio-container">
+      <h2>🦉 Gravar Áudio</h2>
 
       {!gravando ? (
-        <button onClick={iniciar}>🎙️ Iniciar</button>
+        <button
+          className="gravar-audio-btn btn-iniciar"
+          onClick={iniciar}
+        >
+          🎙️ Iniciar gravação
+        </button>
       ) : (
-        <button onClick={parar}>⏹️ Parar</button>
+        <button
+          className="gravar-audio-btn btn-parar"
+          onClick={parar}
+        >
+          ⏹️ Parar gravação
+        </button>
       )}
 
       {audioURL && (
-        <div style={{ marginTop: 20 }}>
+        <div className="audio-preview">
           <audio controls src={audioURL} />
         </div>
       )}
 
-      <div style={{ marginTop: 30 }}>
-        <button onClick={enviar} disabled={enviando}>
-          {enviando ? "Enviando..." : "🚀 Enviar áudio"}
-        </button>
-      </div>
+      <button
+        className={`gravar-audio-btn btn-enviar ${enviando ? "btn-desabilitado" : ""}`}
+        onClick={enviar}
+        disabled={enviando}
+      >
+        {enviando ? "Enviando..." : "🚀 Enviar áudio"}
+      </button>
     </div>
   );
 };
