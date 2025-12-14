@@ -1,0 +1,198 @@
+import React, { useState, useRef } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+// 🔧 SUPABASE (use as mesmas chaves que já funcionam no projeto)
+const supabaseUrl = "https://kuwsgvhjmjnhkteleczc.supabase.co";
+const supabaseKey = "sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P";
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+const GravarAudio = () => {
+  const [gravando, setGravando] = useState(false);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [audioURL, setAudioURL] = useState(null);
+  const [enviando, setEnviando] = useState(false);
+
+  const mediaRecorderRef = useRef(null);
+  const chunksRef = useRef([]);
+
+  const iniciar = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    chunksRef.current = [];
+
+    const mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = (e) => chunksRef.current.push(e.data);
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+      setAudioBlob(blob);
+      setAudioURL(URL.createObjectURL(blob));
+      stream.getTracks().forEach((t) => t.stop());
+    };
+
+    mediaRecorder.start();
+    mediaRecorderRef.current = mediaRecorder;
+    setGravando(true);
+  };
+
+  const parar = () => {
+    mediaRecorderRef.current.stop();
+    setGravando(false);
+  };
+
+  const enviar = async () => {
+    if (!audioBlob) return alert("Grave o áudio primeiro");
+
+    setEnviando(true);
+
+    try {
+      const nomeArquivo = `audio_${Date.now()}.webm`;
+
+      // 1️⃣ Upload do áudio
+      const { error } = await supabase.storage
+        .from("Midias")
+        .upload(nomeArquivo, audioBlob, { contentType: "audio/webm" });
+
+      if (error) throw error;
+
+      // 2️⃣ URL pública
+      const { data } = supabase.storage
+        .from("Midias")
+        .getPublicUrl(nomeArquivo);
+
+      // 3️⃣ Salvar agendamento SIMPLES
+      const payload = {
+        tipo: "audio",
+        link_midia: data.publicUrl,
+        criado_em: new Date().toISOString(),
+        enviado: false,
+      };
+
+      const { error: dbError } = await supabase
+        .from("agendamentos")
+        .insert([payload]);
+
+      if (dbError) throw dbError;
+
+      alert("✅ Áudio salvo com sucesso");
+
+    } catch (err) {
+      alert("❌ Erro: " + err.message);
+    }
+
+    setEnviando(false);
+  };
+
+  return (
+    <div style={{ maxWidth: 500, margin: "50px auto", textAlign: "center" }}>
+      <h2>🦉 Gravar Áudio (página nova)</h2>
+
+      {!gravando ? (
+        <button onClick={iniciar}>🎙️ Iniciar</button>
+      ) : (
+        <button onClick={parar}>⏹️ Parar</button>
+      )}
+
+      {audioURL && (
+        <div style={{ marginTop: 20 }}>
+          <audio controls src={audioURL} />
+        </div>
+      )}
+
+      <div style={{ marginTop: 30 }}>
+        <button onClick={enviar} disabled={enviando}>
+          {enviando ? "Enviando..." : "🚀 Enviar áudio"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default GravarAudio;
+
+
+/* ===== GravarAudio.css ===== */
+
+.gravar-audio-container {
+  max-width: 520px;
+  margin: 60px auto;
+  padding: 30px 25px;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  text-align: center;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen;
+}
+
+.gravar-audio-container h2 {
+  font-size: 26px;
+  margin-bottom: 25px;
+  color: #2c3e50;
+}
+
+.gravar-audio-btn {
+  width: 100%;
+  padding: 16px 20px;
+  font-size: 18px;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.gravar-audio-btn:active {
+  transform: scale(0.97);
+}
+
+.btn-iniciar {
+  background: linear-gradient(135deg, #007bff, #0056d2);
+  color: #fff;
+  box-shadow: 0 6px 15px rgba(0, 123, 255, 0.35);
+}
+
+.btn-parar {
+  background: linear-gradient(135deg, #dc3545, #b02a37);
+  color: #fff;
+  box-shadow: 0 6px 15px rgba(220, 53, 69, 0.35);
+}
+
+.btn-enviar {
+  background: linear-gradient(135deg, #28a745, #1e7e34);
+  color: #fff;
+  margin-top: 25px;
+  box-shadow: 0 6px 15px rgba(40, 167, 69, 0.35);
+}
+
+.btn-desabilitado {
+  background: #adb5bd;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.audio-preview {
+  margin-top: 25px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 14px;
+}
+
+.audio-preview audio {
+  width: 100%;
+  outline: none;
+}
+
+.status-text {
+  margin-top: 15px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #6c757d;
+}
+
+@media (max-width: 480px) {
+  .gravar-audio-container {
+    margin: 30px 15px;
+    padding: 25px 18px;
+  }
+
+  .gravar-audio-container h2 {
+    font-size: 22px;
+  }
+}
