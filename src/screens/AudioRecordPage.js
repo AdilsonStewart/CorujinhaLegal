@@ -158,4 +158,72 @@ const AudioRecordPage = () => {
   };
 
   return (
-    <div style={{ padding: 20, maxWidth: 600, margin: "0 auto"
+    <div style={{ padding: 20, maxWidth: 600, margin: "0 auto" }}>
+      <h2>🎤 Gravador de Áudio - Máx 30s</h2>
+
+      <div style={{ fontSize: 24, color: "#dc3545", fontWeight: "bold", background: "#ffebee", padding: "15px 25px", borderRadius: 25, textAlign: "center", marginBottom: 20 }}>
+        ⏱️ Tempo máximo: {tempoRestante}s
+      </div>
+
+      {!isRecording ? (
+        <button onClick={startRecording} style={{ fontSize: 22, padding: "18px 35px", background: "#007bff", color: "white", border: "none", borderRadius: 12, cursor: "pointer", width: "100%", marginBottom: 20 }}>
+          🎙️ Iniciar Gravação (30s máx)
+        </button>
+      ) : (
+        <div>
+          <button onClick={stopRecording} style={{ fontSize: 22, padding: "18px 35px", background: "#dc3545", color: "white", border: "none", borderRadius: 12, cursor: "pointer", width: "100%", marginBottom: 15 }}>
+            ⏹️ Parar Gravação ({tempoRestante}s)
+          </button>
+          <div style={{ fontSize: 20, color: "#dc3545", fontWeight: "bold", background: "#fff3cd", padding: "12px 20px", borderRadius: 20, textAlign: "center" }}>
+            ⏳ Gravando... {tempoRestante}s restantes
+          </div>
+        </div>
+      )}
+
+      {audioURL && (
+        <div style={{ marginTop: 30 }}>
+          <p><strong>✅ Áudio gravado (pronto para enviar):</strong></p>
+          <audio controls src={audioURL} style={{ width: "100%", marginBottom: 20 }} />
+        </div>
+      )}
+
+      <hr style={{ margin: "40px 0" }} />
+
+      <div style={{ display: "grid", gap: 15 }}>
+        <input type="text" placeholder="👤 Nome do destinatário *" value={nome} onChange={(e) => setNome(e.target.value)} style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }} />
+        <input type="tel" placeholder="📱 Telefone com DDD *" value={telefone} onChange={(e) => setTelefone(e.target.value)} style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }} />
+        <input type="date" value={dataEntrega} onChange={(e) => setDataEntrega(e.target.value)} style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }} />
+        <select value={horaEntrega} onChange={(e) => setHoraEntrega(e.target.value)} style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}>
+          <option value="">🕒 Escolha o horário *</option>
+          <option value="09:00">09:00</option>
+          <option value="10:00">10:00</option>
+          <option value="11:00">11:00</option>
+          <option value="14:00">14:00</option>
+          <option value="15:00">15:00</option>
+          <option value="16:00">16:00</option>
+          <option value="17:00">17:00</option>
+        </select>
+      </div>
+
+      <button
+        onClick={enviarDados}
+        style={{
+          marginTop: 30,
+          padding: "18px 40px",
+          fontSize: 20,
+          background: (!audioBlob || isUploading) ? "#6c757d" : "#28a745",
+          color: "white",
+          border: "none",
+          borderRadius: 12,
+          cursor: "pointer",
+          width: "100%"
+        }}
+        title={!audioBlob ? "Grave um áudio antes de enviar." : (isUploading ? "Enviando..." : "Clique para enviar")}
+      >
+        {isUploading ? "📤 Enviando para Supabase..." : "🚀 Enviar Áudio Agendado"}
+      </button>
+    </div>
+  );
+};
+
+export default AudioRecordPage;
