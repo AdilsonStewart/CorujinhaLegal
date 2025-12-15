@@ -1,5 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createClient } from '@supabase/supabase-js';
+import { db } from '../firebase'; // usa seu arquivo src/firebase.js
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+
 console.log("🔥 AUDIO RECORD PAGE — BUILD NOVO 🔥", Date.now());
 
 // 🔧 CONFIGURAÇÃO DO SUPABASE (mantive como estava)
@@ -7,92 +10,6 @@ const supabaseUrl = 'https://kuwsgvhjmjnhkteleczc.supabase.co';
 const supabaseKey = 'sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// ---------------------------
-// Firestore (opcional)
-// ---------------------------
-// O código abaixo inicializa a Firebase/Firestore usando variáveis de ambiente.
-// Se você não quer usar Firestore, basta não definir as variáveis e o código
-// continuará funcionando apenas com Supabase.
-//
-// Variáveis esperadas (ex.: em .env):
-// REACT_APP_FIREBASE_API_KEY
-// REACT_APP_FIREBASE_AUTH_DOMAIN
-// REACT_APP_FIREBASE_PROJECT_ID
-// REACT_APP_FIREBASE_STORAGE_BUCKET
-// REACT_APP_FIREBASE_MESSAGING_SENDER_ID
-// REACT_APP_FIREBASE_APP_ID
-//
-// Se for usar, rode: npm install firebase@9
-let firebaseInitialized = false;
-let firestoreInstance = null;
-
-async function initFirestoreIfNeeded() {
-  if (firebaseInitialized) return firestoreInstance;
-
-  // Detecta presença mínima das configs (só checamos API key e project id)
-  const apiKey = process.env.REACT_APP_FIREBASE_API_KEY;
-  const projectId = process.env.REACT_APP_FIREBASE_PROJECT_ID;
-
-  if (!apiKey || !projectId) {
-    // Firestore não configurado — não inicializa
-    console.warn("Firestore não inicializado: variáveis REACT_APP_FIREBASE_* ausentes.");
-    return null;
-  }
-
-  try {
-    // Import dinâmico para não forçar a dependência quando não usada
-    const firebase = await import('firebase/app');
-    // v9 modular imports:
-    const { initializeApp, getApps } = await import('firebase/app');
-    const { getFirestore } = await import('firebase/firestore');
-
-    // Evita reinicializar caso já haja app
-    const apps = getApps();
-    if (apps.length === 0) {
-      initializeApp({
-        apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-        authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-        projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-        storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-        messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-        appId: process.env.REACT_APP_FIREBASE_APP_ID,
-      });
-    }
-
-    firestoreInstance = getFirestore();
-    firebaseInitialized = true;
-    console.info("Firestore inicializado com sucesso.");
-    return firestoreInstance;
-  } catch (err) {
-    console.warn("Falha ao inicializar Firestore (verifique se 'firebase' está instalado):", err.message || err);
-    return null;
-  }
-}
-
-async function salvarNaFirestore(dados) {
-  // dados esperado: objeto com campos já preparados
-  const db = await initFirestoreIfNeeded();
-  if (!db) return null;
-
-  try {
-    const { collection, addDoc, serverTimestamp } = await import('firebase/firestore');
-    const colRef = collection(db, "agendamentos"); // mesma coleção que usamos no Supabase (nome escolhido)
-    const docRef = await addDoc(colRef, {
-      ...dados,
-      criado_em_firestore: new Date().toISOString(),
-      createdAt: serverTimestamp()
-    });
-    console.info("Documento salvo na Firestore:", docRef.id);
-    return docRef.id;
-  } catch (err) {
-    console.warn("Erro ao salvar na Firestore:", err.message || err);
-    return null;
-  }
-}
-
-// ---------------------------
-// Componente principal
-// ---------------------------
 const AudioRecordPage = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [audioURL, setAudioURL] = useState(null);
@@ -160,7 +77,7 @@ const AudioRecordPage = () => {
     }
   };
 
-  // 🔹 FUNÇÃO PARA ENVIAR TODOS OS DADOS PARA SUPABASE E FIRESTORE (opcional)
+  // 🔹 FUNÇÃO PARA ENVIAR TODOS OS DADOS PARA SUPABASE E Firestore (usando src/firebase.js)
   const enviarDados = async () => {
     if (!audioBlob) { alert("Grave um áudio antes de enviar."); return; }
     if (!nome || !telefone || !dataEntrega || !horaEntrega) {
@@ -185,7 +102,6 @@ const AudioRecordPage = () => {
 
       // 3️⃣ URL pública
       const { data: publicData } = supabase.storage.from("Midias").getPublicUrl(nomeArquivo);
-      // dependências do supabase podem variar; publicData.publicUrl ou publicData?.publicUrl
       const publicUrl = publicData?.publicUrl || (publicData && publicData.publicUrl) || "";
 
       // 4️⃣ OrderID do PayPal ou gerado
@@ -223,10 +139,14 @@ const AudioRecordPage = () => {
       const { data, error } = await supabase.from("agendamentos").insert([dadosParaSalvar]).select();
       if (error) throw new Error("Erro ao salvar no Supabase: " + error.message);
 
-      // 8️⃣ TENTAR salvar também na Firestore (opcional)
-      // Se a Firestore estiver configurada via variáveis de ambiente, será gravado lá também.
+      // 8️⃣ SALVAR NA FIRESTORE (agora usando sua src/firebase.js)
       try {
-        await salvarNaFirestore(dadosParaSalvar);
+        await addDoc(collection(db, "agendamentos"), {
+          ...dadosParaSalvar,
+          criado_em_firestore: new Date().toISOString(),
+          createdAt: serverTimestamp()
+        });
+        console.info("Salvo na Firestore com sucesso.");
       } catch (fireErr) {
         // Não interrompe o fluxo principal; só loga
         console.warn("Não foi possível salvar na Firestore:", fireErr?.message || fireErr);
