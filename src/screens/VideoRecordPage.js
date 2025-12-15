@@ -360,7 +360,16 @@ const VideoRecordPage = () => {
         <input type="date" value={dataEntrega} onChange={(e) => setDataEntrega(e.target.value)} style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }} />
 
         <div style={{ fontWeight: "600", marginTop: 4 }}>Hora de entrega da mensagem:</div>
-        <input type="time" value={horaEntrega} onChange={(e) => setHoraEntrega(e.target.value)} style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }} />
+        <select value={horaEntrega} onChange={(e) => setHoraEntrega(e.target.value)} style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}>
+          <option value="">🕒 Escolha o horário *</option>
+          <option value="09:00">09:00</option>
+          <option value="10:00">10:00</option>
+          <option value="11:00">11:00</option>
+          <option value="14:00">14:00</option>
+          <option value="15:00">15:00</option>
+          <option value="16:00">16:00</option>
+          <option value="17:00">17:00</option>
+        </select>
       </div>
 
       <button onClick={enviarDados} style={{ marginTop: 20, padding: "16px 28px", fontSize: 18, background: !videoBlob || isUploading ? "#6c757d" : "#28a745", color: "white", border: "none", borderRadius: 10, cursor: "pointer", width: "100%" }} title={!videoBlob ? "Grave um vídeo antes de enviar." : isUploading ? "Enviando..." : "Clique para enviar"}>
