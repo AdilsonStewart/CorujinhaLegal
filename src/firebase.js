@@ -1,10 +1,7 @@
-// Inicialização do Firebase (CorujinhaLegal2)
-// Copie este arquivo para src/firebase.js (substitui o antigo) e commit.
-
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
-// Configuração fornecida (CorujinhaLegal2)
+// Config do CorujinhaLegal2
 const firebaseConfig = {
   apiKey: "AIzaSyASmPjNdBFly7ndXk0n-FFbWT-2DQLlevI",
   authDomain: "corujinhalegal2-5c7c9.firebaseapp.com",
@@ -14,7 +11,8 @@ const firebaseConfig = {
   appId: "1:711736746096:web:dd3a64784367133dd414b5"
 };
 
-const app = initializeApp(firebaseConfig);
+// Inicializa apenas se não houver apps já inicializados
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 
-export { db };
+export { db, app };
