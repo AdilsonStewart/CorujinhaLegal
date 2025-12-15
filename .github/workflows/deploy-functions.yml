@@ -1,0 +1,66 @@
+name: Deploy Firebase Functions
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install firebase-tools
+        run: npm install -g firebase-tools@11
+
+      - name: Install functions dependencies (if any)
+        run: |
+          if [ -f functions/package.json ]; then
+            cd functions
+            npm ci || npm install
+            cd ..
+          fi
+
+      - name: Write Firebase service account key
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          echo "$FIREBASE_SA" > "${{ github.workspace }}/firebase-key.json"
+
+      - name: Set GOOGLE_APPLICATION_CREDENTIALS
+        run: echo "GOOGLE_APPLICATION_CREDENTIALS=${{ github.workspace }}/firebase-key.json" >> $GITHUB_ENV
+
+      - name: Configure Firebase project (adds project alias)
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-key.json
+        run: |
+          firebase use --add "${{ secrets.FIREBASE_PROJECT_ID }}" || true
+
+      - name: Save ClickSend config to Functions config
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-key.json
+          CLICK_USER: ${{ secrets.CLICKSEND_USER }}
+          CLICK_KEY: ${{ secrets.CLICKSEND_KEY }}
+          CLICK_FROM: ${{ secrets.CLICKSEND_FROM }}
+          CLICK_TEMPLATE: ${{ secrets.CLICKSEND_TEMPLATE }}
+        run: |
+          # Set config; empty values are skipped
+          firebase functions:config:set \
+            clicksend.user="$CLICK_USER" \
+            clicksend.key="$CLICK_KEY" \
+            clicksend.from="$CLICK_FROM" \
+            clicksend.template="$CLICK_TEMPLATE" \
+            --project "${{ secrets.FIREBASE_PROJECT_ID }}" || true
+
+      - name: Deploy Cloud Function (sendScheduledMessages)
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-key.json
+        run: |
+          firebase deploy --only functions:sendScheduledMessages --project "${{ secrets.FIREBASE_PROJECT_ID }}"
