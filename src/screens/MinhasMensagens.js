@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { db } from "../firebase";
 import {
   collection,
@@ -15,7 +16,6 @@ import {
 const formatDateBR = (isoDate) => {
   if (!isoDate) return "";
   try {
-    // aceita YYYY-MM-DD ou ISO
     const d = new Date(isoDate);
     if (!isNaN(d)) {
       return d.toLocaleDateString("pt-BR");
@@ -28,6 +28,7 @@ const formatDateBR = (isoDate) => {
 };
 
 export default function MinhasMensagens() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [mensagens, setMensagens] = useState([]);
   const [error, setError] = useState(null);
@@ -43,7 +44,6 @@ export default function MinhasMensagens() {
         let q;
 
         if (clientId) {
-          // busca por cliente_id
           q = query(
             collection(db, "agendamentos"),
             where("cliente_id", "==", clientId),
@@ -51,7 +51,6 @@ export default function MinhasMensagens() {
             limit(3)
           );
         } else if (clientTel) {
-          // fallback: busca por telefone do destinatário ou do destinatario.telefone
           q = query(
             collection(db, "agendamentos"),
             where("destinatario.telefone", "==", clientTel),
@@ -87,7 +86,6 @@ export default function MinhasMensagens() {
         cancelledAt: serverTimestamp(),
         cancelledBy: localStorage.getItem("clienteId") || "cliente-ui"
       });
-      // atualizar lista local sem refetch completo (ou força refresh)
       setRefreshKey(k => k + 1);
     } catch (err) {
       console.error("Erro ao cancelar mensagem:", err);
@@ -140,7 +138,6 @@ export default function MinhasMensagens() {
                 <span style={{ color: "#999" }}>Sem link disponível</span>
               )}
 
-              {/* botão cancelar (aparece apenas se não estiver enviado/cancelado) */}
               <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
                 {(m.status !== "cancelled" && !m.enviado) ? (
                   <button
@@ -161,8 +158,8 @@ export default function MinhasMensagens() {
       </div>
 
       <div style={{ marginTop: 18 }}>
-        <button onClick={() => window.history.back()} style={{ padding: "10px 14px", marginRight: 8, borderRadius: 6 }}>Voltar</button>
-        <button onClick={() => window.location.href = "/videorecord"} style={{ padding: "10px 14px", background: "#28a745", color: "#fff", border: "none", borderRadius: 6 }}>Enviar nova mensagem</button>
+        <button onClick={() => navigate(-1)} style={{ padding: "10px 14px", marginRight: 8, borderRadius: 6 }}>Voltar</button>
+        <button onClick={() => navigate('/servicos')} style={{ padding: "10px 14px", background: "#28a745", color: "#fff", border: "none", borderRadius: 6 }}>Enviar nova mensagem</button>
       </div>
     </div>
   );
