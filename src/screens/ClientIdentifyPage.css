@@ -1,0 +1,104 @@
+/* Estilos para ClientIdentifyPage */
+.client-identify-container {
+  padding: 20px;
+  max-width: 680px;
+  margin: 0 auto;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  color: #222;
+}
+
+.client-identify-h2 {
+  margin-bottom: 12px;
+  font-size: 22px;
+}
+
+.client-identify-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.client-identify-input {
+  padding: 12px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.client-identify-button {
+  padding: 12px 18px;
+  font-size: 16px;
+  background: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.client-identify-status {
+  margin-top: 16px;
+  padding: 12px;
+  background: #f1f1f1;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.client-identify-found {
+  margin-top: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.client-identify-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.client-identify-action-primary {
+  flex: 1;
+  padding: 10px 12px;
+  background: #17a2b8;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.client-identify-action-secondary {
+  flex: 1;
+  padding: 10px 12px;
+  background: #28a745;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.client-identify-create-row {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.client-identify-create-button {
+  flex: 1;
+  padding: 10px 12px;
+  background: #ffc107;
+  color: #222;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.client-identify-cancel-button {
+  flex: 1;
+  padding: 10px 12px;
+  background: #6c757d;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
