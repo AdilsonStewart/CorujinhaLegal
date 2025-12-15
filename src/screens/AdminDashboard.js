@@ -43,7 +43,7 @@ const AdminDashboard = () => {
     navigator.clipboard.writeText(url)
       .then(() => {
         // Exibe mensagem de sucesso com instruções para o usuário
-        alert('✅ Link copiado para a área de transferência! Cole com Ctrl+V.');
+        alert('✅ Link copiado para a área de transferência! Você pode colar em qualquer lugar.');
       })
       .catch(err => {
         console.error('Erro ao copiar:', err);
