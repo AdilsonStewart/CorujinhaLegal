@@ -1,13 +1,28 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-console.log("🔥 AUDIO RECORD PAGE — BUILD NOVO 🔥", Date.now());
+// Firestore client SDK
+import { db } from "../firebase";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  Timestamp,
+  query,
+  where,
+  getDocs,
+  doc,
+  setDoc
+} from "firebase/firestore";
 
-// CONFIGURAÇÃO DO SUPABASE
+console.log("🔥 AUDIO RECORD PAGE — FIRESTORE FLOW 🔥", Date.now());
+
+// Supabase
 const supabaseUrl = "https://kuwsgvhjmjnhkteleczc.supabase.co";
 const supabaseKey = "sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+const sanitizePhone = (s = "") => (s || "").toString().replace(/\D/g, "");
 const formatDateBR = (isoDate) => {
   if (!isoDate) return "";
   const [y, m, d] = isoDate.slice(0, 10).split("-");
@@ -19,16 +34,16 @@ const AudioRecordPage = () => {
   const [audioURL, setAudioURL] = useState(null);
   const [audioBlob, setAudioBlob] = useState(null);
 
-  // REMETENTE (quem envia)
+  // Remetente (quem envia)
   const [remetenteNome, setRemetenteNome] = useState("");
   const [remetenteTelefone, setRemetenteTelefone] = useState("");
   const [remetenteNascimento, setRemetenteNascimento] = useState("");
 
-  // DESTINATÁRIO (quem recebe)
+  // Destinatário (quem recebe)
   const [destinatarioNome, setDestinatarioNome] = useState("");
   const [destinatarioTelefone, setDestinatarioTelefone] = useState("");
 
-  // AGENDAMENTO
+  // Agendamento
   const [dataEntrega, setDataEntrega] = useState("");
   const [horaEntrega, setHoraEntrega] = useState("");
 
@@ -65,18 +80,10 @@ const AudioRecordPage = () => {
     };
   }, []); // roda uma vez
 
-  // atualizar localStorage quando usuário edita remetente (para futuro prefill)
-  useEffect(() => {
-    localStorage.setItem("clienteNome", remetenteNome || "");
-  }, [remetenteNome]);
-
-  useEffect(() => {
-    localStorage.setItem("clienteTelefone", remetenteTelefone || "");
-  }, [remetenteTelefone]);
-
-  useEffect(() => {
-    localStorage.setItem("clienteNascimento", remetenteNascimento || "");
-  }, [remetenteNascimento]);
+  // persistir remetente para prefill futuro
+  useEffect(() => { localStorage.setItem("clienteNome", remetenteNome || ""); }, [remetenteNome]);
+  useEffect(() => { localStorage.setItem("clienteTelefone", remetenteTelefone || ""); }, [remetenteTelefone]);
+  useEffect(() => { localStorage.setItem("clienteNascimento", remetenteNascimento || ""); }, [remetenteNascimento]);
 
   const startRecording = async () => {
     try {
@@ -123,121 +130,176 @@ const AudioRecordPage = () => {
     }
   };
 
-  // FUNÇÃO DE ENVIO (inclui remetente e valida nascimento obrigatório)
-  const enviarDados = async () => {
-    if (!audioBlob) {
-      alert("Grave um áudio antes de enviar.");
-      return;
+  // tenta encontrar cliente por telefone na coleção 'clientes' do Firestore
+  const fetchClientByPhone = async (phone) => {
+    try {
+      const tel = sanitizePhone(phone);
+      if (!tel) return null;
+      const q = query(collection(db, "clientes"), where("telefone", "==", tel));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const d = snap.docs[0];
+        return { id: d.id, ...d.data() };
+      }
+      return null;
+    } catch (e) {
+      console.warn("fetchClientByPhone error:", e);
+      return null;
     }
-    if (!destinatarioNome || !destinatarioTelefone || !horaEntrega) {
-      alert("Preencha todos os campos: destinatário, telefone e horário.");
-      return;
-    }
+  };
 
-    // valida nascimento do remetente (agora obrigatório)
+  // upsert cliente na coleção 'clientes' (retorna id)
+  const upsertClientFirestore = async ({ nome, telefone, dataNascimento, email, cpfCnpj }) => {
+    try {
+      const tel = sanitizePhone(telefone || "");
+      if (!tel) {
+        // sem telefone, cria novo doc simples
+        const payload = { nome: nome || null, dataNascimento: dataNascimento || null, email: email || null, cpfCnpj: cpfCnpj || null, criadoEm: serverTimestamp() };
+        const ref = await addDoc(collection(db, "clientes"), payload);
+        return ref.id;
+      }
+
+      const existing = await fetchClientByPhone(tel);
+      if (existing) {
+        // atualiza com merge
+        const ref = doc(db, "clientes", existing.id);
+        await setDoc(ref, {
+          nome: nome || existing.nome || null,
+          telefone: tel,
+          dataNascimento: dataNascimento || existing.dataNascimento || null,
+          email: email || existing.email || null,
+          cpfCnpj: cpfCnpj || existing.cpfCnpj || null,
+          atualizadoEm: serverTimestamp()
+        }, { merge: true });
+        return existing.id;
+      } else {
+        // cria novo
+        const payload = {
+          nome: nome || null,
+          telefone: tel,
+          dataNascimento: dataNascimento || null,
+          email: email || null,
+          cpfCnpj: cpfCnpj || null,
+          criadoEm: serverTimestamp()
+        };
+        const ref = await addDoc(collection(db, "clientes"), payload);
+        return ref.id;
+      }
+    } catch (e) {
+      console.warn("upsertClientFirestore error:", e);
+      return null;
+    }
+  };
+
+  // Função principal: upload no Supabase + gravaçao no Firestore
+  const enviarDados = async () => {
+    if (!audioBlob) { alert("Grave um áudio antes de enviar."); return; }
+    if (!destinatarioNome || !destinatarioTelefone || !horaEntrega) {
+      alert("Preencha destinatário, telefone e horário.");
+      return;
+    }
     if (!remetenteNascimento || !remetenteNascimento.trim()) {
       alert("Por favor, preencha a data de nascimento do remetente.");
       return;
     }
 
-    const telefoneLimpo = destinatarioTelefone.replace(/\D/g, "");
-    if (telefoneLimpo.length < 10) {
-      alert("Digite um telefone válido com DDD (ex: 11999999999).");
-      return;
-    }
-
-    // telefone do remetente (opcional para envio, já salvo)
-    const remetenteTelLimpo = (remetenteTelefone || "").replace(/\D/g, "");
-
     setIsUploading(true);
 
     try {
-      // garante que dataEntrega seja preenchida: usa a data selecionada ou hoje (YYYY-MM-DD)
       const hojeIso = new Date().toISOString().slice(0, 10);
       const dataAgendamento = dataEntrega && dataEntrega.trim() ? dataEntrega : hojeIso;
 
-      // nome do arquivo
-      const nomeArquivo = `audio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.webm`;
-
-      // upload no Supabase
-      const { error: uploadError } = await supabase.storage.from("Midias").upload(nomeArquivo, audioBlob, {
-        contentType: "audio/webm",
-        cacheControl: "3600",
-        upsert: false,
+      // 1) Upsert cliente remetente no Firestore e obter cliente_id (opcional)
+      const clienteId = await upsertClientFirestore({
+        nome: remetenteNome,
+        telefone: remetenteTelefone,
+        dataNascimento: remetenteNascimento
       });
 
+      // 2) Upload no Supabase
+      const nomeArquivo = `audio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.webm`;
+      const { error: uploadError } = await supabase.storage.from("Midias").upload(
+        nomeArquivo,
+        audioBlob,
+        { contentType: "audio/webm", cacheControl: "3600" }
+      );
       if (uploadError) throw new Error(`Falha no upload: ${uploadError.message || JSON.stringify(uploadError)}`);
 
-      // obter publicUrl de forma robusta
+      // 3) getPublicUrl
       let publicUrl = "";
       try {
         const res = supabase.storage.from("Midias").getPublicUrl(nomeArquivo);
-        publicUrl =
-          (res && res.data && (res.data.publicUrl || res.data.publicURL)) || res?.publicURL || res?.publicUrl || "";
+        publicUrl = (res && res.data && (res.data.publicUrl || res.data.publicURL)) || res?.publicURL || res?.publicUrl || "";
       } catch (e) {
         console.warn("Erro ao obter publicUrl:", e);
       }
 
       const orderID = localStorage.getItem("currentOrderId") || `AUDIO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const telefoneDestClean = sanitizePhone(destinatarioTelefone);
+      const telefoneRemClean = sanitizePhone(remetenteTelefone || "");
 
-      // monta objeto para salvar
-      const dadosParaSalvar = {
-        data_agendamento: dataAgendamento,
-        hora_agendamento: horaEntrega,
-        criado_em: new Date().toISOString(),
-        enviado: false,
+      // 4) montar payload para Firestore
+      const payload = {
+        orderID,
         link_midia: publicUrl,
-        // campos do remetente top-level (inclui nascimento)
-        remetente_nome: remetenteNome || "",
-        remetente_telefone: remetenteTelLimpo || "",
-        remetente_nascimento: remetenteNascimento || "",
-        // dados completos
+        criado_em: serverTimestamp(),
+        criado_em_iso: new Date().toISOString(),
+        data_agendamento: dataAgendamento, // YYYY-MM-DD
+        data_agendamento_ts: Timestamp.fromDate(new Date(dataAgendamento + "T00:00:00Z")),
+        hora_agendamento: horaEntrega,
+        enviado: false,
+        tipo: "audio",
+        destinatario: {
+          nome: destinatarioNome || "",
+          telefone: telefoneDestClean || ""
+        },
+        remetente: {
+          nome: remetenteNome || "",
+          telefone: telefoneRemClean || "",
+          nascimento: remetenteNascimento || ""
+        },
         dados_completos: {
           tipo: "audio",
           order_id: orderID,
           paypal_order_id: orderID,
           status: "pago",
           valor: 5.0,
-          cliente_nome: destinatarioNome,
-          cliente_telefone: telefoneLimpo,
-          remetente: remetenteNome || "Cliente",
-          telefone_remetente: remetenteTelLimpo || "00000000000",
+          cliente_nome: destinatarioNome || "",
+          cliente_telefone: telefoneDestClean || "",
+          remetente: remetenteNome || "",
+          telefone_remetente: telefoneRemClean || "",
           remetente_nascimento: remetenteNascimento || "",
-          destinatario: destinatarioNome,
-          telefone: telefoneLimpo,
-          data_pagamento: new Date().toISOString(),
+          destinatario: destinatarioNome || "",
+          telefone: telefoneDestClean || "",
+          data_pagamento: new Date().toISOString()
         },
         evento_paypal: "FRONTEND_" + orderID,
-        valor: 5.0,
+        cliente_id: clienteId || null
       };
 
-      // inserir no Supabase
-      const { data, error } = await supabase.from("agendamentos").insert([dadosParaSalvar]).select();
-      if (error) throw new Error("Erro ao salvar no Supabase: " + (error.message || JSON.stringify(error)));
+      // 5) gravar em Firestore (coleção 'agendamentos')
+      const col = collection(db, "agendamentos");
+      const docRef = await addDoc(col, payload);
 
-      // salvar no localStorage para Saida.js / histórico
-      localStorage.setItem(
-        "lastAgendamento",
-        JSON.stringify({
-          nome: destinatarioNome,
-          telefone: telefoneLimpo,
-          dataEntrega: dataAgendamento,
-          horaEntrega,
-          tipo: "audio",
-          link_midia: publicUrl,
-          orderID,
-          remetenteNome,
-          remetenteTelefone: remetenteTelLimpo,
-          remetenteNascimento,
-        })
-      );
+      // 6) salvar localStorage para Saida.js / histórico
+      localStorage.setItem("lastAgendamento", JSON.stringify({
+        nome: destinatarioNome,
+        telefone: telefoneDestClean,
+        dataEntrega: dataAgendamento,
+        horaEntrega,
+        tipo: "audio",
+        link_midia: publicUrl,
+        orderID,
+        remetenteNome,
+        remetenteTelefone: telefoneRemClean,
+        remetenteNascimento,
+        cliente_id: clienteId || null,
+        firestore_doc_id: docRef.id
+      }));
 
-      alert(
-        `🎉 Áudio agendado com sucesso!\n\n📞 Para: ${destinatarioNome}\n📅 Data: ${dataAgendamento}\n🕒 Hora: ${horaEntrega}\n👤 Remetente: ${remetenteNome}\n🎂 Nasc.: ${formatDateBR(remetenteNascimento)}`
-      );
-      setTimeout(() => {
-        window.location.href = "/saida";
-      }, 1200);
+      alert(`🎉 Áudio agendado com sucesso!\n\nPara: ${destinatarioNome}\nData: ${dataAgendamento}\nHora: ${horaEntrega}`);
+      setTimeout(() => { window.location.href = "/saida"; }, 1200);
+
     } catch (err) {
       console.error("Erro enviarDados:", err);
       alert(`❌ Ocorreu um erro:\n${err.message || String(err)}`);
@@ -250,67 +312,20 @@ const AudioRecordPage = () => {
     <div style={{ padding: 20, maxWidth: 680, margin: "0 auto" }}>
       <h2>🎤 Gravador de Áudio - Máx 30s</h2>
 
-      <div
-        style={{
-          fontSize: 24,
-          color: "#dc3545",
-          fontWeight: "bold",
-          background: "#ffebee",
-          padding: "15px 25px",
-          borderRadius: 25,
-          textAlign: "center",
-          marginBottom: 20,
-        }}
-      >
+      <div style={{ fontSize: 24, color: "#dc3545", fontWeight: "bold", background: "#ffebee", padding: "15px 25px", borderRadius: 25, textAlign: "center", marginBottom: 20 }}>
         ⏱️ Tempo máximo: {tempoRestante}s
       </div>
 
       {!isRecording ? (
-        <button
-          onClick={startRecording}
-          style={{
-            fontSize: 22,
-            padding: "18px 35px",
-            background: "#007bff",
-            color: "white",
-            border: "none",
-            borderRadius: 12,
-            cursor: "pointer",
-            width: "100%",
-            marginBottom: 20,
-          }}
-        >
+        <button onClick={startRecording} style={{ fontSize: 22, padding: "18px 35px", background: "#007bff", color: "white", border: "none", borderRadius: 12, cursor: "pointer", width: "100%", marginBottom: 20 }}>
           🎙️ Iniciar Gravação (30s máx)
         </button>
       ) : (
         <div>
-          <button
-            onClick={stopRecording}
-            style={{
-              fontSize: 22,
-              padding: "18px 35px",
-              background: "#dc3545",
-              color: "white",
-              border: "none",
-              borderRadius: 12,
-              cursor: "pointer",
-              width: "100%",
-              marginBottom: 15,
-            }}
-          >
+          <button onClick={stopRecording} style={{ fontSize: 22, padding: "18px 35px", background: "#dc3545", color: "white", border: "none", borderRadius: 12, cursor: "pointer", width: "100%", marginBottom: 15 }}>
             ⏹️ Parar Gravação ({tempoRestante}s)
           </button>
-          <div
-            style={{
-              fontSize: 20,
-              color: "#dc3545",
-              fontWeight: "bold",
-              background: "#fff3cd",
-              padding: "12px 20px",
-              borderRadius: 20,
-              textAlign: "center",
-            }}
-          >
+          <div style={{ fontSize: 20, color: "#dc3545", fontWeight: "bold", background: "#fff3cd", padding: "12px 20px", borderRadius: 20, textAlign: "center" }}>
             ⏳ Gravando... {tempoRestante}s restantes
           </div>
         </div>
@@ -318,9 +333,7 @@ const AudioRecordPage = () => {
 
       {audioURL && (
         <div style={{ marginTop: 20 }}>
-          <p>
-            <strong>✅ Áudio gravado (pronto para enviar):</strong>
-          </p>
+          <p><strong>✅ Áudio gravado (pronto para enviar):</strong></p>
           <audio controls src={audioURL} style={{ width: "100%", marginBottom: 16 }} />
         </div>
       )}
@@ -330,82 +343,26 @@ const AudioRecordPage = () => {
       <div style={{ display: "grid", gap: 10 }}>
         {/* Remetente */}
         <div style={{ fontWeight: "600" }}>Remetente (quem envia):</div>
-        <input
-          type="text"
-          placeholder="Seu nome"
-          value={remetenteNome}
-          onChange={(e) => setRemetenteNome(e.target.value)}
-          style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
-        />
-        <input
-          type="tel"
-          placeholder="Seu telefone com DDD"
-          value={remetenteTelefone}
-          onChange={(e) => setRemetenteTelefone(e.target.value)}
-          style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
-        />
-        {/* Label visível com exatamente o texto pedido */}
+        <input type="text" placeholder="Seu nome" value={remetenteNome} onChange={(e) => setRemetenteNome(e.target.value)} style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }} />
+        <input type="tel" placeholder="Seu telefone com DDD" value={remetenteTelefone} onChange={(e) => setRemetenteTelefone(e.target.value)} style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }} />
         <label style={{ fontSize: 14, color: "#333", fontWeight: 600, marginTop: 6 }}>Sua data de nascimento *</label>
-        <input
-          type="date"
-          placeholder="Sua data de nascimento"
-          aria-label="Sua data de nascimento"
-          value={remetenteNascimento}
-          onChange={(e) => setRemetenteNascimento(e.target.value)}
-          style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
-        />
+        <input type="date" placeholder="Sua data de nascimento" aria-label="Sua data de nascimento" value={remetenteNascimento} onChange={(e) => setRemetenteNascimento(e.target.value)} style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }} />
 
         {/* Destinatário */}
         <div style={{ fontWeight: "600", marginTop: 8 }}>Entregar a mensagem para:</div>
-        <input
-          type="text"
-          placeholder="Nome do destinatário *"
-          value={destinatarioNome}
-          onChange={(e) => setDestinatarioNome(e.target.value)}
-          style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
-        />
-        <input
-          type="tel"
-          placeholder="Telefone do destinatário com DDD *"
-          value={destinatarioTelefone}
-          onChange={(e) => setDestinatarioTelefone(e.target.value)}
-          style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
-        />
+        <input type="text" placeholder="Nome do destinatário *" value={destinatarioNome} onChange={(e) => setDestinatarioNome(e.target.value)} style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }} />
+        <input type="tel" placeholder="Telefone do destinatário com DDD *" value={destinatarioTelefone} onChange={(e) => setDestinatarioTelefone(e.target.value)} style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }} />
 
         {/* Agendamento */}
         <div style={{ fontWeight: "600", marginTop: 8 }}>Data de entrega desta mensagem:</div>
-        <input
-          type="date"
-          value={dataEntrega}
-          onChange={(e) => setDataEntrega(e.target.value)}
-          style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
-        />
+        <input type="date" value={dataEntrega} onChange={(e) => setDataEntrega(e.target.value)} style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }} />
 
         <div style={{ fontWeight: "600", marginTop: 4 }}>Hora de entrega da mensagem:</div>
-        <input
-          type="time"
-          value={horaEntrega}
-          onChange={(e) => setHoraEntrega(e.target.value)}
-          style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
-        />
+        <input type="time" value={horaEntrega} onChange={(e) => setHoraEntrega(e.target.value)} style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }} />
       </div>
 
-      <button
-        onClick={enviarDados}
-        style={{
-          marginTop: 20,
-          padding: "16px 28px",
-          fontSize: 18,
-          background: !audioBlob || isUploading ? "#6c757d" : "#28a745",
-          color: "white",
-          border: "none",
-          borderRadius: 10,
-          cursor: "pointer",
-          width: "100%",
-        }}
-        title={!audioBlob ? "Grave um áudio antes de enviar." : isUploading ? "Enviando..." : "Clique para enviar"}
-      >
-        {isUploading ? "📤 Enviando para Supabase..." : "🚀 Enviar Áudio Agendado"}
+      <button onClick={enviarDados} style={{ marginTop: 20, padding: "16px 28px", fontSize: 18, background: !audioBlob || isUploading ? "#6c757d" : "#28a745", color: "white", border: "none", borderRadius: 10, cursor: "pointer", width: "100%" }} title={!audioBlob ? "Grave um áudio antes de enviar." : isUploading ? "Enviando..." : "Clique para enviar"}>
+        {isUploading ? "📤 Enviando..." : "🚀 Enviar Áudio Agendado"}
       </button>
     </div>
   );
