@@ -17,6 +17,7 @@ import LivreRecordPage from './screens/LivreRecordPage'; // ainda a implementar
 // 👥 Área do cliente
 import Clientes from './screens/Clientes';
 import ClientIdentifyPage from './screens/ClientIdentifyPage'; // nova tela "Sou cliente"
+import MinhasMensagens from './screens/MinhasMensagens'; // nova lista do cliente
 
 // 💰 Retorno PayPal (não mexer)
 import Retorno from './screens/Retorno';
@@ -55,6 +56,9 @@ function App() {
         <Route path="/sou-cliente" element={<ClientIdentifyPage />} />
         {/* rota legacy/alternativa que já existia */}
         <Route path="/soucliente" element={<Clientes />} />
+
+        {/* Minhas Mensagens (lista do cliente) */}
+        <Route path="/minhas-mensagens" element={<MinhasMensagens />} />
 
         {/* 💰 RETORNO DO PAYPAL (NÃO MEXER) */}
         <Route path="/retorno" element={<Retorno />} />
