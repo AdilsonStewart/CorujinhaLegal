@@ -55,7 +55,7 @@ export default function Home() {
       <button
         className="botao criar-lembrete"
         style={{ marginTop: '10px', backgroundColor: '#4A90E2' }}
-        onClick={() => navigate('/soucliente')}
+        onClick={() => navigate('/sou-cliente')} // rota ajustada para /sou-cliente
       >
         Sou Cliente
       </button>
