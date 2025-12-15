@@ -29,39 +29,116 @@ export default function MinhasMensagens() {
   const [loading, setLoading] = useState(false);
   const [mensagensPendentes, setMensagensPendentes] = useState([]);
   const [mensagensOutras, setMensagensOutras] = useState([]);
-  const [error, setError] = useState(null);
+  const [errorMsg, setErrorMsg] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      setError(null);
+      setErrorMsg(null);
+      setMensagensPendentes([]);
+      setMensagensOutras([]);
+
       try {
         const clientId = localStorage.getItem("clienteId");
         const clientTel = (localStorage.getItem("clienteTelefone") || "").replace(/\D/g, "");
-        let q;
 
+        let docs = [];
+
+        // Helper to dedupe by id
+        const pushDocs = (arr) => {
+          const map = new Map(docs.map(d => [d.id, d]));
+          arr.forEach(a => map.set(a.id, a));
+          docs = Array.from(map.values());
+        };
+
+        // 1) Try best query: cliente_id + orderBy (fast & ordered)
         if (clientId) {
-          q = query(
-            collection(db, "agendamentos"),
-            where("cliente_id", "==", clientId),
-            orderBy("data_agendamento_ts", "asc")
-          );
-        } else if (clientTel) {
-          q = query(
-            collection(db, "agendamentos"),
-            where("destinatario.telefone", "==", clientTel),
-            orderBy("data_agendamento_ts", "asc")
-          );
-        } else {
-          setMensagensPendentes([]);
-          setMensagensOutras([]);
-          setLoading(false);
-          return;
+          try {
+            const q = query(
+              collection(db, "agendamentos"),
+              where("cliente_id", "==", clientId),
+              orderBy("data_agendamento_ts", "asc")
+            );
+            const snap = await getDocs(q);
+            pushDocs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+          } catch (err) {
+            console.warn("Query cliente_id + orderBy falhou, tentando fallback:", err);
+            // fallback: query without orderBy
+            try {
+              const q2 = query(collection(db, "agendamentos"), where("cliente_id", "==", clientId));
+              const snap2 = await getDocs(q2);
+              pushDocs(snap2.docs.map(d => ({ id: d.id, ...d.data() })));
+            } catch (err2) {
+              console.error("Fallback por cliente_id também falhou:", err2);
+              // continue to other fallbacks below
+            }
+          }
         }
 
-        const snap = await getDocs(q);
-        const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        // 2) If still empty or also want wider search, try searching by destinatario.telefone
+        if ((docs.length === 0) && clientTel) {
+          try {
+            const q3 = query(
+              collection(db, "agendamentos"),
+              where("destinatario.telefone", "==", clientTel),
+              orderBy("data_agendamento_ts", "asc")
+            );
+            const snap3 = await getDocs(q3);
+            pushDocs(snap3.docs.map(d => ({ id: d.id, ...d.data() })));
+          } catch (err) {
+            console.warn("Query destinatario.telefone + orderBy falhou, tentando fallback:", err);
+            try {
+              const q4 = query(collection(db, "agendamentos"), where("destinatario.telefone", "==", clientTel));
+              const snap4 = await getDocs(q4);
+              pushDocs(snap4.docs.map(d => ({ id: d.id, ...d.data() })));
+            } catch (err4) {
+              console.error("Fallback destinatario.telefone falhou:", err4);
+            }
+          }
+        }
+
+        // 3) Try searching by remetente.telefone as last fallback (some records may store telefones no remetente)
+        if (docs.length === 0 && clientTel) {
+          try {
+            const q5 = query(collection(db, "agendamentos"), where("remetente.telefone", "==", clientTel));
+            const snap5 = await getDocs(q5);
+            pushDocs(snap5.docs.map(d => ({ id: d.id, ...d.data() })));
+          } catch (err5) {
+            console.error("Busca por remetente.telefone falhou:", err5);
+          }
+        }
+
+        // If still empty, there are genuinely no docs OR permission/index issues
+        if (docs.length === 0) {
+          // try a very broad no-filter small sample to detect permission issues (will fail if rules forbid)
+          try {
+            const qSample = query(collection(db, "agendamentos"), orderBy("criado_em_iso", "desc"));
+            const snapS = await getDocs(qSample);
+            // don't push these to docs as they may be lots of data; just use to check permission
+            // but we won't use them as user's messages
+            if (snapS.size === 0) {
+              // no documents at all
+            }
+          } catch (errSample) {
+            console.error("Erro acessando a coleção agendamentos — possível regra do Firestore ou index necessário:", errSample);
+            setErrorMsg(`Erro ao carregar mensagens: ${errSample.message || String(errSample)}. Cole a primeira linha vermelha do console aqui para eu ajudar.`);
+            setLoading(false);
+            return;
+          }
+        }
+
+        // Convert docs array to items
+        const items = docs.map(d => ({ id: d.id, ...d }));
+
+        // Normalize date fields and sort client-side by data_agendamento_ts (se disponível) ou criado_em_iso
+        items.sort((a, b) => {
+          const ta = (a.data_agendamento_ts && a.data_agendamento_ts.toDate) ? a.data_agendamento_ts.toDate().getTime() :
+            (a.data_agendamento ? new Date(a.data_agendamento + "T00:00:00Z").getTime() : new Date(a.criado_em_iso || a.criado_em || 0).getTime());
+          const tb = (b.data_agendamento_ts && b.data_agendamento_ts.toDate) ? b.data_agendamento_ts.toDate().getTime() :
+            (b.data_agendamento ? new Date(b.data_agendamento + "T00:00:00Z").getTime() : new Date(b.criado_em_iso || b.criado_em || 0).getTime());
+          return ta - tb;
+        });
 
         // Filtrar pendentes: não canceladas e não enviadas
         const pendentes = items.filter(m => (m.status !== "cancelled" && m.status !== "cancelled_by_user") && !m.enviado);
@@ -70,8 +147,8 @@ export default function MinhasMensagens() {
         setMensagensPendentes(pendentes);
         setMensagensOutras(outras);
       } catch (err) {
-        console.error("Erro ao carregar mensagens:", err);
-        setError("Erro ao carregar mensagens. Veja o console.");
+        console.error("Erro ao carregar mensagens (catch geral):", err);
+        setErrorMsg(`Erro ao carregar mensagens: ${err.message || String(err)}. Veja o console (F12).`);
       } finally {
         setLoading(false);
       }
@@ -100,14 +177,19 @@ export default function MinhasMensagens() {
     <div style={{ padding: 20, maxWidth: 760, margin: "0 auto" }}>
       <h2>📬 Minhas Mensagens</h2>
 
-      {!localStorage.getItem("clienteId") && !(localStorage.getItem("clienteTelefone")) && (
+      {errorMsg && (
+        <div style={{ marginBottom: 12, padding: 12, background: "#fdecea", borderRadius: 8, color: "#842029" }}>
+          {errorMsg}
+        </div>
+      )}
+
+      {!localStorage.getItem("clienteId") && !(localStorage.getItem("clienteTelefono")) && (
         <div style={{ marginBottom: 12, padding: 12, background: "#fff3cd", borderRadius: 8 }}>
           Não encontramos dados de cliente salvos. Volte à tela "Sou cliente" e identifique-se.
         </div>
       )}
 
       {loading && <div>Carregando suas mensagens...</div>}
-      {error && <div style={{ color: "red" }}>{error}</div>}
 
       <div style={{ marginTop: 12, padding: 12, background: "#f8f9fa", borderRadius: 8 }}>
         <strong>Mensagens pendentes para entrega:</strong> {mensagensPendentes.length}
