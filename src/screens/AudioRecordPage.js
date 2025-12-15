@@ -74,20 +74,30 @@ const AudioRecordPage = () => {
     }
   };
 
-  // 🔹 FUNÇÃO PARA ENVIAR TODOS OS DADOS PARA SUPABASE
+  // 🔹 FUNÇÃO PARA ENVIAR TODOS OS DADOS PARA SUPABASE (inclui remetente + garante data)
   const enviarDados = async () => {
     if (!audioBlob) { alert("Grave um áudio antes de enviar."); return; }
-    if (!nome || !telefone || !dataEntrega || !horaEntrega) {
-      alert("Preencha todos os campos: nome, telefone, data e horário.");
+    if (!nome || !telefone || !horaEntrega) {
+      alert("Preencha todos os campos: nome, telefone e horário.");
       return;
     }
 
+    // telefone limpo
     const telefoneLimpo = telefone.replace(/\D/g, '');
     if (telefoneLimpo.length < 10) { alert("Digite um telefone válido com DDD (ex: 11999999999)."); return; }
 
     setIsUploading(true);
 
     try {
+      // dados do remetente (se já estiverem no localStorage, usa; senão fica vazio)
+      const remetenteNome = localStorage.getItem("clienteNome") || "";
+      const remetenteTelefone = localStorage.getItem("clienteTelefone") || "";
+      const remetenteNascimento = localStorage.getItem("clienteNascimento") || ""; // formato esperado: YYYY-MM-DD ou string
+
+      // garante que dataEntrega seja preenchida: usa a data selecionada ou hoje (YYYY-MM-DD)
+      const hojeIso = new Date().toISOString().slice(0, 10);
+      const dataAgendamento = dataEntrega && dataEntrega.trim() ? dataEntrega : hojeIso;
+
       // 1️⃣ Nome do arquivo
       const nomeArquivo = `audio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.webm`;
 
@@ -95,24 +105,33 @@ const AudioRecordPage = () => {
       const { error: uploadError } = await supabase.storage
         .from("Midias")
         .upload(nomeArquivo, audioBlob, { contentType: "audio/webm", cacheControl: "3600" });
-      if (uploadError) throw new Error(`Falha no upload: ${uploadError.message}`);
 
-      // 3️⃣ URL pública
-      const { data: { publicUrl } } = supabase.storage.from("Midias").getPublicUrl(nomeArquivo);
+      if (uploadError) throw new Error(`Falha no upload: ${uploadError.message || JSON.stringify(uploadError)}`);
 
-      // 4️⃣ OrderID do PayPal ou gerado
+      // 3️⃣ URL pública (maneira robusta)
+      let publicUrl = "";
+      try {
+        const res = supabase.storage.from("Midias").getPublicUrl(nomeArquivo);
+        publicUrl = (res && res.data && (res.data.publicUrl || res.data.publicURL)) || res?.publicURL || res?.publicUrl || "";
+      } catch (e) {
+        console.warn("Erro ao obter publicUrl:", e);
+      }
+
+      // 4️⃣ OrderID
       const orderID = localStorage.getItem("currentOrderId") || `AUDIO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-      // 5️⃣ Dados do remetente (cliente)
-      const telefoneRemetente = localStorage.getItem("clienteTelefone") || "00000000000";
-
-      // 6️⃣ Inserir no Supabase
+      // 5️⃣ Monta o objeto para salvar (adiciona campos do remetente explicitamente)
       const dadosParaSalvar = {
-        data_agendamento: dataEntrega,
+        data_agendamento: dataAgendamento, // GUARDA A DATA AQUI
         hora_agendamento: horaEntrega,
         criado_em: new Date().toISOString(),
         enviado: false,
         link_midia: publicUrl,
+        // campos explícitos do remetente (top-level)
+        remetente_nome: remetenteNome,
+        remetente_telefone: remetenteTelefone,
+        remetente_nascimento: remetenteNascimento,
+        // conteúdo detalhado dentro do JSON existente
         dados_completos: {
           tipo: "audio",
           order_id: orderID,
@@ -121,8 +140,9 @@ const AudioRecordPage = () => {
           valor: 5.00,
           cliente_nome: nome,
           cliente_telefone: telefoneLimpo,
-          remetente: "Cliente",
-          telefone_remetente: telefoneRemetente,
+          remetente: remetenteNome || "Cliente",
+          telefone_remetente: remetenteTelefone || "00000000000",
+          remetente_nascimento: remetenteNascimento || "",
           destinatario: nome,
           telefone: telefoneLimpo,
           data_pagamento: new Date().toISOString()
@@ -131,30 +151,33 @@ const AudioRecordPage = () => {
         valor: 5.00
       };
 
+      // 6️⃣ Inserir no Supabase (tabela agendamentos)
       const { data, error } = await supabase.from("agendamentos").insert([dadosParaSalvar]).select();
-      if (error) throw new Error("Erro ao salvar no Supabase: " + error.message);
+      if (error) throw new Error("Erro ao salvar no Supabase: " + (error.message || JSON.stringify(error)));
 
-      // 7️⃣ Guardar no localStorage para Saida.js
+      // 7️⃣ Guardar no localStorage para Saida.js (inclui remetente)
       localStorage.setItem("lastAgendamento", JSON.stringify({
         nome,
         telefone: telefoneLimpo,
-        dataEntrega,
+        dataEntrega: dataAgendamento,
         horaEntrega,
         tipo: "audio",
         link_midia: publicUrl,
         orderID,
-        remetenteTelefone: telefoneRemetente
+        remetenteNome,
+        remetenteTelefone,
+        remetenteNascimento
       }));
 
-      alert(`🎉 Áudio agendado com sucesso!\n\n📞 Para: ${nome}\n📅 Data: ${dataEntrega}\n🕒 Hora: ${horaEntrega}`);
+      alert(`🎉 Áudio agendado com sucesso!\n\n📞 Para: ${nome}\n📅 Data: ${dataAgendamento}\n🕒 Hora: ${horaEntrega}`);
 
       setTimeout(() => { window.location.href = "/saida"; }, 2000);
 
     } catch (err) {
-      alert(`❌ Ocorreu um erro:\n${err.message}`);
+      alert(`❌ Ocorreu um erro:\n${err.message || String(err)}`);
+    } finally {
+      setIsUploading(false);
     }
-
-    setIsUploading(false);
   };
 
   return (
