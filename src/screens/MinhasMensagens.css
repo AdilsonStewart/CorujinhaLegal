@@ -1,0 +1,110 @@
+/* Estilos para MinhasMensagens */
+.minhas-mensagens-container {
+  padding: 20px;
+  max-width: 760px;
+  margin: 0 auto;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  color: #222;
+}
+
+.minhas-mensagens-h2 {
+  margin-bottom: 12px;
+  font-size: 22px;
+}
+
+.minhas-mensagens-warning {
+  margin-bottom: 12px;
+  padding: 12px;
+  background: #fff3cd;
+  border-radius: 8px;
+}
+
+.minhas-mensagens-empty {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f1f1f1;
+  border-radius: 8px;
+}
+
+.minhas-mensagens-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.minhas-mensagem-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.minhas-mensagem-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.minhas-mensagem-nome {
+  font-weight: 700;
+}
+
+.minhas-mensagem-meta {
+  color: #666;
+  font-size: 14px;
+}
+
+.minhas-mensagem-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.minhas-mensagem-link {
+  color: #0d6efd;
+  text-decoration: none;
+  margin-right: auto;
+}
+
+.minhas-btn-cancel {
+  padding: 8px 10px;
+  background: #dc3545;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.minhas-btn-disabled {
+  padding: 8px 10px;
+  background: #6c757d;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+}
+
+.minhas-mensagens-footer {
+  margin-top: 18px;
+}
+
+.minhas-btn-default {
+  padding: 10px 14px;
+  margin-right: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid #ccc;
+}
+
+.minhas-btn-primary {
+  padding: 10px 14px;
+  background: #28a745;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
