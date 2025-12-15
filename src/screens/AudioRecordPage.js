@@ -11,10 +11,20 @@ const AudioRecordPage = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [audioURL, setAudioURL] = useState(null);
   const [audioBlob, setAudioBlob] = useState(null);
+
+  // Destinatário (existente)
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
+
+  // Agendamento
   const [dataEntrega, setDataEntrega] = useState("");
   const [horaEntrega, setHoraEntrega] = useState("");
+
+  // Remetente (NOVOS campos)
+  const [remetenteNome, setRemetenteNome] = useState("");
+  const [remetenteTelefone, setRemetenteTelefone] = useState("");
+  const [remetenteNascimento, setRemetenteNascimento] = useState("");
+
   const [isUploading, setIsUploading] = useState(false);
   const [tempoRestante, setTempoRestante] = useState(30);
 
@@ -22,11 +32,32 @@ const AudioRecordPage = () => {
   const audioChunksRef = useRef([]);
   const tempoIntervalRef = useRef(null);
 
+  // Carrega valores do localStorage (se existirem) para prefilling dos remetente
   useEffect(() => {
+    try {
+      const rNome = localStorage.getItem("clienteNome") || "";
+      const rTel = localStorage.getItem("clienteTelefone") || "";
+      const rNasc = localStorage.getItem("clienteNascimento") || "";
+      setRemetenteNome(rNome);
+      setRemetenteTelefone(rTel);
+      setRemetenteNascimento(rNasc);
+
+      // Também tenta carregar um lastAgendamento para preencher destinatário rapidamente (opcional)
+      const last = JSON.parse(localStorage.getItem("lastAgendamento") || "null");
+      if (last) {
+        if (!nome) setNome(last.nome || "");
+        if (!telefone) setTelefone(last.telefone || "");
+        if (!dataEntrega) setDataEntrega(last.dataEntrega || "");
+        if (!horaEntrega) setHoraEntrega(last.horaEntrega || "");
+      }
+    } catch (e) {
+      // ignore
+    }
+
     return () => {
       if (tempoIntervalRef.current) clearInterval(tempoIntervalRef.current);
     };
-  }, []);
+  }, []); // roda uma vez
 
   const startRecording = async () => {
     try {
@@ -74,7 +105,20 @@ const AudioRecordPage = () => {
     }
   };
 
-  // 🔹 FUNÇÃO PARA ENVIAR TODOS OS DADOS PARA SUPABASE (inclui remetente + garante data)
+  // Atualiza localStorage quando usuário edita campos do remetente (ajuda pré-fill futuro)
+  useEffect(() => {
+    localStorage.setItem("clienteNome", remetenteNome || "");
+  }, [remetenteNome]);
+
+  useEffect(() => {
+    localStorage.setItem("clienteTelefone", remetenteTelefone || "");
+  }, [remetenteTelefone]);
+
+  useEffect(() => {
+    localStorage.setItem("clienteNascimento", remetenteNascimento || "");
+  }, [remetenteNascimento]);
+
+  // Função principal de envio (atualizada para incluir remetente)
   const enviarDados = async () => {
     if (!audioBlob) { alert("Grave um áudio antes de enviar."); return; }
     if (!nome || !telefone || !horaEntrega) {
@@ -82,18 +126,12 @@ const AudioRecordPage = () => {
       return;
     }
 
-    // telefone limpo
     const telefoneLimpo = telefone.replace(/\D/g, '');
     if (telefoneLimpo.length < 10) { alert("Digite um telefone válido com DDD (ex: 11999999999)."); return; }
 
     setIsUploading(true);
 
     try {
-      // dados do remetente (se já estiverem no localStorage, usa; senão fica vazio)
-      const remetenteNome = localStorage.getItem("clienteNome") || "";
-      const remetenteTelefone = localStorage.getItem("clienteTelefone") || "";
-      const remetenteNascimento = localStorage.getItem("clienteNascimento") || ""; // formato esperado: YYYY-MM-DD ou string
-
       // garante que dataEntrega seja preenchida: usa a data selecionada ou hoje (YYYY-MM-DD)
       const hojeIso = new Date().toISOString().slice(0, 10);
       const dataAgendamento = dataEntrega && dataEntrega.trim() ? dataEntrega : hojeIso;
@@ -108,7 +146,7 @@ const AudioRecordPage = () => {
 
       if (uploadError) throw new Error(`Falha no upload: ${uploadError.message || JSON.stringify(uploadError)}`);
 
-      // 3️⃣ URL pública (maneira robusta)
+      // 3️⃣ URL pública
       let publicUrl = "";
       try {
         const res = supabase.storage.from("Midias").getPublicUrl(nomeArquivo);
@@ -120,18 +158,16 @@ const AudioRecordPage = () => {
       // 4️⃣ OrderID
       const orderID = localStorage.getItem("currentOrderId") || `AUDIO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-      // 5️⃣ Monta o objeto para salvar (adiciona campos do remetente explicitamente)
+      // 5️⃣ Monta o objeto para salvar (inclui campos do remetente)
       const dadosParaSalvar = {
-        data_agendamento: dataAgendamento, // GUARDA A DATA AQUI
+        data_agendamento: dataAgendamento,
         hora_agendamento: horaEntrega,
         criado_em: new Date().toISOString(),
         enviado: false,
         link_midia: publicUrl,
-        // campos explícitos do remetente (top-level)
-        remetente_nome: remetenteNome,
-        remetente_telefone: remetenteTelefone,
-        remetente_nascimento: remetenteNascimento,
-        // conteúdo detalhado dentro do JSON existente
+        remetente_nome: remetenteNome || "",
+        remetente_telefone: remetenteTelefone || "",
+        remetente_nascimento: remetenteNascimento || "",
         dados_completos: {
           tipo: "audio",
           order_id: orderID,
@@ -170,7 +206,6 @@ const AudioRecordPage = () => {
       }));
 
       alert(`🎉 Áudio agendado com sucesso!\n\n📞 Para: ${nome}\n📅 Data: ${dataAgendamento}\n🕒 Hora: ${horaEntrega}`);
-
       setTimeout(() => { window.location.href = "/saida"; }, 2000);
 
     } catch (err) {
@@ -212,7 +247,31 @@ const AudioRecordPage = () => {
 
       <hr style={{ margin: "40px 0" }} />
 
-      <div style={{ display: "grid", gap: 15 }}>
+      <div style={{ display: "grid", gap: 12 }}>
+        {/* Campos do REMETENTE (novos) */}
+        <input
+          type="text"
+          placeholder="👤 Seu nome (remetente)"
+          value={remetenteNome}
+          onChange={(e) => setRemetenteNome(e.target.value)}
+          style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
+        />
+        <input
+          type="tel"
+          placeholder="📱 Seu telefone com DDD (remetente)"
+          value={remetenteTelefone}
+          onChange={(e) => setRemetenteTelefone(e.target.value)}
+          style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
+        />
+        <input
+          type="date"
+          placeholder="📅 Sua data de nascimento (remetente)"
+          value={remetenteNascimento}
+          onChange={(e) => setRemetenteNascimento(e.target.value)}
+          style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
+        />
+
+        {/* Campos do DESTINATÁRIO existentes */}
         <input type="text" placeholder="👤 Nome do destinatário *" value={nome} onChange={(e) => setNome(e.target.value)} style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }} />
         <input type="tel" placeholder="📱 Telefone com DDD *" value={telefone} onChange={(e) => setTelefone(e.target.value)} style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }} />
         <input type="date" value={dataEntrega} onChange={(e) => setDataEntrega(e.target.value)} style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }} />
@@ -231,7 +290,7 @@ const AudioRecordPage = () => {
       <button
         onClick={enviarDados}
         style={{
-          marginTop: 30,
+          marginTop: 20,
           padding: "18px 40px",
           fontSize: 20,
           background: (!audioBlob || isUploading) ? "#6c757d" : "#28a745",
