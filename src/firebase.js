@@ -1,18 +1,19 @@
-// Import the functions you need from the SDKs you need
+// Inicialização do Firebase (CorujinhaLegal2)
+// Copie este arquivo para src/firebase.js (substitui o antigo) e commit.
+
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
-// Your web app's Firebase configuration
+// Configuração fornecida (CorujinhaLegal2)
 const firebaseConfig = {
-  apiKey: "AIzaSyC1Xv2mPNf4s2oY-Jeh2ev3x0O6qkKNqt4",
-  authDomain: "deixacomigo-727ff.firebaseapp.com",
-  projectId: "deixacomigo-727ff",
-  storageBucket: "deixacomigo-727ff.firebasestorage.app",
-  messagingSenderId: "304342645043",
-  appId: "1:304342645043:web:893af23b41547a29a1a646"
+  apiKey: "AIzaSyASmPjNdBFly7ndXk0n-FFbWT-2DQLlevI",
+  authDomain: "corujinhalegal2-5c7c9.firebaseapp.com",
+  projectId: "corujinhalegal2-5c7c9",
+  storageBucket: "corujinhalegal2-5c7c9.firebasestorage.app",
+  messagingSenderId: "711736746096",
+  appId: "1:711736746096:web:dd3a64784367133dd414b5"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
