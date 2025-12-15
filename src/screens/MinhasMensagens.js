@@ -1,0 +1,169 @@
+import React, { useEffect, useState } from "react";
+import { db } from "../firebase";
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  getDocs,
+  updateDoc,
+  doc,
+  serverTimestamp
+} from "firebase/firestore";
+
+const formatDateBR = (isoDate) => {
+  if (!isoDate) return "";
+  try {
+    // aceita YYYY-MM-DD ou ISO
+    const d = new Date(isoDate);
+    if (!isNaN(d)) {
+      return d.toLocaleDateString("pt-BR");
+    }
+    const [y, m, day] = isoDate.slice(0, 10).split("-");
+    return `${day}/${m}/${y}`;
+  } catch (e) {
+    return isoDate;
+  }
+};
+
+export default function MinhasMensagens() {
+  const [loading, setLoading] = useState(false);
+  const [mensagens, setMensagens] = useState([]);
+  const [error, setError] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const clientId = localStorage.getItem("clienteId");
+        const clientTel = (localStorage.getItem("clienteTelefone") || "").replace(/\D/g, "");
+        let q;
+
+        if (clientId) {
+          // busca por cliente_id
+          q = query(
+            collection(db, "agendamentos"),
+            where("cliente_id", "==", clientId),
+            orderBy("data_agendamento_ts", "asc"),
+            limit(3)
+          );
+        } else if (clientTel) {
+          // fallback: busca por telefone do destinatário ou do destinatario.telefone
+          q = query(
+            collection(db, "agendamentos"),
+            where("destinatario.telefone", "==", clientTel),
+            orderBy("data_agendamento_ts", "asc"),
+            limit(3)
+          );
+        } else {
+          setMensagens([]);
+          setLoading(false);
+          return;
+        }
+
+        const snap = await getDocs(q);
+        const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        setMensagens(items);
+      } catch (err) {
+        console.error("Erro ao carregar mensagens:", err);
+        setError("Erro ao carregar mensagens. Veja o console.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, [refreshKey]);
+
+  const handleCancelar = async (mensagem) => {
+    if (!window.confirm(`Cancelar a mensagem para ${mensagem.destinatario?.nome || mensagem.destinatario?.telefone || "cliente"}?`)) return;
+    try {
+      const ref = doc(db, "agendamentos", mensagem.id);
+      await updateDoc(ref, {
+        status: "cancelled",
+        cancelledAt: serverTimestamp(),
+        cancelledBy: localStorage.getItem("clienteId") || "cliente-ui"
+      });
+      // atualizar lista local sem refetch completo (ou força refresh)
+      setRefreshKey(k => k + 1);
+    } catch (err) {
+      console.error("Erro ao cancelar mensagem:", err);
+      alert("Não foi possível cancelar a mensagem. Veja o console.");
+    }
+  };
+
+  return (
+    <div style={{ padding: 20, maxWidth: 760, margin: "0 auto" }}>
+      <h2>📬 Minhas Mensagens</h2>
+
+      {!localStorage.getItem("clienteId") && !(localStorage.getItem("clienteTelefone")) && (
+        <div style={{ marginBottom: 12, padding: 12, background: "#fff3cd", borderRadius: 8 }}>
+          Não encontramos dados de cliente salvos. Volte à tela "Sou cliente" e identifique-se.
+        </div>
+      )}
+
+      {loading && <div>Carregando suas mensagens...</div>}
+      {error && <div style={{ color: "red" }}>{error}</div>}
+
+      {!loading && mensagens.length === 0 && (
+        <div style={{ marginTop: 12, padding: 12, background: "#f1f1f1", borderRadius: 8 }}>
+          Nenhuma mensagem encontrada (ou você não tem mensagens pendentes). Você pode criar uma nova mensagem.
+        </div>
+      )}
+
+      <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
+        {mensagens.map((m) => (
+          <div key={m.id} style={{ border: "1px solid #e0e0e0", borderRadius: 8, padding: 12, background: "#fff" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+              <div>
+                <div style={{ fontWeight: 700 }}>{m.destinatario?.nome || "—"}</div>
+                <div style={{ color: "#666", fontSize: 14 }}>{formatDateBR(m.data_agendamento || m.criado_em_iso)} {m.hora_agendamento ? `• ${m.hora_agendamento}` : ""}</div>
+              </div>
+
+              <div style={{ textAlign: "right" }}>
+                <div style={{ marginBottom: 6 }}>
+                  Status: <strong>{m.status || (m.enviado ? "sent" : "pending")}</strong>
+                </div>
+                <div style={{ fontSize: 12, color: "#666" }}>ID: {m.orderID || m.evento_paypal || m.id}</div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 10, display: "flex", gap: 10, alignItems: "center" }}>
+              {m.link_midia ? (
+                <a href={m.link_midia} target="_blank" rel="noopener noreferrer" style={{ color: "#0d6efd" }}>
+                  Abrir mídia / link
+                </a>
+              ) : (
+                <span style={{ color: "#999" }}>Sem link disponível</span>
+              )}
+
+              {/* botão cancelar (aparece apenas se não estiver enviado/cancelado) */}
+              <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                {(m.status !== "cancelled" && !m.enviado) ? (
+                  <button
+                    onClick={() => handleCancelar(m)}
+                    style={{ padding: "8px 10px", background: "#dc3545", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}
+                  >
+                    Cancelar
+                  </button>
+                ) : (
+                  <button disabled style={{ padding: "8px 10px", background: "#6c757d", color: "#fff", border: "none", borderRadius: 6 }}>
+                    Não disponível
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 18 }}>
+        <button onClick={() => window.history.back()} style={{ padding: "10px 14px", marginRight: 8, borderRadius: 6 }}>Voltar</button>
+        <button onClick={() => window.location.href = "/videorecord"} style={{ padding: "10px 14px", background: "#28a745", color: "#fff", border: "none", borderRadius: 6 }}>Enviar nova mensagem</button>
+      </div>
+    </div>
+  );
+}
