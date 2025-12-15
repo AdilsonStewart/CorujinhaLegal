@@ -8,6 +8,12 @@ const supabaseUrl = "https://kuwsgvhjmjnhkteleczc.supabase.co";
 const supabaseKey = "sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+const formatDateBR = (isoDate) => {
+  if (!isoDate) return "";
+  const [y, m, d] = isoDate.slice(0, 10).split("-");
+  return `${d}/${m}/${y}`;
+};
+
 const AudioRecordPage = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [audioURL, setAudioURL] = useState(null);
@@ -117,7 +123,7 @@ const AudioRecordPage = () => {
     }
   };
 
-  // FUNÇÃO DE ENVIO (inclui remetente e garante data)
+  // FUNÇÃO DE ENVIO (inclui remetente e valida nascimento obrigatório)
   const enviarDados = async () => {
     if (!audioBlob) {
       alert("Grave um áudio antes de enviar.");
@@ -128,13 +134,19 @@ const AudioRecordPage = () => {
       return;
     }
 
+    // valida nascimento do remetente (agora obrigatório)
+    if (!remetenteNascimento || !remetenteNascimento.trim()) {
+      alert("Por favor, preencha a data de nascimento do remetente.");
+      return;
+    }
+
     const telefoneLimpo = destinatarioTelefone.replace(/\D/g, "");
     if (telefoneLimpo.length < 10) {
       alert("Digite um telefone válido com DDD (ex: 11999999999).");
       return;
     }
 
-    // telefone do remetente (opcional) não impede envio, mas vamos salvar
+    // telefone do remetente (opcional para envio, já salvo)
     const remetenteTelLimpo = (remetenteTelefone || "").replace(/\D/g, "");
 
     setIsUploading(true);
@@ -175,7 +187,7 @@ const AudioRecordPage = () => {
         criado_em: new Date().toISOString(),
         enviado: false,
         link_midia: publicUrl,
-        // campos do remetente top-level
+        // campos do remetente top-level (inclui nascimento)
         remetente_nome: remetenteNome || "",
         remetente_telefone: remetenteTelLimpo || "",
         remetente_nascimento: remetenteNascimento || "",
@@ -220,7 +232,9 @@ const AudioRecordPage = () => {
         })
       );
 
-      alert(`🎉 Áudio agendado com sucesso!\n\n📞 Para: ${destinatarioNome}\n📅 Data: ${dataAgendamento}\n🕒 Hora: ${horaEntrega}`);
+      alert(
+        `🎉 Áudio agendado com sucesso!\n\n📞 Para: ${destinatarioNome}\n📅 Data: ${dataAgendamento}\n🕒 Hora: ${horaEntrega}\n👤 Remetente: ${remetenteNome}\n🎂 Nasc.: ${formatDateBR(remetenteNascimento)}`
+      );
       setTimeout(() => {
         window.location.href = "/saida";
       }, 1200);
@@ -318,21 +332,24 @@ const AudioRecordPage = () => {
         <div style={{ fontWeight: "600" }}>Remetente (quem envia):</div>
         <input
           type="text"
-          placeholder="👤 Seu nome"
+          placeholder="Seu nome"
           value={remetenteNome}
           onChange={(e) => setRemetenteNome(e.target.value)}
           style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
         />
         <input
           type="tel"
-          placeholder="📱 Seu telefone com DDD"
+          placeholder="Seu telefone com DDD"
           value={remetenteTelefone}
           onChange={(e) => setRemetenteTelefone(e.target.value)}
           style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
         />
+        {/* Label visível com exatamente o texto pedido */}
+        <label style={{ fontSize: 14, color: "#333", fontWeight: 600, marginTop: 6 }}>Sua data de nascimento *</label>
         <input
           type="date"
-          placeholder="📅 Sua data de nascimento"
+          placeholder="Sua data de nascimento"
+          aria-label="Sua data de nascimento"
           value={remetenteNascimento}
           onChange={(e) => setRemetenteNascimento(e.target.value)}
           style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
@@ -342,14 +359,14 @@ const AudioRecordPage = () => {
         <div style={{ fontWeight: "600", marginTop: 8 }}>Entregar a mensagem para:</div>
         <input
           type="text"
-          placeholder="👤 Nome do destinatário *"
+          placeholder="Nome do destinatário *"
           value={destinatarioNome}
           onChange={(e) => setDestinatarioNome(e.target.value)}
           style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
         />
         <input
           type="tel"
-          placeholder="📱 Telefone do destinatário com DDD *"
+          placeholder="Telefone do destinatário com DDD *"
           value={destinatarioTelefone}
           onChange={(e) => setDestinatarioTelefone(e.target.value)}
           style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
