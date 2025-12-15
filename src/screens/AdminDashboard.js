@@ -42,8 +42,8 @@ const AdminDashboard = () => {
   const copyToClipboard = (url) => {
     navigator.clipboard.writeText(url)
       .then(() => {
-        // Feedback visual melhorado
-        alert('✅ Link copiado para a área de transferência!\n\nO link do arquivo foi copiado. Você pode colar (Ctrl+V) em qualquer lugar.');
+        // Exibe mensagem de sucesso com instruções para o usuário
+        alert('✅ Link copiado para a área de transferência! Cole com Ctrl+V.');
       })
       .catch(err => {
         console.error('Erro ao copiar:', err);
