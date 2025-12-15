@@ -205,11 +205,22 @@ const AudioRecordPage = () => {
         </select>
       </div>
 
-      <button onClick={enviarDados} disabled={!audioBlob || isUploading} style={{ marginTop: 30, padding: "18px 40px", fontSize: 20, background: (!audioBlob || isUploading) ? "#6c757d" : "#28a745", color: "white", border: "none", borderRadius: 12, cursor: (!audioBlob || isUploading) ? "not-allowed" : "pointer", width: "100%" }}>
-        {isUploading ? "📤 Enviando para Supabase..." : "🚀 Enviar Áudio Agendado"}
-      </button>
-    </div>
-  );
-};
+      <button
+  onClick={enviarDados}
+  style={{
+    marginTop: 30,
+    padding: "18px 40px",
+    fontSize: 20,
+    background: (!audioBlob || isUploading) ? "#6c757d" : "#28a745",
+    color: "white",
+    border: "none",
+    borderRadius: 12,
+    cursor: "pointer", // sempre mostra o cursor normal (mão)
+    width: "100%"
+  }}
+  title={!audioBlob ? "Grave um áudio antes de enviar." : (isUploading ? "Enviando..." : "Clique para enviar")}
+>
+  {isUploading ? "📤 Enviando para Supabase..." : "🚀 Enviar Áudio Agendado"}
+</button>
 
 export default AudioRecordPage;
