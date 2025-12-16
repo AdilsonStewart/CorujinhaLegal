@@ -23,3 +23,5 @@ yarn-debug.log*
 yarn-error.log*
 .vercel
 .env*.local
+# Office temp files (não queremos estes no repo)
+~$*
