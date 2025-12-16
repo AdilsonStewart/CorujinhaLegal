@@ -41,8 +41,14 @@ const AdminDashboard = () => {
 
   const copyToClipboard = (url) => {
     navigator.clipboard.writeText(url)
-      .then(() => alert('✅ Link copiado!'))
-      .catch(err => console.error('Erro ao copiar:', err));
+      .then(() => {
+        // Exibe mensagem de sucesso com instruções para o usuário
+        alert('✅ Link copiado para a área de transferência! Você pode colar em qualquer lugar.');
+      })
+      .catch(err => {
+        console.error('Erro ao copiar:', err);
+        alert('❌ Erro ao copiar o link. Tente novamente.');
+      });
   };
 
   if (loading) {
@@ -77,8 +83,8 @@ const AdminDashboard = () => {
                 <button onClick={() => window.open(audio.arquivoUrl, '_blank')}>
                   ▶️ Ouvir
                 </button>
-                <button onClick={() => copyToClipboard(audio.arquivoUrl)}>
-                  📋 Copiar Link
+                <button onClick={() => copyToClipboard(audio.arquivoUrl)} title="Copiar link para a área de transferência">
+                  📋 Copiar Link do Arquivo
                 </button>
               </div>
             </div>
