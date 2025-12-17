@@ -26,7 +26,7 @@ const AdminDashboard = () => {
           ...doc.data()
         });
       });
-      
+      <SendNowButton />
       setAudios(audiosList);
       console.log('🎧 Áudios carregados:', audiosList.length);
     } catch (error) {
