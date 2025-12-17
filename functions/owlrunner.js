@@ -1,6 +1,16 @@
-const functions = require("firebase-functions");
-const admin = require("firebase-admin");
-const axios = require("axios");
+/**
+ * OWLRUNNER
+ * Robô oficial de envio de SMS agendados
+ * Regras:
+ * - 6 execuções por dia (scheduler externo)
+ * - 3 tentativas no dia do agendamento
+ * - +3 tentativas no dia seguinte
+ * - Após 6 falhas: SMS ao remetente
+ */
+
+const functions = require('firebase-functions');
+const admin = require('firebase-admin');
+const axios = require('axios');
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -8,114 +18,149 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-// Horários válidos (em horas cheias)
-const HORARIOS_VALIDOS = [8, 10, 12, 14, 16, 18];
+// ====== CONFIG ======
+const TZ = 'America/Sao_Paulo';
+const MAX_TENTATIVAS_DIA = 3;
+const MAX_TENTATIVAS_TOTAL = 6;
+const LIMIT_POR_EXECUCAO = 200;
 
-function podeTentarAgora(doc, agora) {
-  const dataAgendamento = doc.data_agendamento_ts.toDate();
-  const tentativas = doc.tentativas || 0;
+// Secrets (já criados por você)
+const CLICKSEND_USERNAME = process.env.CLICKSEND_USERNAME;
+const CLICKSEND_API_KEY = process.env.CLICKSEND_API_KEY;
+const CLICKSEND_FROM = 'CorujinhaLegal';
 
-  const diaAgendamento = new Date(
-    dataAgendamento.getFullYear(),
-    dataAgendamento.getMonth(),
-    dataAgendamento.getDate()
-  );
-
-  const diaHoje = new Date(
-    agora.getFullYear(),
-    agora.getMonth(),
-    agora.getDate()
-  );
-
-  const diffDias =
-    (diaHoje.getTime() - diaAgendamento.getTime()) / (1000 * 60 * 60 * 24);
-
-  // Só dia 0 (agendamento) ou dia 1 (dia seguinte)
-  if (diffDias < 0 || diffDias > 1) return false;
-
-  // Limite de tentativas
-  if (tentativas >= 6) return false;
-  if (diffDias === 0 && tentativas >= 3) return false;
-  if (diffDias === 1 && tentativas < 3) return false;
-
-  const horaAtual = agora.getHours();
-  const horaAgendada = parseInt(doc.hora_agendamento.split(":")[0], 10);
-
-  if (!HORARIOS_VALIDOS.includes(horaAtual)) return false;
-  if (horaAtual < horaAgendada) return false;
-
-  return true;
+// ====== HELPERS ======
+function normalizePhone(raw) {
+  if (!raw) return null;
+  const d = raw.toString().replace(/\D/g, '');
+  if (d.length === 10 || d.length === 11) return `+55${d}`;
+  if (d.startsWith('00')) return `+${d.slice(2)}`;
+  return d.startsWith('+') ? d : `+${d}`;
 }
 
-async function enviarSMS(telefone, mensagem) {
-  const username = process.env.CLICKSEND_USERNAME;
-  const apiKey = process.env.CLICKSEND_API_KEY;
+async function sendSms(to, body) {
+  const url = 'https://rest.clicksend.com/v3/sms/send';
+  const payload = {
+    messages: [{ source: 'sdk', from: CLICKSEND_FROM, body, to }]
+  };
+  const resp = await axios.post(url, payload, {
+    auth: { username: CLICKSEND_USERNAME, password: CLICKSEND_API_KEY },
+    timeout: 15000
+  });
+  return resp.data;
+}
 
-  const auth = Buffer.from(`${username}:${apiKey}`).toString("base64");
+function sameDay(tsA, tsB) {
+  const a = tsA.toDate();
+  const b = tsB.toDate();
+  return a.getFullYear() === b.getFullYear() &&
+         a.getMonth() === b.getMonth() &&
+         a.getDate() === b.getDate();
+}
 
-  await axios.post(
-    "https://rest.clicksend.com/v3/sms/send",
-    {
-      messages: [
-        {
-          source: "owlrunner",
-          body: mensagem,
-          to: telefone,
-        },
-      ],
-    },
-    {
-      headers: {
-        Authorization: `Basic ${auth}`,
-        "Content-Type": "application/json",
-      },
+// ====== FUNÇÃO PRINCIPAL ======
+exports.owlrunner = functions
+  .region('us-central1')
+  .pubsub.topic('owlrunner')
+  .onPublish(async () => {
+
+    if (!CLICKSEND_USERNAME || !CLICKSEND_API_KEY) {
+      console.error('Secrets do ClickSend não configurados.');
+      return null;
     }
-  );
-}
 
-exports.owlrunner = functions.https.onRequest(async (req, res) => {
-  const agora = new Date();
+    const now = admin.firestore.Timestamp.now();
 
-  const snapshot = await db
-    .collection("agendamentos")
-    .where("enviado", "==", false)
-    .get();
+    const q = db.collection('agendamentos')
+      .where('enviado', '==', false)
+      .where('data_agendamento_ts', '<=', now)
+      .limit(LIMIT_POR_EXECUCAO);
 
-  for (const docSnap of snapshot.docs) {
-    const doc = docSnap.data();
+    const snap = await q.get();
+    if (snap.empty) {
+      console.log('owlrunner: nenhum agendamento pendente.');
+      return null;
+    }
 
-    if (!podeTentarAgora(doc, agora)) continue;
+    for (const doc of snap.docs) {
+      const ref = doc.ref;
+      const d = doc.data();
 
-    try {
-      const texto = `Olá ${doc.destinatario.nome}, você acaba de receber uma mensagem de ${doc.remetente.nome}. Acesse este link para a mensagem: ${doc.link_midia}`;
+      if (d.falha_definitiva) continue;
 
-      await enviarSMS(doc.destinatario.telefone, texto);
+      const tentTotal = d.tentativas_total || 0;
+      const tentHoje = d.tentativas_hoje || 0;
 
-      await docSnap.ref.update({
-        enviado: true,
-        enviado_em: admin.firestore.FieldValue.serverTimestamp(),
-      });
-    } catch (error) {
-      const tentativas = (doc.tentativas || 0) + 1;
+      if (tentTotal >= MAX_TENTATIVAS_TOTAL) continue;
 
-      await docSnap.ref.update({
-        tentativas,
-        ultima_tentativa_em: admin.firestore.FieldValue.serverTimestamp(),
-        ultimo_erro: error.message,
-      });
+      const agTs = d.data_agendamento_ts;
+      const hoje = now;
 
-      // Avisar remetente após 6 falhas
-      if (tentativas === 6 && !doc.aviso_remetente_enviado) {
-        const aviso = `Olá ${doc.remetente.nome}, não conseguimos entregar a mensagem para ${doc.destinatario.nome}. Foram realizadas 6 tentativas em dois dias, sem sucesso.`;
+      // Reseta tentativas_hoje se virou o dia
+      if (d.ultima_tentativa_em && !sameDay(d.ultima_tentativa_em, hoje)) {
+        await ref.update({ tentativas_hoje: 0 });
+      }
 
-        await enviarSMS(doc.remetente.telefone, aviso);
+      const tentHojeAtual = (d.tentativas_hoje || 0);
+      if (tentHojeAtual >= MAX_TENTATIVAS_DIA) continue;
 
-        await docSnap.ref.update({
-          aviso_remetente_enviado: true,
+      const to = normalizePhone(
+        d.destinatario?.telefone || d.telefone || d.destinatario_telefone
+      );
+      if (!to) {
+        await ref.update({
+          tentativas_total: tentTotal + 1,
+          tentativas_hoje: tentHojeAtual + 1,
+          ultima_tentativa_em: admin.firestore.FieldValue.serverTimestamp(),
+          ultimo_erro: 'Telefone inválido'
         });
+        continue;
+      }
+
+      const msg = `Olá ${d.destinatario?.nome || ''},
+você acaba de receber uma mensagem de ${d.remetente?.nome || ''}.
+Acesse este link: ${d.link_midia || ''}`;
+
+      try {
+        await sendSms(to, msg);
+        await ref.update({
+          enviado: true,
+          enviado_em: admin.firestore.FieldValue.serverTimestamp()
+        });
+        console.log(`owlrunner: enviado ${doc.id}`);
+      } catch (err) {
+        const novoTotal = tentTotal + 1;
+        const novoHoje = tentHojeAtual + 1;
+
+        const updates = {
+          tentativas_total: novoTotal,
+          tentativas_hoje: novoHoje,
+          ultima_tentativa_em: admin.firestore.FieldValue.serverTimestamp(),
+          ultimo_erro: String(err.message || err)
+        };
+
+        // Falha definitiva -> avisar remetente
+        if (novoTotal >= MAX_TENTATIVAS_TOTAL) {
+          const remetenteTel = normalizePhone(
+            d.remetente?.telefone || d.telefone_remetente
+          );
+          if (remetenteTel) {
+            const aviso = `Olá ${d.remetente?.nome || ''},
+tentamos entregar sua mensagem por 2 dias, mas não obtivemos sucesso.`;
+            try {
+              await sendSms(remetenteTel, aviso);
+            } catch (e) {
+              console.error('Falha ao avisar remetente:', e.message || e);
+            }
+          }
+          updates.falha_definitiva = true;
+          updates.falha_notificada = true;
+        }
+
+        await ref.update(updates);
+        console.error(`owlrunner: erro ${doc.id}`, err.message || err);
       }
     }
-  }
 
-  res.status(200).send("owlrunner executado com sucesso");
-});
+    return null;
+  });
