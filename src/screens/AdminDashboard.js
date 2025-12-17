@@ -1,4 +1,3 @@
-import SendNowButton from '../components/SendNowButton';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase/firebase-client';
@@ -26,7 +25,7 @@ const AdminDashboard = () => {
           ...doc.data()
         });
       });
-      <SendNowButton />
+      
       setAudios(audiosList);
       console.log('🎧 Áudios carregados:', audiosList.length);
     } catch (error) {
@@ -89,5 +88,3 @@ const AdminDashboard = () => {
     </div>
   );
 };
-
-export default AdminDashboard;
