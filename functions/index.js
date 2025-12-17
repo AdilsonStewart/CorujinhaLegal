@@ -1,6 +1,7 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const axios = require('axios');
+const { owlrunner } = require("./owlrunner");
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -63,7 +64,7 @@ exports.sendScheduledMessages = functions.pubsub
   .timeZone('America/Sao_Paulo')
   .onRun(async (context) => {
     const now = admin.firestore.Timestamp.now();
-
+exports.owlrunner = owlrunner;
     try {
       const q = db.collection('agendamentos')
         .where('enviado', '==', false)
