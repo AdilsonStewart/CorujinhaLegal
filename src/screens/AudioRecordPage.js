@@ -37,6 +37,7 @@ const AudioRecordPage = () => {
   // destinatário
   const [destinatarioNome, setDestinatarioNome] = useState("");
   const [destinatarioTelefone, setDestinatarioTelefone] = useState("");
+  const [destinatarioNascimento, setDestinatarioNascimento] = useState("");
 
   // agendamento
   const [dataEntrega, setDataEntrega] = useState("");
@@ -52,6 +53,7 @@ const AudioRecordPage = () => {
   useEffect(() => localStorage.setItem("clienteNome", remetenteNome), [remetenteNome]);
   useEffect(() => localStorage.setItem("clienteTelefone", remetenteTelefone), [remetenteTelefone]);
   useEffect(() => localStorage.setItem("clienteNascimento", remetenteNascimento), [remetenteNascimento]);
+  useEffect(() => localStorage.setItem("destinatarioNascimento", destinatarioNascimento), [destinatarioNascimento]);
 
   const startRecording = async () => {
     try {
@@ -101,6 +103,8 @@ const AudioRecordPage = () => {
       return alert("Preencha destinatário, telefone e horário.");
     if (!remetenteNascimento)
       return alert("Preencha a data de nascimento do remetente.");
+    if (!destinatarioNascimento)
+      return alert("Preencha a data de aniversário do destinatário.");
 
     // validação de datas
     const agora = new Date();
@@ -144,6 +148,7 @@ const AudioRecordPage = () => {
         enviado: false,
         destinatario: destinatarioNome,
         telefone: telefoneDest,
+        destinatario_nascimento: destinatarioNascimento,
         remetente: remetenteNome,
         telefone_remetente: telefoneRem,
         remetente_nascimento: remetenteNascimento,
@@ -246,6 +251,13 @@ const AudioRecordPage = () => {
           placeholder="Telefone do destinatário"
           value={destinatarioTelefone}
           onChange={(e) => setDestinatarioTelefone(e.target.value)}
+        />
+
+        <input
+          type="date"
+          placeholder="Data de aniversário do destinatário *"
+          value={destinatarioNascimento}
+          onChange={(e) => setDestinatarioNascimento(e.target.value)}
         />
 
         <input
