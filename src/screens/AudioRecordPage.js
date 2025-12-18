@@ -6,13 +6,6 @@ import { db } from "../firebase";
 import {
   collection,
   addDoc,
-  serverTimestamp,
-  Timestamp,
-  query,
-  where,
-  getDocs,
-  doc,
-  setDoc
 } from "firebase/firestore";
 
 // Supabase Config
@@ -49,11 +42,6 @@ const AudioRecordPage = () => {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const tempoIntervalRef = useRef(null);
-
-  useEffect(() => localStorage.setItem("clienteNome", remetenteNome), [remetenteNome]);
-  useEffect(() => localStorage.setItem("clienteTelefone", remetenteTelefone), [remetenteTelefone]);
-  useEffect(() => localStorage.setItem("clienteNascimento", remetenteNascimento), [remetenteNascimento]);
-  useEffect(() => localStorage.setItem("destinatarioNascimento", destinatarioNascimento), [destinatarioNascimento]);
 
   const startRecording = async () => {
     try {
@@ -106,7 +94,6 @@ const AudioRecordPage = () => {
     if (!destinatarioNascimento)
       return alert("Preencha a data de aniversário do destinatário.");
 
-    // validação de datas
     const agora = new Date();
     const hoje = agora.toISOString().slice(0, 10);
     const dataEscolhida = dataEntrega || hoje;
@@ -123,7 +110,6 @@ const AudioRecordPage = () => {
     setIsUploading(true);
 
     try {
-      // 1. Upload no Supabase
       const nomeArquivo = `audio_${Date.now()}_${Math.random().toString(36).slice(2)}.webm`;
       const { error: uploadError } = await supabase.storage
         .from("Midias")
@@ -155,15 +141,7 @@ const AudioRecordPage = () => {
       };
 
       const col = collection(db, "agendamentos");
-      const docRef = await addDoc(col, payload);
-
-      localStorage.setItem(
-        "lastAgendamento",
-        JSON.stringify({
-          ...payload,
-          firestore_id: docRef.id
-        })
-      );
+      await addDoc(col, payload);
 
       alert("🎉 Áudio agendado com sucesso!");
       window.location.href = "/saida";
@@ -231,9 +209,9 @@ const AudioRecordPage = () => {
           onChange={(e) => setRemetenteTelefone(e.target.value)}
         />
 
+        <label>Data de nascimento do remetente *</label>
         <input
           type="date"
-          placeholder="Data de nascimento do remetente *"
           value={remetenteNascimento}
           onChange={(e) => setRemetenteNascimento(e.target.value)}
         />
@@ -253,16 +231,16 @@ const AudioRecordPage = () => {
           onChange={(e) => setDestinatarioTelefone(e.target.value)}
         />
 
+        <label>Data de aniversário do destinatário *</label>
         <input
           type="date"
-          placeholder="Data de aniversário do destinatário *"
           value={destinatarioNascimento}
           onChange={(e) => setDestinatarioNascimento(e.target.value)}
         />
 
+        <label>Data de entrega da mensagem *</label>
         <input
           type="date"
-          placeholder="Data de entrega da mensagem *"
           value={dataEntrega}
           onChange={(e) => setDataEntrega(e.target.value)}
         />
