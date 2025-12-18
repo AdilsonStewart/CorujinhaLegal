@@ -226,11 +226,18 @@ const AudioRecordPage = () => {
           onChange={(e) => setDataEntrega(e.target.value)}
         />
 
-        <input
-          type="time"
-          value={horaEntrega}
-          onChange={(e) => setHoraEntrega(e.target.value)}
-        />
+        {/* HORÁRIOS FIXOS */}
+        <label>Horário da entrega *</label>
+        <select value={horaEntrega} onChange={(e) => setHoraEntrega(e.target.value)}>
+          <option value="">Selecione</option>
+          <option value="08:00">08:00</option>
+          <option value="10:00">10:00</option>
+          <option value="12:00">12:00</option>
+          <option value="14:00">14:00</option>
+          <option value="16:00">16:00</option>
+          <option value="18:00">18:00</option>
+        </select>
+
       </div>
 
       <button
