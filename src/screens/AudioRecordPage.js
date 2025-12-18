@@ -1,17 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-
-// Firestore
 import { db } from "../firebase";
 import { collection, addDoc } from "firebase/firestore";
 
-// Supabase Config
 const supabase = createClient(
   "https://kuwsgvhjmjnhkteleczc.supabase.co",
   "sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P"
 );
 
-// util
 const sanitizePhone = (s = "") => (s || "").toString().replace(/\D/g, "");
 
 const AudioRecordPage = () => {
@@ -19,16 +15,13 @@ const AudioRecordPage = () => {
   const [audioURL, setAudioURL] = useState(null);
   const [audioBlob, setAudioBlob] = useState(null);
 
-  // remetente
   const [remetenteNome, setRemetenteNome] = useState("");
   const [remetenteTelefone, setRemetenteTelefone] = useState("");
   const [remetenteNascimento, setRemetenteNascimento] = useState("");
 
-  // destinatário
   const [destinatarioNome, setDestinatarioNome] = useState("");
   const [destinatarioTelefone, setDestinatarioTelefone] = useState("");
 
-  // agendamento
   const [dataEntrega, setDataEntrega] = useState("");
   const [horaEntrega, setHoraEntrega] = useState("");
 
@@ -38,6 +31,17 @@ const AudioRecordPage = () => {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const tempoIntervalRef = useRef(null);
+
+  // Local Storage Sync
+  useEffect(() => localStorage.setItem("remetenteNome", remetenteNome), [remetenteNome]);
+  useEffect(() => localStorage.setItem("remetenteTelefone", remetenteTelefone), [remetenteTelefone]);
+  useEffect(() => localStorage.setItem("remetenteNascimento", remetenteNascimento), [remetenteNascimento]);
+
+  useEffect(() => localStorage.setItem("destinatarioNome", destinatarioNome), [destinatarioNome]);
+  useEffect(() => localStorage.setItem("destinatarioTelefone", destinatarioTelefone), [destinatarioTelefone]);
+
+  useEffect(() => localStorage.setItem("dataEntrega", dataEntrega), [dataEntrega]);
+  useEffect(() => localStorage.setItem("horaEntrega", horaEntrega), [horaEntrega]);
 
   const startRecording = async () => {
     try {
@@ -51,7 +55,7 @@ const AudioRecordPage = () => {
         const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         setAudioBlob(blob);
         setAudioURL(URL.createObjectURL(blob));
-        stream.getTracks().forEach((t) => t.stop());
+        stream.getTracks().forEach(t => t.stop());
         clearInterval(tempoIntervalRef.current);
         setTempoRestante(30);
       };
@@ -61,7 +65,7 @@ const AudioRecordPage = () => {
       setIsRecording(true);
 
       tempoIntervalRef.current = setInterval(() => {
-        setTempoRestante((prev) => {
+        setTempoRestante(prev => {
           if (prev <= 1) {
             stopRecording();
             return 30;
@@ -69,6 +73,7 @@ const AudioRecordPage = () => {
           return prev - 1;
         });
       }, 1000);
+
     } catch {
       alert("Permita o uso do microfone.");
     }
@@ -82,44 +87,43 @@ const AudioRecordPage = () => {
   };
 
   const enviarDados = async () => {
-    if (!audioBlob) return alert("Grave o áudio antes de enviar.");
-    if (!destinatarioNome || !destinatarioTelefone || !horaEntrega)
-      return alert("Preencha destinatário, telefone e horário.");
-    if (!remetenteNascimento)
-      return alert("Preencha a data de nascimento do remetente.");
-    if (!dataEntrega)
-      return alert("Preencha a data de entrega da mensagem.");
+    if (!audioBlob) return alert("Grave o áudio antes.");
+    if (!remetenteNascimento) return alert("Informe nascimento do remetente.");
+    if (!destinatarioNome) return alert("Informe destinatário.");
+    if (!destinatarioTelefone) return alert("Informe telefone.");
+    if (!dataEntrega) return alert("Selecione data.");
+    if (!horaEntrega) return alert("Selecione horário.");
 
     const agora = new Date();
     const dataHorario = new Date(`${dataEntrega}T${horaEntrega}`);
 
-    if (dataHorario < agora)
-      return alert("⛔ Não é possível agendar no passado.");
+    if (dataHorario < agora) return alert("Data no passado não é permitida.");
 
     const limite = new Date();
     limite.setDate(limite.getDate() + 365);
-    if (dataHorario > limite)
-      return alert("⛔ Agendamento máximo de 365 dias.");
+    if (dataHorario > limite) return alert("Máximo 365 dias.");
 
     setIsUploading(true);
 
     try {
-      const nomeArquivo = `audio_${Date.now()}_${Math.random().toString(36).slice(2)}.webm`;
-      const { error: uploadError } = await supabase.storage
-        .from("Midias")
-        .upload(nomeArquivo, audioBlob, { contentType: "audio/webm" });
+      const fileName = `audio_${Date.now()}_${Math.random().toString(36).slice(2)}.webm`;
 
-      if (uploadError) throw uploadError;
+      const { error } = await supabase.storage.from("Midias").upload(
+        fileName,
+        audioBlob,
+        { contentType: "audio/webm" }
+      );
 
-      const { data } = supabase.storage.from("Midias").getPublicUrl(nomeArquivo);
-      const publicUrl = data?.publicUrl || "";
+      if (error) throw error;
+
+      const { data } = supabase.storage.from("Midias").getPublicUrl(fileName);
 
       const orderID = `AUD-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
       const payload = {
         order_id: orderID,
         tipo: "audio",
-        link_midia: publicUrl,
+        link_midia: data?.publicUrl || "",
         criado_em: new Date().toISOString(),
         data_agendamento: dataEntrega,
         hora_agendamento: horaEntrega,
@@ -128,17 +132,19 @@ const AudioRecordPage = () => {
         telefone: sanitizePhone(destinatarioTelefone),
         remetente: remetenteNome,
         telefone_remetente: sanitizePhone(remetenteTelefone),
-        remetente_nascimento: remetenteNascimento,
+        remetente_nascimento: remetenteNascimento
       };
 
-      const col = collection(db, "agendamentos");
-      await addDoc(col, payload);
+      await addDoc(collection(db, "agendamentos"), payload);
 
-      alert("🎉 Áudio agendado com sucesso!");
+      // salva resumo para saída
+      localStorage.setItem("lastAgendamento", JSON.stringify(payload));
+
+      alert("🎉 Áudio agendado!");
       window.location.href = "/saida";
 
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
+      console.log(e);
       alert("Erro ao enviar.");
     }
 
@@ -147,40 +153,35 @@ const AudioRecordPage = () => {
 
   return (
     <div style={{ padding: 20, maxWidth: 680, margin: "0 auto" }}>
+
       <h2>🎤 Gravador de Áudio - Máx 30s</h2>
 
       <div style={{
         fontSize: 24,
         color: "#dc3545",
-        fontWeight: "bold",
         background: "#ffebee",
-        padding: "15px",
+        padding: 15,
         borderRadius: 12,
-        marginBottom: 20,
-        textAlign: "center"
+        fontWeight: "bold",
+        textAlign: "center",
+        marginBottom: 20
       }}>
-        ⏱️ Tempo máximo: {tempoRestante}s
+        ⏱ Tempo máximo: {tempoRestante}s
       </div>
 
       {!isRecording ? (
-        <button
-          onClick={startRecording}
-          style={{ width: "100%", padding: 18, background: "#007bff", color: "white", borderRadius: 12 }}
-        >
+        <button onClick={startRecording} style={{ padding: 18, width: "100%" }}>
           🎙️ Iniciar Gravação
         </button>
       ) : (
-        <button
-          onClick={stopRecording}
-          style={{ width: "100%", padding: 18, background: "#dc3545", color: "white", borderRadius: 12 }}
-        >
+        <button onClick={stopRecording} style={{ padding: 18, width: "100%" }}>
           ⏹️ Parar Gravação
         </button>
       )}
 
       {audioURL && <audio controls src={audioURL} style={{ width: "100%", marginTop: 16 }} />}
 
-      <hr style={{ margin: "24px 0" }} />
+      <hr />
 
       <div style={{ display: "grid", gap: 12 }}>
 
@@ -188,47 +189,46 @@ const AudioRecordPage = () => {
           type="text"
           placeholder="Seu nome (remetente)"
           value={remetenteNome}
-          onChange={(e) => setRemetenteNome(e.target.value)}
+          onChange={e => setRemetenteNome(e.target.value)}
         />
 
         <input
           type="tel"
-          placeholder="Seu telefone (remetente)"
+          placeholder="Seu telefone"
           value={remetenteTelefone}
-          onChange={(e) => setRemetenteTelefone(e.target.value)}
+          onChange={e => setRemetenteTelefone(e.target.value)}
         />
 
-        <label>Data de nascimento do remetente *</label>
+        <label>Data de nascimento *</label>
         <input
           type="date"
           value={remetenteNascimento}
-          onChange={(e) => setRemetenteNascimento(e.target.value)}
+          onChange={e => setRemetenteNascimento(e.target.value)}
         />
 
         <input
           type="text"
           placeholder="Nome do destinatário"
           value={destinatarioNome}
-          onChange={(e) => setDestinatarioNome(e.target.value)}
+          onChange={e => setDestinatarioNome(e.target.value)}
         />
 
         <input
           type="tel"
           placeholder="Telefone do destinatário"
           value={destinatarioTelefone}
-          onChange={(e) => setDestinatarioTelefone(e.target.value)}
+          onChange={e => setDestinatarioTelefone(e.target.value)}
         />
 
-        <label>Data de entrega da mensagem *</label>
+        <label>Data de entrega *</label>
         <input
           type="date"
           value={dataEntrega}
-          onChange={(e) => setDataEntrega(e.target.value)}
+          onChange={e => setDataEntrega(e.target.value)}
         />
 
-        {/* HORÁRIOS FIXOS */}
-        <label>Horário da entrega *</label>
-        <select value={horaEntrega} onChange={(e) => setHoraEntrega(e.target.value)}>
+        <label>Horário *</label>
+        <select value={horaEntrega} onChange={e => setHoraEntrega(e.target.value)}>
           <option value="">Selecione</option>
           <option value="08:00">08:00</option>
           <option value="10:00">10:00</option>
@@ -240,19 +240,10 @@ const AudioRecordPage = () => {
 
       </div>
 
-      <button
-        onClick={enviarDados}
-        style={{
-          marginTop: 24,
-          width: "100%",
-          padding: 18,
-          background: "#28a745",
-          color: "white",
-          borderRadius: 12
-        }}
-      >
+      <button onClick={enviarDados} style={{ width: "100%", marginTop: 24 }}>
         🚀 Enviar Áudio Agendado
       </button>
+
     </div>
   );
 };
