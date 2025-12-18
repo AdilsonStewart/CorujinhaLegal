@@ -8,14 +8,20 @@ import {
   addDoc,
   serverTimestamp,
   Timestamp,
+  query,
+  where,
+  getDocs,
+  doc,
+  setDoc
 } from "firebase/firestore";
 
-// Supabase
+// Supabase Config
 const supabase = createClient(
   "https://kuwsgvhjmjnhkteleczc.supabase.co",
   "sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P"
 );
 
+// util
 const sanitizePhone = (s = "") => (s || "").toString().replace(/\D/g, "");
 
 const AudioRecordPage = () => {
@@ -23,16 +29,16 @@ const AudioRecordPage = () => {
   const [audioURL, setAudioURL] = useState(null);
   const [audioBlob, setAudioBlob] = useState(null);
 
-  // Remetente
+  // remetente
   const [remetenteNome, setRemetenteNome] = useState("");
   const [remetenteTelefone, setRemetenteTelefone] = useState("");
   const [remetenteNascimento, setRemetenteNascimento] = useState("");
 
-  // Destinatário
+  // destinatário
   const [destinatarioNome, setDestinatarioNome] = useState("");
   const [destinatarioTelefone, setDestinatarioTelefone] = useState("");
 
-  // Agendamento
+  // agendamento
   const [dataEntrega, setDataEntrega] = useState("");
   const [horaEntrega, setHoraEntrega] = useState("");
 
@@ -43,7 +49,6 @@ const AudioRecordPage = () => {
   const audioChunksRef = useRef([]);
   const tempoIntervalRef = useRef(null);
 
-  // Armazena no localStorage (mas não faz preload)
   useEffect(() => localStorage.setItem("clienteNome", remetenteNome), [remetenteNome]);
   useEffect(() => localStorage.setItem("clienteTelefone", remetenteTelefone), [remetenteTelefone]);
   useEffect(() => localStorage.setItem("clienteNascimento", remetenteNascimento), [remetenteNascimento]);
@@ -54,7 +59,6 @@ const AudioRecordPage = () => {
       audioChunksRef.current = [];
 
       const recorder = new MediaRecorder(stream);
-
       recorder.ondataavailable = (e) => audioChunksRef.current.push(e.data);
 
       recorder.onstop = () => {
@@ -98,7 +102,7 @@ const AudioRecordPage = () => {
     if (!remetenteNascimento)
       return alert("Preencha a data de nascimento do remetente.");
 
-    // 🔒 validação de data/horário
+    // validação de datas
     const agora = new Date();
     const hoje = agora.toISOString().slice(0, 10);
     const dataEscolhida = dataEntrega || hoje;
@@ -109,13 +113,62 @@ const AudioRecordPage = () => {
 
     const limite = new Date();
     limite.setDate(limite.getDate() + 365);
-
     if (dataHorario > limite)
       return alert("⛔ Agendamento máximo de 365 dias.");
 
-    alert("✔ Dados válidos — envio continua…");
+    setIsUploading(true);
 
-    // Aqui segue TODO o fluxo original (upload e Firestore)
+    try {
+      // 1. Upload no Supabase
+      const nomeArquivo = `audio_${Date.now()}_${Math.random().toString(36).slice(2)}.webm`;
+      const { error: uploadError } = await supabase.storage
+        .from("Midias")
+        .upload(nomeArquivo, audioBlob, { contentType: "audio/webm" });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from("Midias").getPublicUrl(nomeArquivo);
+      const publicUrl = data?.publicUrl || "";
+
+      const orderID = `AUD-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const telefoneDest = sanitizePhone(destinatarioTelefone);
+      const telefoneRem = sanitizePhone(remetenteTelefone);
+
+      const payload = {
+        order_id: orderID,
+        tipo: "audio",
+        link_midia: publicUrl,
+        criado_em: new Date().toISOString(),
+        data_agendamento: dataEscolhida,
+        hora_agendamento: horaEntrega,
+        enviado: false,
+        destinatario: destinatarioNome,
+        telefone: telefoneDest,
+        remetente: remetenteNome,
+        telefone_remetente: telefoneRem,
+        remetente_nascimento: remetenteNascimento,
+      };
+
+      const col = collection(db, "agendamentos");
+      const docRef = await addDoc(col, payload);
+
+      localStorage.setItem(
+        "lastAgendamento",
+        JSON.stringify({
+          ...payload,
+          firestore_id: docRef.id
+        })
+      );
+
+      alert("🎉 Áudio agendado com sucesso!");
+      window.location.href = "/saida";
+
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao enviar.");
+    }
+
+    setIsUploading(false);
   };
 
   return (
@@ -127,10 +180,10 @@ const AudioRecordPage = () => {
         color: "#dc3545",
         fontWeight: "bold",
         background: "#ffebee",
-        padding: "15px 25px",
-        borderRadius: 25,
-        textAlign: "center",
-        marginBottom: 20
+        padding: "15px",
+        borderRadius: 12,
+        marginBottom: 20,
+        textAlign: "center"
       }}>
         ⏱️ Tempo máximo: {tempoRestante}s
       </div>
@@ -138,44 +191,27 @@ const AudioRecordPage = () => {
       {!isRecording ? (
         <button
           onClick={startRecording}
-          style={{
-            fontSize: 22,
-            padding: "18px 35px",
-            background: "#007bff",
-            color: "white",
-            border: "none",
-            borderRadius: 12,
-            width: "100%"
-          }}
+          style={{ width: "100%", padding: 18, background: "#007bff", color: "white", borderRadius: 12 }}
         >
           🎙️ Iniciar Gravação
         </button>
       ) : (
         <button
           onClick={stopRecording}
-          style={{
-            fontSize: 22,
-            padding: "18px 35px",
-            background: "#dc3545",
-            color: "white",
-            border: "none",
-            borderRadius: 12,
-            width: "100%"
-          }}
+          style={{ width: "100%", padding: 18, background: "#dc3545", color: "white", borderRadius: 12 }}
         >
           ⏹️ Parar Gravação
         </button>
       )}
 
-      {audioURL && (
-        <audio controls src={audioURL} style={{ width: "100%", marginTop: 16 }} />
-      )}
+      {audioURL && <audio controls src={audioURL} style={{ width: "100%", marginTop: 16 }} />}
 
       <hr style={{ margin: "24px 0" }} />
 
-      <div style={{ display: "grid", gap: 10 }}>
+      {/* Formulário */}
+      <div style={{ display: "grid", gap: 12 }}>
 
-        {/* remetente */}
+        {/* REMETENTE */}
         <input
           type="text"
           placeholder="Seu nome (remetente)"
@@ -197,7 +233,7 @@ const AudioRecordPage = () => {
           onChange={(e) => setRemetenteNascimento(e.target.value)}
         />
 
-        {/* destinatário */}
+        {/* DESTINATÁRIO */}
         <input
           type="text"
           placeholder="Nome do destinatário"
@@ -212,9 +248,9 @@ const AudioRecordPage = () => {
           onChange={(e) => setDestinatarioTelefone(e.target.value)}
         />
 
-        {/* agendamento */}
         <input
           type="date"
+          placeholder="Data de entrega da mensagem *"
           value={dataEntrega}
           onChange={(e) => setDataEntrega(e.target.value)}
         />
@@ -229,12 +265,12 @@ const AudioRecordPage = () => {
       <button
         onClick={enviarDados}
         style={{
-          marginTop: 20,
-          padding: "16px 28px",
+          marginTop: 24,
+          width: "100%",
+          padding: 18,
           background: "#28a745",
           color: "white",
-          width: "100%",
-          borderRadius: 10
+          borderRadius: 12
         }}
       >
         🚀 Enviar Áudio Agendado
