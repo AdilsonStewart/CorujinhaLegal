@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+rega import React, { useState, useRef, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 // Firestore
@@ -231,7 +231,7 @@ const AudioRecordPage = () => {
           onChange={(e) => setDestinatarioTelefone(e.target.value)}
         />
 
-        <label>Data de aniversário do destinatário *</label>
+        <label>Data de entrega para o(a) destinatário(a) *</label>
         <input
           type="date"
           value={destinatarioNascimento}
