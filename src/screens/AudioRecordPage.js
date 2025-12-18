@@ -1,12 +1,9 @@
-rega import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 // Firestore
 import { db } from "../firebase";
-import {
-  collection,
-  addDoc,
-} from "firebase/firestore";
+import { collection, addDoc } from "firebase/firestore";
 
 // Supabase Config
 const supabase = createClient(
@@ -30,7 +27,6 @@ const AudioRecordPage = () => {
   // destinatário
   const [destinatarioNome, setDestinatarioNome] = useState("");
   const [destinatarioTelefone, setDestinatarioTelefone] = useState("");
-  const [destinatarioNascimento, setDestinatarioNascimento] = useState("");
 
   // agendamento
   const [dataEntrega, setDataEntrega] = useState("");
@@ -91,13 +87,11 @@ const AudioRecordPage = () => {
       return alert("Preencha destinatário, telefone e horário.");
     if (!remetenteNascimento)
       return alert("Preencha a data de nascimento do remetente.");
-    if (!destinatarioNascimento)
-      return alert("Preencha a data de aniversário do destinatário.");
+    if (!dataEntrega)
+      return alert("Preencha a data de entrega da mensagem.");
 
     const agora = new Date();
-    const hoje = agora.toISOString().slice(0, 10);
-    const dataEscolhida = dataEntrega || hoje;
-    const dataHorario = new Date(`${dataEscolhida}T${horaEntrega}`);
+    const dataHorario = new Date(`${dataEntrega}T${horaEntrega}`);
 
     if (dataHorario < agora)
       return alert("⛔ Não é possível agendar no passado.");
@@ -121,22 +115,19 @@ const AudioRecordPage = () => {
       const publicUrl = data?.publicUrl || "";
 
       const orderID = `AUD-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const telefoneDest = sanitizePhone(destinatarioTelefone);
-      const telefoneRem = sanitizePhone(remetenteTelefone);
 
       const payload = {
         order_id: orderID,
         tipo: "audio",
         link_midia: publicUrl,
         criado_em: new Date().toISOString(),
-        data_agendamento: dataEscolhida,
+        data_agendamento: dataEntrega,
         hora_agendamento: horaEntrega,
         enviado: false,
         destinatario: destinatarioNome,
-        telefone: telefoneDest,
-        destinatario_nascimento: destinatarioNascimento,
+        telefone: sanitizePhone(destinatarioTelefone),
         remetente: remetenteNome,
-        telefone_remetente: telefoneRem,
+        telefone_remetente: sanitizePhone(remetenteTelefone),
         remetente_nascimento: remetenteNascimento,
       };
 
@@ -191,10 +182,8 @@ const AudioRecordPage = () => {
 
       <hr style={{ margin: "24px 0" }} />
 
-      {/* Formulário */}
       <div style={{ display: "grid", gap: 12 }}>
 
-        {/* REMETENTE */}
         <input
           type="text"
           placeholder="Seu nome (remetente)"
@@ -216,7 +205,6 @@ const AudioRecordPage = () => {
           onChange={(e) => setRemetenteNascimento(e.target.value)}
         />
 
-        {/* DESTINATÁRIO */}
         <input
           type="text"
           placeholder="Nome do destinatário"
@@ -229,13 +217,6 @@ const AudioRecordPage = () => {
           placeholder="Telefone do destinatário"
           value={destinatarioTelefone}
           onChange={(e) => setDestinatarioTelefone(e.target.value)}
-        />
-
-        <label>Data de entrega para o(a) destinatário(a) *</label>
-        <input
-          type="date"
-          value={destinatarioNascimento}
-          onChange={(e) => setDestinatarioNascimento(e.target.value)}
         />
 
         <label>Data de entrega da mensagem *</label>
