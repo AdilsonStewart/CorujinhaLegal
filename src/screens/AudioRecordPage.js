@@ -1,18 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-// Firestore client SDK
+// Firestore
 import { db } from "../firebase";
 import {
   collection,
   addDoc,
   serverTimestamp,
   Timestamp,
-  query,
-  where,
-  getDocs,
-  doc,
-  setDoc
 } from "firebase/firestore";
 
 // Supabase
@@ -28,14 +23,16 @@ const AudioRecordPage = () => {
   const [audioURL, setAudioURL] = useState(null);
   const [audioBlob, setAudioBlob] = useState(null);
 
-  // Remetente (não é mais pré-carregado do localStorage)
+  // Remetente
   const [remetenteNome, setRemetenteNome] = useState("");
   const [remetenteTelefone, setRemetenteTelefone] = useState("");
   const [remetenteNascimento, setRemetenteNascimento] = useState("");
 
+  // Destinatário
   const [destinatarioNome, setDestinatarioNome] = useState("");
   const [destinatarioTelefone, setDestinatarioTelefone] = useState("");
 
+  // Agendamento
   const [dataEntrega, setDataEntrega] = useState("");
   const [horaEntrega, setHoraEntrega] = useState("");
 
@@ -46,7 +43,7 @@ const AudioRecordPage = () => {
   const audioChunksRef = useRef([]);
   const tempoIntervalRef = useRef(null);
 
-  // grava automaticamente no localStorage quando usuário digita
+  // Armazena no localStorage (mas não faz preload)
   useEffect(() => localStorage.setItem("clienteNome", remetenteNome), [remetenteNome]);
   useEffect(() => localStorage.setItem("clienteTelefone", remetenteTelefone), [remetenteTelefone]);
   useEffect(() => localStorage.setItem("clienteNascimento", remetenteNascimento), [remetenteNascimento]);
@@ -83,52 +80,42 @@ const AudioRecordPage = () => {
         });
       }, 1000);
     } catch {
-      alert("Não consegui acessar o microfone.");
+      alert("Permita o uso do microfone.");
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
+    if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
     }
   };
 
   const enviarDados = async () => {
-    if (!audioBlob) return alert("Grave um áudio antes de enviar.");
+    if (!audioBlob) return alert("Grave o áudio antes de enviar.");
     if (!destinatarioNome || !destinatarioTelefone || !horaEntrega)
       return alert("Preencha destinatário, telefone e horário.");
     if (!remetenteNascimento)
-      return alert("Preencha sua data de nascimento.");
+      return alert("Preencha a data de nascimento do remetente.");
 
-    // ======================
-    // VALIDAÇÃO DE AGENDAMENTO
-    // ======================
+    // 🔒 validação de data/horário
     const agora = new Date();
     const hoje = agora.toISOString().slice(0, 10);
-
     const dataEscolhida = dataEntrega || hoje;
     const dataHorario = new Date(`${dataEscolhida}T${horaEntrega}`);
 
-    if (dataHorario < agora) {
+    if (dataHorario < agora)
       return alert("⛔ Não é possível agendar no passado.");
-    }
 
     const limite = new Date();
     limite.setDate(limite.getDate() + 365);
 
-    if (dataHorario > limite) {
+    if (dataHorario > limite)
       return alert("⛔ Agendamento máximo de 365 dias.");
-    }
-    // ======================
 
-    alert("✔ Agendamento válido. Enviando…");
+    alert("✔ Dados válidos — envio continua…");
 
-    // AQUI CONTINUA TODO O SEU FLUXO ORIGINAL:
-    // upload em Supabase
-    // salvar em Firestore
-    // salvar lastAgendamento
-    // e redirecionamento
+    // Aqui segue TODO o fluxo original (upload e Firestore)
   };
 
   return (
@@ -189,17 +176,54 @@ const AudioRecordPage = () => {
       <div style={{ display: "grid", gap: 10 }}>
 
         {/* remetente */}
-        <input type="text" placeholder="Seu nome" value={remetenteNome} onChange={(e) => setRemetenteNome(e.target.value)} />
-        <input type="tel" placeholder="Seu telefone" value={remetenteTelefone} onChange={(e) => setRemetenteTelefone(e.target.value)} />
-        <input type="date" placeholder="Seu nascimento" value={remetenteNascimento} onChange={(e) => setRemetenteNascimento(e.target.value)} />
+        <input
+          type="text"
+          placeholder="Seu nome (remetente)"
+          value={remetenteNome}
+          onChange={(e) => setRemetenteNome(e.target.value)}
+        />
+
+        <input
+          type="tel"
+          placeholder="Seu telefone (remetente)"
+          value={remetenteTelefone}
+          onChange={(e) => setRemetenteTelefone(e.target.value)}
+        />
+
+        <input
+          type="date"
+          placeholder="Data de nascimento do remetente *"
+          value={remetenteNascimento}
+          onChange={(e) => setRemetenteNascimento(e.target.value)}
+        />
 
         {/* destinatário */}
-        <input type="text" placeholder="Nome do destinatário" value={destinatarioNome} onChange={(e) => setDestinatarioNome(e.target.value)} />
-        <input type="tel" placeholder="Telefone do destinatário" value={destinatarioTelefone} onChange={(e) => setDestinatarioTelefone(e.target.value)} />
+        <input
+          type="text"
+          placeholder="Nome do destinatário"
+          value={destinatarioNome}
+          onChange={(e) => setDestinatarioNome(e.target.value)}
+        />
+
+        <input
+          type="tel"
+          placeholder="Telefone do destinatário"
+          value={destinatarioTelefone}
+          onChange={(e) => setDestinatarioTelefone(e.target.value)}
+        />
 
         {/* agendamento */}
-        <input type="date" value={dataEntrega} onChange={(e) => setDataEntrega(e.target.value)} />
-        <input type="time" value={horaEntrega} onChange={(e) => setHoraEntrega(e.target.value)} />
+        <input
+          type="date"
+          value={dataEntrega}
+          onChange={(e) => setDataEntrega(e.target.value)}
+        />
+
+        <input
+          type="time"
+          value={horaEntrega}
+          onChange={(e) => setHoraEntrega(e.target.value)}
+        />
       </div>
 
       <button
