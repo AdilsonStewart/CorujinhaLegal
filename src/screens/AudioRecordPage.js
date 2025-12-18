@@ -32,14 +32,12 @@ const AudioRecordPage = () => {
   const audioChunksRef = useRef([]);
   const tempoIntervalRef = useRef(null);
 
-  // Local Storage Sync
+  // localStorage básico
   useEffect(() => localStorage.setItem("remetenteNome", remetenteNome), [remetenteNome]);
   useEffect(() => localStorage.setItem("remetenteTelefone", remetenteTelefone), [remetenteTelefone]);
   useEffect(() => localStorage.setItem("remetenteNascimento", remetenteNascimento), [remetenteNascimento]);
-
   useEffect(() => localStorage.setItem("destinatarioNome", destinatarioNome), [destinatarioNome]);
   useEffect(() => localStorage.setItem("destinatarioTelefone", destinatarioTelefone), [destinatarioTelefone]);
-
   useEffect(() => localStorage.setItem("dataEntrega", dataEntrega), [dataEntrega]);
   useEffect(() => localStorage.setItem("horaEntrega", horaEntrega), [horaEntrega]);
 
@@ -89,30 +87,28 @@ const AudioRecordPage = () => {
   const enviarDados = async () => {
     if (!audioBlob) return alert("Grave o áudio antes.");
     if (!remetenteNascimento) return alert("Informe nascimento do remetente.");
-    if (!destinatarioNome) return alert("Informe destinatário.");
+    if (!destinatarioNome) return alert("Informe o destinatário.");
     if (!destinatarioTelefone) return alert("Informe telefone.");
-    if (!dataEntrega) return alert("Selecione data.");
-    if (!horaEntrega) return alert("Selecione horário.");
+    if (!dataEntrega) return alert("Selecione a data.");
+    if (!horaEntrega) return alert("Selecione o horário.");
 
     const agora = new Date();
     const dataHorario = new Date(`${dataEntrega}T${horaEntrega}`);
 
-    if (dataHorario < agora) return alert("Data no passado não é permitida.");
+    if (dataHorario < agora) return alert("Não é possível agendar no passado.");
 
     const limite = new Date();
     limite.setDate(limite.getDate() + 365);
-    if (dataHorario > limite) return alert("Máximo 365 dias.");
+    if (dataHorario > limite) return alert("Agendamento máximo 365 dias.");
 
     setIsUploading(true);
 
     try {
       const fileName = `audio_${Date.now()}_${Math.random().toString(36).slice(2)}.webm`;
 
-      const { error } = await supabase.storage.from("Midias").upload(
-        fileName,
-        audioBlob,
-        { contentType: "audio/webm" }
-      );
+      const { error } = await supabase.storage
+        .from("Midias")
+        .upload(fileName, audioBlob, { contentType: "audio/webm" });
 
       if (error) throw error;
 
@@ -120,7 +116,8 @@ const AudioRecordPage = () => {
 
       const orderID = `AUD-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-      const payload = {
+      // salva no Firestore (payload completo)
+      await addDoc(collection(db, "agendamentos"), {
         order_id: orderID,
         tipo: "audio",
         link_midia: data?.publicUrl || "",
@@ -133,14 +130,22 @@ const AudioRecordPage = () => {
         remetente: remetenteNome,
         telefone_remetente: sanitizePhone(remetenteTelefone),
         remetente_nascimento: remetenteNascimento
-      };
+      });
 
-      await addDoc(collection(db, "agendamentos"), payload);
+      // salva para Saida.js com nomes CORRETOS
+      localStorage.setItem(
+        "lastAgendamento",
+        JSON.stringify({
+          nome: destinatarioNome,
+          telefone: sanitizePhone(destinatarioTelefone),
+          dataEntrega: dataEntrega,
+          horario: horaEntrega,
+          tipo: "audio",
+          orderID: orderID
+        })
+      );
 
-      // salva resumo para saída
-      localStorage.setItem("lastAgendamento", JSON.stringify(payload));
-
-      alert("🎉 Áudio agendado!");
+      alert("🎉 Áudio agendado com sucesso!");
       window.location.href = "/saida";
 
     } catch (e) {
@@ -194,7 +199,7 @@ const AudioRecordPage = () => {
 
         <input
           type="tel"
-          placeholder="Seu telefone"
+          placeholder="Seu telefone (remetente)"
           value={remetenteTelefone}
           onChange={e => setRemetenteTelefone(e.target.value)}
         />
