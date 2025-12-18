@@ -1,18 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-// Firestore client SDK
+// Firestore client
 import { db } from "../firebase";
 import {
   collection,
   addDoc,
-  serverTimestamp,
-  Timestamp,
-  query,
-  where,
-  getDocs,
-  doc,
-  setDoc
+  serverTimestamp
 } from "firebase/firestore";
 
 // Supabase config
@@ -20,6 +14,7 @@ const supabaseUrl = "https://kuwsgvhjmjnhkteleczc.supabase.co";
 const supabaseKey = "sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Util
 const sanitizePhone = (s = "") => (s || "").toString().replace(/\D/g, "");
 
 const VideoRecordPage = () => {
@@ -45,14 +40,6 @@ const VideoRecordPage = () => {
   const tempoIntervalRef = useRef(null);
 
   useEffect(() => {
-    const rNome = localStorage.getItem("clienteNome") || "";
-    const rTel = localStorage.getItem("clienteTelefone") || "";
-    const rNasc = localStorage.getItem("clienteNascimento") || "";
-
-    setRemetenteNome(rNome);
-    setRemetenteTelefone(rTel);
-    setRemetenteNascimento(rNasc);
-
     return () => tempoIntervalRef.current && clearInterval(tempoIntervalRef.current);
   }, []);
 
@@ -72,8 +59,10 @@ const VideoRecordPage = () => {
       recorder.onstop = () => {
         const blob = new Blob(videoChunksRef.current, { type: "video/webm" });
         const url = URL.createObjectURL(blob);
+
         setVideoBlob(blob);
         setVideoURL(url);
+
         stream.getTracks().forEach((track) => track.stop());
         clearInterval(tempoIntervalRef.current);
         setTempoRestante(30);
@@ -92,8 +81,8 @@ const VideoRecordPage = () => {
         });
       }, 1000);
 
-    } catch {
-      alert("Não foi possível acessar a câmera e o microfone.");
+    } catch (error) {
+      alert("Não foi possível acessar câmera e microfone.");
     }
   };
 
@@ -106,7 +95,7 @@ const VideoRecordPage = () => {
 
   const enviarDados = async () => {
     if (!videoBlob) {
-      alert("Grave um vídeo antes.");
+      alert("Grave um vídeo antes de enviar.");
       return;
     }
     if (!destinatarioNome || !destinatarioTelefone || !horaEntrega) {
@@ -125,6 +114,7 @@ const VideoRecordPage = () => {
 
       const nomeArquivo = `video_${Date.now()}_${Math.random().toString(36).slice(2)}.webm`;
 
+      // ✔ Upload para Supabase (MANTIDO)
       const { error } = await supabase.storage
         .from("Midias")
         .upload(nomeArquivo, videoBlob, { contentType: "video/webm" });
@@ -135,10 +125,10 @@ const VideoRecordPage = () => {
       const publicUrl = data?.publicUrl || "";
 
       const orderID = `VID-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
       const telefoneDestClean = sanitizePhone(destinatarioTelefone);
       const telefoneRemClean = sanitizePhone(remetenteTelefone);
 
+      // ✔ Firestore (MANTIDO)
       const payload = {
         order_id: orderID,
         tipo: "video",
@@ -156,7 +146,7 @@ const VideoRecordPage = () => {
 
       await addDoc(collection(db, "agendamentos"), payload);
 
-      // 🔥 SALVA PARA A SAIDA (igual ao AudioRecordPage)
+      // 🔥 localStorage SOMENTE após clicar em ENVIAR (MANTIDO)
       localStorage.setItem(
         "lastAgendamento",
         JSON.stringify({
@@ -207,9 +197,7 @@ const VideoRecordPage = () => {
         </button>
       )}
 
-      {videoURL && (
-        <video controls src={videoURL} style={{ width: "100%", marginTop: 16 }} />
-      )}
+      {videoURL && <video controls src={videoURL} style={{ width: "100%", marginTop: 16 }} />}
 
       <hr style={{ margin: "24px 0" }} />
 
