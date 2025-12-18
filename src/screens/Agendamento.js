@@ -19,11 +19,10 @@ export default function Agendamento() {
   const [telefone, setTelefone] = useState("");
   const [dataEntrega, setDataEntrega] = useState("");
   const [horaEntrega, setHoraEntrega] = useState("");
-  const [linkMensagem, setLinkMensagem] = useState(""); // LINK DO ÁUDIO
+  const [linkMensagem, setLinkMensagem] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // 🔗 Carrega o link gerado no AudioRecordPage
     const link = localStorage.getItem("lastRecordingUrl");
     if (link) setLinkMensagem(link);
   }, []);
@@ -45,18 +44,39 @@ export default function Agendamento() {
       return;
     }
 
+    // ==============================
+    // ⛔ VALIDAÇÕES DE DATA / HORÁRIO
+    // ==============================
+
+    const hoje = new Date();
+    const dataSelecionada = new Date(dataEntrega + "T" + horaEntrega);
+
+    // ❌ Não permitir datas no passado
+    if (dataSelecionada < hoje) {
+      alert("Não é possível agendar no passado. Escolha uma data e horário futuros.");
+      return;
+    }
+
+    // ❌ Limite máximo de 365 dias
+    const limite = new Date();
+    limite.setDate(limite.getDate() + 365);
+
+    if (dataSelecionada > limite) {
+      alert("O agendamento deve ser dentro de 365 dias a partir de hoje.");
+      return;
+    }
+
+    // ==============================
+
     setLoading(true);
 
     try {
-      // Gerar ID do pedido
       const orderID = `AGD-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
 
-      // Cliente logado previamente
       const clienteId = localStorage.getItem("clienteId");
       const clienteNome = localStorage.getItem("clienteNome");
       const telefoneRemetente = localStorage.getItem("clienteTelefone");
 
-      // Dados do agendamento
       const agendamento = {
         destinatario,
         telefone: telefoneLimpo,
@@ -70,7 +90,6 @@ export default function Agendamento() {
         criadoEm: new Date().toISOString()
       };
 
-      // 🔥 Salvar no Firestore (CorujinhaLegal2) no documento do cliente
       if (clienteId) {
         const clienteRef = doc(db, "CorujinhaLegal2", clienteId);
 
@@ -78,14 +97,13 @@ export default function Agendamento() {
           clienteRef,
           {
             agendamentos: {
-              [orderID]: agendamento // salva por orderID, merge automático
+              [orderID]: agendamento
             }
           },
-          { merge: true } // NÃO sobrescreve dados existentes do cliente
+          { merge: true }
         );
       }
 
-      // 🔥 Salvar no Supabase
       await supabase.from("agendamentos").insert([
         {
           data_agendamento: dataEntrega,
@@ -101,7 +119,6 @@ export default function Agendamento() {
         }
       ]);
 
-      // Salvar local
       localStorage.setItem("lastAgendamento", JSON.stringify(agendamento));
 
       alert("🎉 Agendamento salvo com sucesso!");
