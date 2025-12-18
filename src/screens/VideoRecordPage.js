@@ -17,29 +17,24 @@ import {
 
 console.log("🔥 VIDEO RECORD PAGE — FIRESTORE FLOW 🔥", Date.now());
 
-// Supabase (mesma configuração do AudioRecordPage)
+// Supabase config
 const supabaseUrl = "https://kuwsgvhjmjnhkteleczc.supabase.co";
 const supabaseKey = "sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const sanitizePhone = (s = "") => (s || "").toString().replace(/\D/g, "");
-const formatDateBR = (isoDate) => {
-  if (!isoDate) return "";
-  const [y, m, d] = isoDate.slice(0, 10).split("-");
-  return `${d}/${m}/${y}`;
-};
 
 const VideoRecordPage = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [videoURL, setVideoURL] = useState(null);
   const [videoBlob, setVideoBlob] = useState(null);
 
-  // Remetente (quem envia) - mesmos campos do AudioRecordPage
+  // Remetente
   const [remetenteNome, setRemetenteNome] = useState("");
   const [remetenteTelefone, setRemetenteTelefone] = useState("");
   const [remetenteNascimento, setRemetenteNascimento] = useState("");
 
-  // Destinatário (quem recebe) - mesmos campos do AudioRecordPage
+  // Destinatário
   const [destinatarioNome, setDestinatarioNome] = useState("");
   const [destinatarioTelefone, setDestinatarioTelefone] = useState("");
 
@@ -52,37 +47,18 @@ const VideoRecordPage = () => {
 
   const mediaRecorderRef = useRef(null);
   const videoChunksRef = useRef([]);
-  const tempoIntervalRef = useRef(null);
 
   useEffect(() => {
-    // prefill remetente se existir no localStorage (igual ao AudioRecordPage)
     try {
-      const rNome = localStorage.getItem("clienteNome") || "";
-      const rTel = localStorage.getItem("clienteTelefone") || "";
-      const rNasc = localStorage.getItem("clienteNascimento") || "";
-      setRemetenteNome(rNome);
-      setRemetenteTelefone(rTel);
-      setRemetenteNascimento(rNasc);
-
-      const last = JSON.parse(localStorage.getItem("lastAgendamento") || "null");
-      if (last) {
-        if (!destinatarioNome) setDestinatarioNome(last.nome || "");
-        if (!destinatarioTelefone) setDestinatarioTelefone(last.telefone || "");
-        if (!dataEntrega) setDataEntrega(last.dataEntrega || "");
-        if (!horaEntrega) setHoraEntrega(last.horaEntrega || "");
-      }
-    } catch (e) {
-      // ignore
-    }
-
-    return () => {
-      if (tempoIntervalRef.current) clearInterval(tempoIntervalRef.current);
-    };
+      setRemetenteNome(localStorage.getItem("clienteNome") || "");
+      setRemetenteTelefone(localStorage.getItem("clienteTelefone") || "");
+      setRemetenteNascimento(localStorage.getItem("clienteNascimento") || "");
+    } catch {}
   }, []);
 
-  useEffect(() => { localStorage.setItem("clienteNome", remetenteNome || ""); }, [remetenteNome]);
-  useEffect(() => { localStorage.setItem("clienteTelefone", remetenteTelefone || ""); }, [remetenteTelefone]);
-  useEffect(() => { localStorage.setItem("clienteNascimento", remetenteNascimento || ""); }, [remetenteNascimento]);
+  useEffect(() => localStorage.setItem("clienteNome", remetenteNome), [remetenteNome]);
+  useEffect(() => localStorage.setItem("clienteTelefone", remetenteTelefone), [remetenteTelefone]);
+  useEffect(() => localStorage.setItem("clienteNascimento", remetenteNascimento), [remetenteNascimento]);
 
   const startRecording = async () => {
     try {
@@ -91,48 +67,123 @@ const VideoRecordPage = () => {
       setVideoURL(null);
       setVideoBlob(null);
 
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorder.ondataavailable = (event) => videoChunksRef.current.push(event.data);
+      const recorder = new MediaRecorder(stream);
+      recorder.ondataavailable = (e) => videoChunksRef.current.push(e.data);
 
-      mediaRecorder.onstop = () => {
+      recorder.onstop = () => {
         const blob = new Blob(videoChunksRef.current, { type: "video/webm" });
-        const url = URL.createObjectURL(blob);
         setVideoBlob(blob);
-        setVideoURL(url);
-        try { window.lastRecordingUrl = url; } catch (e) {}
+        setVideoURL(URL.createObjectURL(blob));
         stream.getTracks().forEach((track) => track.stop());
-        if (tempoIntervalRef.current) clearInterval(tempoIntervalRef.current);
         setTempoRestante(30);
       };
 
-      mediaRecorder.start();
-      mediaRecorderRef.current = mediaRecorder;
+      recorder.start();
+      mediaRecorderRef.current = recorder;
       setIsRecording(true);
-
-      tempoIntervalRef.current = setInterval(() => {
-        setTempoRestante((prev) => {
-          if (prev <= 1) {
-            stopRecording();
-            return 30;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } catch (error) {
-      alert("Não consegui acessar a câmera e o microfone. Verifique as permissões.");
+    } catch (e) {
+      alert("Permita o uso da câmera e microfone.");
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      if (tempoIntervalRef.current) clearInterval(tempoIntervalRef.current);
-      setTempoRestante(30);
-    }
+    if (mediaRecorderRef.current) mediaRecorderRef.current.stop();
+    setIsRecording(false);
   };
 
-  // ... (continua etc.)
+  const enviarDados = async () => {
+    if (!videoBlob) return alert("Grave um vídeo.");
+    if (!destinatarioNome || !destinatarioTelefone || !horaEntrega)
+      return alert("Preencha destinatário, telefone e horário.");
+    if (!remetenteNascimento)
+      return alert("Preencha nascimento do remetente.");
+
+    setIsUploading(true);
+
+    try {
+      const nomeArquivo = `video_${Date.now()}.webm`;
+
+      const { error } = await supabase.storage
+        .from("Midias")
+        .upload(nomeArquivo, videoBlob, { contentType: "video/webm" });
+
+      if (error) throw error;
+
+      const { data } = supabase.storage.from("Midias").getPublicUrl(nomeArquivo);
+      const publicUrl = data?.publicUrl || "";
+
+      const orderID = `VIDEO-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+
+      const payload = {
+        order_id: orderID,
+        tipo: "video",
+        link_midia: publicUrl,
+        criado_em: serverTimestamp(),
+        data_agendamento: dataEntrega,
+        hora_agendamento: horaEntrega,
+        destinatario: {
+          nome: destinatarioNome,
+          telefone: sanitizePhone(destinatarioTelefone)
+        },
+        remetente: {
+          nome: remetenteNome,
+          telefone: sanitizePhone(remetenteTelefone),
+          nascimento: remetenteNascimento
+        },
+        enviado: false
+      };
+
+      const docRef = await addDoc(collection(db, "agendamentos"), payload);
+
+      localStorage.setItem("lastAgendamento", JSON.stringify({
+        nome: destinatarioNome,
+        telefone: destinatarioTelefone,
+        dataEntrega,
+        horaEntrega,
+        tipo: "video",
+        link_midia: publicUrl,
+        orderID,
+        firestoreId: docRef.id
+      }));
+
+      window.location.href = "/saida";
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao enviar.");
+    }
+
+    setIsUploading(false);
+  };
+
+  return (
+    <div style={{ padding: 20 }}>
+      <h2>🎥 Gravador de Vídeo - Máx 30s</h2>
+
+      {!isRecording ? (
+        <button onClick={startRecording}>🎬 Iniciar Gravação</button>
+      ) : (
+        <button onClick={stopRecording}>⏹️ Parar</button>
+      )}
+
+      {videoURL && <video controls src={videoURL} style={{ width: "100%" }} />}
+
+      <hr />
+
+      <input placeholder="Seu nome (remetente)" value={remetenteNome} onChange={(e) => setRemetenteNome(e.target.value)} />
+      <input placeholder="Seu telefone (remetente)" value={remetenteTelefone} onChange={(e) => setRemetenteTelefone(e.target.value)} />
+      <input type="date" value={remetenteNascimento} onChange={(e) => setRemetenteNascimento(e.target.value)} />
+
+      <input placeholder="Nome do destinatário" value={destinatarioNome} onChange={(e) => setDestinatarioNome(e.target.value)} />
+      <input placeholder="Telefone do destinatário" value={destinatarioTelefone} onChange={(e) => setDestinatarioTelefone(e.target.value)} />
+
+      <input type="date" value={dataEntrega} onChange={(e) => setDataEntrega(e.target.value)} />
+      <input type="time" value={horaEntrega} onChange={(e) => setHoraEntrega(e.target.value)} />
+
+      <button onClick={enviarDados} disabled={isUploading}>
+        🚀 Enviar Vídeo Agendado
+      </button>
+    </div>
+  );
 };
 
 export default VideoRecordPage;
