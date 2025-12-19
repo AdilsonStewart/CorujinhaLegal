@@ -51,7 +51,6 @@ export default function MinhasMensagens() {
           docs = Array.from(map.values());
         };
 
-        // 1) Buscar mensagens onde o telefone_remetente bate
         if (clientTel) {
           try {
             const q = query(
@@ -71,7 +70,6 @@ export default function MinhasMensagens() {
           }
         }
 
-        // 2) Buscar mensagens onde o telefone destinatário bate
         if (docs.length === 0 && clientTel) {
           try {
             const q3 = query(
@@ -94,11 +92,9 @@ export default function MinhasMensagens() {
           const ta = a.data_agendamento
             ? new Date(a.data_agendamento + "T00:00:00Z").getTime()
             : new Date(a.criado_em || 0).getTime();
-
           const tb = b.data_agendamento
             ? new Date(b.data_agendamento + "T00:00:00Z").getTime()
             : new Date(b.criado_em || 0).getTime();
-
           return ta - tb;
         });
 
@@ -141,6 +137,18 @@ export default function MinhasMensagens() {
     }
   };
 
+  const textoStatus = (m) => {
+    if (m.status === "cancelled") return "cancelada";
+    if (m.enviado) return "enviada";
+    return "aguardando"; // substitui pendente
+  };
+
+  const textoTipo = (m) => {
+    if (m.tipo === "audio") return "🎙️ áudio";
+    if (m.tipo === "video") return "🎥 vídeo";
+    return "mensagem";
+  };
+
   return (
     <div style={{ padding: 20, maxWidth: 760, margin: "0 auto" }}>
       <h2>📬 Minhas Mensagens</h2>
@@ -155,8 +163,9 @@ export default function MinhasMensagens() {
       {mensagensPendentes.map((m) => (
         <div key={m.id} style={{ border: "1px solid #ccc", padding: 12, marginTop: 8 }}>
           <div><b>Para:</b> {m.destinatario}</div>
+          <div><b>Tipo:</b> {textoTipo(m)}</div>
           <div><b>Data:</b> {formatDateBR(m.data_agendamento)}</div>
-          <div><b>Status:</b> {m.status || "pendente"}</div>
+          <div><b>Status:</b> {textoStatus(m)}</div>
 
           <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
             <button onClick={() => handleCancelar(m)}>Cancelar</button>
@@ -169,11 +178,11 @@ export default function MinhasMensagens() {
 
       {mensagensOutras.length > 0 && (
         <>
-          <h3>Outras</h3>
+          <h3>Outras mensagens</h3>
           {mensagensOutras.map((m) => (
             <div key={m.id} style={{ border: "1px solid #eee", padding: 10, marginTop: 8 }}>
-              <div><b>{m.destinatario}</b></div>
-              <div>{formatDateBR(m.data_agendamento)} — {m.status || (m.enviado ? "enviada" : "pendente")}</div>
+              <div><b>{m.destinatario}</b> — {textoTipo(m)}</div>
+              <div>{formatDateBR(m.data_agendamento)} — {textoStatus(m)}</div>
             </div>
           ))}
         </>
