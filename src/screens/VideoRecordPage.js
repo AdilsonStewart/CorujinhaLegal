@@ -19,23 +19,20 @@ const VideoRecordPage = () => {
   const [videoBlob, setVideoBlob] = useState(null);
   const [tempoRestante, setTempoRestante] = useState(30);
 
-  // remetente
   const [remetenteNome, setRemetenteNome] = useState("");
   const [remetenteTelefone, setRemetenteTelefone] = useState("");
   const [remetenteNascimento, setRemetenteNascimento] = useState("");
 
-  // destinatário
   const [destinatarioNome, setDestinatarioNome] = useState("");
   const [destinatarioTelefone, setDestinatarioTelefone] = useState("");
 
-  // agendamento
   const [dataEntrega, setDataEntrega] = useState("");
   const [horaEntrega, setHoraEntrega] = useState("");
 
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
 
-  // 👇 ADIÇÃO: referência para preview ao vivo
+  // preview ref
   const previewRef = useRef(null);
 
   const startRecording = async () => {
@@ -43,13 +40,17 @@ const VideoRecordPage = () => {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       chunksRef.current = [];
 
-      // 👇 ADIÇÃO: mostrar câmera AO VIVO
+      // mostrar câmera AO VIVO
       if (previewRef.current) {
         previewRef.current.srcObject = stream;
-        previewRef.current.play();
+
+        previewRef.current.onloadedmetadata = () => {
+          previewRef.current.play().catch(() => {});
+        };
       }
 
       const recorder = new MediaRecorder(stream);
+
       recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
 
       recorder.onstop = () => {
@@ -57,7 +58,6 @@ const VideoRecordPage = () => {
         setVideoBlob(blob);
         setVideoURL(URL.createObjectURL(blob));
 
-        // 👇 ADIÇÃO: desligar preview ao parar
         if (previewRef.current) {
           previewRef.current.srcObject?.getTracks().forEach((t) => t.stop());
           previewRef.current.srcObject = null;
@@ -82,7 +82,7 @@ const VideoRecordPage = () => {
         });
       }, 1000);
 
-    } catch {
+    } catch (err) {
       alert("Permita o uso da câmera e microfone.");
     }
   };
@@ -170,12 +170,12 @@ const VideoRecordPage = () => {
     <div style={{ padding: 20, maxWidth: 680, margin: "0 auto" }}>
       <h2>🎥 Gravador de Vídeo - Máx 30s</h2>
 
-      {/* 👇 ADIÇÃO: câmera AO VIVO no topo */}
       {isRecording && (
         <video
           ref={previewRef}
           autoPlay
           muted
+          playsInline
           style={{ width: "100%", marginBottom: 16 }}
         />
       )}
