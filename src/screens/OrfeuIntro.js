@@ -27,7 +27,7 @@ export default function OrfeuIntro() {
 
       <h2>Olá! Eu sou o Orfeu 🦉</h2>
       <p style={{ maxWidth: 400, margin: "0 auto", marginTop: 15 }}>
-        Seu amigo Orfeu vai gravar sua mensagem e entregar para aquela pessoa no dia, mês e hora que você me disser.
+        Seu amigo Orfeu vai gravar sua mensagem e entregar para aquela pessoa no dia, mês e hora que você disser.
       </p>
       <p style={{ maxWidth: 400, margin: "0 auto", marginTop: 10 }}>
         Escolha uma das opções abaixo para começar:
