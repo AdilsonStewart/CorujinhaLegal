@@ -35,10 +35,19 @@ const VideoRecordPage = () => {
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
 
+  // 👇 ADIÇÃO: referência para preview ao vivo
+  const previewRef = useRef(null);
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       chunksRef.current = [];
+
+      // 👇 ADIÇÃO: mostrar câmera AO VIVO
+      if (previewRef.current) {
+        previewRef.current.srcObject = stream;
+        previewRef.current.play();
+      }
 
       const recorder = new MediaRecorder(stream);
       recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
@@ -47,6 +56,13 @@ const VideoRecordPage = () => {
         const blob = new Blob(chunksRef.current, { type: "video/webm" });
         setVideoBlob(blob);
         setVideoURL(URL.createObjectURL(blob));
+
+        // 👇 ADIÇÃO: desligar preview ao parar
+        if (previewRef.current) {
+          previewRef.current.srcObject?.getTracks().forEach((t) => t.stop());
+          previewRef.current.srcObject = null;
+        }
+
         stream.getTracks().forEach((t) => t.stop());
         setTempoRestante(30);
       };
@@ -153,6 +169,16 @@ const VideoRecordPage = () => {
   return (
     <div style={{ padding: 20, maxWidth: 680, margin: "0 auto" }}>
       <h2>🎥 Gravador de Vídeo - Máx 30s</h2>
+
+      {/* 👇 ADIÇÃO: câmera AO VIVO no topo */}
+      {isRecording && (
+        <video
+          ref={previewRef}
+          autoPlay
+          muted
+          style={{ width: "100%", marginBottom: 16 }}
+        />
+      )}
 
       <div style={{
         fontSize: 24,
