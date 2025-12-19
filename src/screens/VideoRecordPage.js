@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 // Firestore
@@ -19,38 +19,50 @@ const VideoRecordPage = () => {
   const [videoBlob, setVideoBlob] = useState(null);
   const [tempoRestante, setTempoRestante] = useState(30);
 
+  // remetente
   const [remetenteNome, setRemetenteNome] = useState("");
   const [remetenteTelefone, setRemetenteTelefone] = useState("");
   const [remetenteNascimento, setRemetenteNascimento] = useState("");
 
+  // destinatário
   const [destinatarioNome, setDestinatarioNome] = useState("");
   const [destinatarioTelefone, setDestinatarioTelefone] = useState("");
 
+  // agendamento
   const [dataEntrega, setDataEntrega] = useState("");
   const [horaEntrega, setHoraEntrega] = useState("");
 
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
 
-  // preview ref
+  // 👇 ADIÇÃO: guardar o stream
+  const [stream, setStream] = useState(null);
+
+  // 👇 ADIÇÃO: ref para o preview
   const previewRef = useRef(null);
+
+  // 👇 ADIÇÃO: aplicando stream ao vídeo APÓS ele existir
+  useEffect(() => {
+    if (previewRef.current && stream) {
+      previewRef.current.srcObject = stream;
+      previewRef.current.onloadedmetadata = () => {
+        previewRef.current.play().catch(() => {});
+      };
+    }
+  }, [stream]);
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+        audio: true
+      });
+
+      setStream(newStream);
+
       chunksRef.current = [];
 
-      // mostrar câmera AO VIVO
-      if (previewRef.current) {
-        previewRef.current.srcObject = stream;
-
-        previewRef.current.onloadedmetadata = () => {
-          previewRef.current.play().catch(() => {});
-        };
-      }
-
-      const recorder = new MediaRecorder(stream);
-
+      const recorder = new MediaRecorder(newStream);
       recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
 
       recorder.onstop = () => {
@@ -58,12 +70,11 @@ const VideoRecordPage = () => {
         setVideoBlob(blob);
         setVideoURL(URL.createObjectURL(blob));
 
-        if (previewRef.current) {
-          previewRef.current.srcObject?.getTracks().forEach((t) => t.stop());
-          previewRef.current.srcObject = null;
+        if (stream) {
+          stream.getTracks().forEach((t) => t.stop());
         }
+        setStream(null);
 
-        stream.getTracks().forEach((t) => t.stop());
         setTempoRestante(30);
       };
 
