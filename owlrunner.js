@@ -24,7 +24,6 @@ const ALLOWED_HOURS = ['08:00','10:00','12:00','14:00','16:00','18:00'];
 const CLICKSEND_USERNAME = process.env.CLICKSEND_USERNAME;
 const CLICKSEND_API_KEY = process.env.CLICKSEND_API_KEY;
 
-// normaliza número → +5511999999999
 function normalizePhone(raw) {
   if (!raw) return null;
   let d = raw.toString().replace(/\D/g, '');
@@ -38,7 +37,8 @@ async function sendSms(to, body) {
   return axios.post(
     'https://rest.clicksend.com/v3/sms/send',
     {
-      messages: [{ source: 'sdk', from: 'CorujinhaLegal', body, to }]
+      messages: [{ source: 'sdk', body, to }]
+      // <-- REMOVIDO remetente personalizado
     },
     {
       auth: { username: CLICKSEND_USERNAME, password: CLICKSEND_API_KEY },
@@ -156,5 +156,4 @@ async function run() {
   }
 }
 
-// executa automaticamente ao chamar `node robo.js`
 run();
