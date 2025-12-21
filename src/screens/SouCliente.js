@@ -36,13 +36,23 @@ function Clientes() {
     setCarregando(true);
 
     try {
-      const q = query(
+      // Primeiro tentar telefone_remetente
+      const q1 = query(
         collection(db, "agendamentos"),
         where("telefone_remetente", "==", telLimpo)
       );
+      const snap1 = await getDocs(q1);
+      let mensagens = snap1.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-      const snap = await getDocs(q);
-      const mensagens = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Se não encontrar nada, tenta telefone
+      if (mensagens.length === 0) {
+        const q2 = query(
+          collection(db, "agendamentos"),
+          where("telefone", "==", telLimpo)
+        );
+        const snap2 = await getDocs(q2);
+        mensagens = snap2.docs.map((d) => ({ id: d.id, ...d.data() }));
+      }
 
       setClienteAchado({
         nome: nome || (mensagens[0]?.remetente ?? "Cliente"),
