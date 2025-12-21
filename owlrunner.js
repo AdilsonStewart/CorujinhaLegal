@@ -1,24 +1,30 @@
-// robo.js
-// Adaptado para Render CRON
-// Mantém toda a lógica original:
+// robo.js – versão ajustada para CorujinhaLegal2
+// Agora usando credencial explícita do Firebase Admin
+// — mantém toda a lógica original —
 // - 3 tentativas
-// - aviso ao remetente após falha
-// - normalizePhone
-// - horários permitidos
+// - horários fixos
 // - ClickSend
-// - Firestore
-// - sem endpoint HTTP
+// - Firestore (coleção 'agendamentos')
 
-const admin = require('firebase-admin');
-const axios = require('axios');
+const admin = require("firebase-admin");
+const axios = require("axios");
 
+// 🔥 CONFIGURAÇÃO EXPLÍCITA DO FIREBASE ADMIN
 if (!admin.apps.length) {
-  admin.initializeApp();
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL
+    })
+  });
 }
 
-const TIMEZONE = 'America/Sao_Paulo';
+// 🔥 RESTO DO CÓDIGO PERMANECE IGUAL ↓↓↓
+
+const TIMEZONE = "America/Sao_Paulo";
 const MAX_TENTATIVAS = 3;
-const ALLOWED_HOURS = ['08:00','10:00','12:00','14:00','16:00','18:00'];
+const ALLOWED_HOURS = ["08:00","10:00","12:00","14:00","16:00","18:00"];
 
 // ClickSend credentials
 const CLICKSEND_USERNAME = process.env.CLICKSEND_USERNAME;
@@ -26,20 +32,17 @@ const CLICKSEND_API_KEY = process.env.CLICKSEND_API_KEY;
 
 function normalizePhone(raw) {
   if (!raw) return null;
-  let d = raw.toString().replace(/\D/g, '');
-  if (d.startsWith('55') && d.length === 13) return `+${d}`;
+  let d = raw.toString().replace(/\D/g, "");
+  if (d.startsWith("55") && d.length === 13) return `+${d}`;
   if (d.length === 11) return `+55${d}`;
-  if (raw.startsWith('+55')) return raw;
+  if (raw.startsWith("+55")) return raw;
   return `+${d}`;
 }
 
 async function sendSms(to, body) {
   return axios.post(
-    'https://rest.clicksend.com/v3/sms/send',
-    {
-      messages: [{ source: 'sdk', body, to }]
-      // <-- REMOVIDO remetente personalizado
-    },
+    "https://rest.clicksend.com/v3/sms/send",
+    { messages: [{ source: "sdk", body, to }] },
     {
       auth: { username: CLICKSEND_USERNAME, password: CLICKSEND_API_KEY },
       timeout: 15000
@@ -48,7 +51,7 @@ async function sendSms(to, body) {
 }
 
 function nowSP() {
-  return new Date().toLocaleString('en-US', { timeZone: TIMEZONE });
+  return new Date().toLocaleString("en-US", { timeZone: TIMEZONE });
 }
 
 function getTodaySP() {
@@ -63,7 +66,7 @@ function getHourSP() {
 
 async function run() {
   if (!CLICKSEND_USERNAME || !CLICKSEND_API_KEY) {
-    console.error('ClickSend secrets missing');
+    console.error("ClickSend secrets missing");
     return;
   }
 
@@ -78,15 +81,15 @@ async function run() {
   const db = admin.firestore();
 
   try {
-    const snap = await db.collection('agendamentos')
-      .where('data_agendamento', '==', today)
-      .where('hora_agendamento', '==', currentHour)
-      .where('enviado', '==', false)
+    const snap = await db.collection("agendamentos")
+      .where("data_agendamento", "==", today)
+      .where("hora_agendamento", "==", currentHour)
+      .where("enviado", "==", false)
       .limit(50)
       .get();
 
     if (snap.empty) {
-      console.log('No pending messages');
+      console.log("No pending messages");
       return;
     }
 
@@ -95,22 +98,25 @@ async function run() {
       const d = doc.data();
 
       const tent = d.tentativas_total || 0;
-      const destName = d.destinatario || 'Amigo';
-      const senderName = d.remetente || 'Alguém';
+      const destName = d.destinatario || "Amigo";
+      const senderName = d.remetente || "Alguém";
       const telDest = normalizePhone(d.telefone);
       const telRem = normalizePhone(d.telefone_remetente);
-      const url = d.link_midia || '';
+      const url = d.link_midia || "";
 
       if (!telDest) {
         await ref.update({
           tentativas_total: tent + 1,
-          ultimo_erro: 'telefone invalido'
+          ultimo_erro: "telefone invalido"
         });
         console.log(`Telefone inválido para ${doc.id}`);
         continue;
       }
 
-      const body = `Olá ${destName},\nvocê recebeu uma mensagem de ${senderName}.\nClique no link: ${url}`;
+      const body =
+        `Olá ${destName},\n` +
+        `você recebeu uma mensagem de ${senderName}.\n` +
+        `Clique no link: ${url}`;
 
       try {
         await sendSms(telDest, body);
@@ -137,7 +143,8 @@ async function run() {
             try {
               await sendSms(
                 telRem,
-                `Olá ${senderName},\nnão conseguimos entregar sua mensagem após ${MAX_TENTATIVAS} tentativas.`
+                `Olá ${senderName},\n` +
+                `não conseguimos entregar sua mensagem após ${MAX_TENTATIVAS} tentativas.`
               );
             } catch (_) {}
           }
@@ -152,7 +159,7 @@ async function run() {
     }
 
   } catch (e) {
-    console.error('Runner error:', e);
+    console.error("Runner error:", e);
   }
 }
 
