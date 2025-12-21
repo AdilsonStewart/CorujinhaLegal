@@ -80,13 +80,16 @@ export default function MinhasMensagens() {
             const snap3 = await getDocs(q3);
             pushDocs(snap3.docs.map(d => ({ id: d.id, ...d.data() })));
           } catch {
-            const q4 = query(collection(db, "agendamentos"), where("telefone", "==", clientTel));
+            const q4 = query(
+              collection(db, "agendamentos"),
+              where("telefone", "==", clientTel)
+            );
             const snap4 = await getDocs(q4);
             pushDocs(snap4.docs.map(d => ({ id: d.id, ...d.data() })));
           }
         }
 
-        const items = docs.map(d => ({ id: d.id, ...d }));
+        const items = docs.map(d => ({ id: d.id, ...d })); // docs já contém { id, ...d.data() }
 
         items.sort((a, b) => {
           const ta = a.data_agendamento
@@ -140,7 +143,7 @@ export default function MinhasMensagens() {
   const textoStatus = (m) => {
     if (m.status === "cancelled") return "cancelada";
     if (m.enviado) return "enviada";
-    return "aguardando"; // substitui pendente
+    return "aguardando";
   };
 
   const textoTipo = (m) => {
