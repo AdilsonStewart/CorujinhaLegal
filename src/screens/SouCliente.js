@@ -36,14 +36,13 @@ function Clientes() {
     setCarregando(true);
 
     try {
-      // 🔍 Procura mensagens no Firestore
       const q = query(
         collection(db, "agendamentos"),
         where("telefone_remetente", "==", telLimpo)
       );
 
       const snap = await getDocs(q);
-      const mensagens = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const mensagens = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
       setClienteAchado({
         nome: nome || (mensagens[0]?.remetente ?? "Cliente"),
@@ -51,7 +50,6 @@ function Clientes() {
         quantidade: mensagens.length
       });
 
-      // 🔐 Salva para /minhas-mensagens
       localStorage.setItem("clienteNome", nome);
       localStorage.setItem("clienteTelefone", telLimpo);
 
@@ -95,7 +93,11 @@ function Clientes() {
         <div style={{ marginTop: 20 }}>
           <p>
             Ok — encontramos <b>{clienteAchado.nome}</b>.<br />
-            Você tem <b>{clienteAchado.quantidade}</b> mensagem(ns).
+            Você tem{" "}
+            <b>
+              {clienteAchado.quantidade}{" "}
+              {clienteAchado.quantidade === 1 ? "mensagem" : "mensagens"}
+            </b>.
           </p>
 
           <button
