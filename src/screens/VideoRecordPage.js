@@ -2,8 +2,9 @@ import React, { useState, useRef, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { db } from "../firebase";
 import { collection, addDoc } from "firebase/firestore";
-import { Link } from "react-router-dom"; // added for Terms link
+import { Link } from "react-router-dom"; // Terms link
 
+// Supabase Config
 const supabase = createClient(
   "https://kuwsgvhjmjnhkteleczc.supabase.co",
   "sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P"
@@ -16,7 +17,7 @@ const VideoRecordPage = () => {
   const [videoURL, setVideoURL] = useState(null);
   const [videoBlob, setVideoBlob] = useState(null);
   const [tempoRestante, setTempoRestante] = useState(30);
-  const [aceitoTermos, setAceitoTermos] = useState(false); // NEW
+  const [aceitoTermos, setAceitoTermos] = useState(false);
 
   const [remetenteNome, setRemetenteNome] = useState("");
   const [remetenteTelefone, setRemetenteTelefone] = useState("");
@@ -76,7 +77,7 @@ const VideoRecordPage = () => {
           return prev - 1;
         });
       }, 1000);
-    } catch (err) {
+    } catch {
       alert("Permita o uso da câmera e microfone.");
     }
   };
@@ -89,7 +90,7 @@ const VideoRecordPage = () => {
   };
 
   const enviarDados = async () => {
-    if (!aceitoTermos) return alert("Você deve aceitar os Termos para continuar."); // NEW VALIDATION
+    if (!aceitoTermos) return alert("Você deve aceitar os Termos para continuar.");
     if (!videoBlob) return alert("Grave o vídeo antes de enviar.");
     if (!destinatarioNome || !destinatarioTelefone || !horaEntrega)
       return alert("Preencha destinatário, telefone e horário.");
@@ -98,7 +99,6 @@ const VideoRecordPage = () => {
 
     const agora = new Date();
     const dataHorario = new Date(`${dataEntrega}T${horaEntrega}`);
-
     if (dataHorario < agora) return alert("⛔ Não é possível agendar no passado.");
 
     const limite = new Date();
