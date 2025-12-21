@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 // Firestore
 import { db } from "../firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, doc, getDoc } from "firebase/firestore";
 import { Link } from "react-router-dom";
 
 // Supabase Config
@@ -46,9 +46,27 @@ const AudioRecordPage = () => {
     if (!lastDocId) return alert("Nenhum agendamento disponível para envio imediato.");
 
     try {
-      const phone = "+55" + sanitizePhone(destinatarioTelefone);
-      const bodySMS = `Olá ${destinatarioNome}, você recebeu uma mensagem de ${remetenteNome}.`;
+      // 1️⃣ Busca o documento do Firestore
+      const ref = doc(db, "agendamentos", lastDocId);
+      const snap = await getDoc(ref);
 
+      if (!snap.exists()) {
+        return alert("Erro: não encontrei o agendamento.");
+      }
+
+      const data = snap.data();
+      const link = data.link_midia;
+      const dest = data.telefone_destinatario;
+      const remet = data.remetente;
+      const destNome = data.destinatario;
+
+      // 2️⃣ Sanitiza telefone
+      const phone = "+55" + sanitizePhone(dest);
+
+      // 3️⃣ Mensagem com o link real
+      const bodySMS = `Olá ${destNome}, você recebeu uma mensagem de ${remet}. Ouça aqui: ${link}`;
+
+      // 4️⃣ Envio via ClickSend
       const res = await fetch("https://rest.clicksend.com/v3/sms/send", {
         method: "POST",
         headers: {
@@ -80,7 +98,6 @@ const AudioRecordPage = () => {
       alert("Erro ao enviar. Veja o console.");
     }
   };
-
 
   const startRecording = async () => {
     try {
@@ -178,13 +195,10 @@ const AudioRecordPage = () => {
 
       const ref = await addDoc(collection(db, "agendamentos"), payload);
 
-      setLastDocId(ref.id); // <<< PARA O BOTÃO FUNCIONAR
+      setLastDocId(ref.id); // PARA O BOTÃO FUNCIONAR
 
       alert("🎉 Áudio agendado com sucesso!");
       console.log("Permaneça na tela para testar o botão de envio imediato.");
-
-      // 🚫 redirect desativado temporariamente
-      // window.location.href = "/saida";
 
     } catch (err) {
       console.error(err);
