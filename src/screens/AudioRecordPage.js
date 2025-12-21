@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 // Firestore
 import { db } from "../firebase";
-import { collection, addDoc, doc, getDoc } from "firebase/firestore";
+import { collection, addDoc } from "firebase/firestore";
 import { Link } from "react-router-dom";
 
 // Supabase Config
@@ -37,67 +37,6 @@ const AudioRecordPage = () => {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const tempoIntervalRef = useRef(null);
-
-  // estado do botão de envio imediato
-  const [lastDocId, setLastDocId] = useState(null);
-
-  // botão de envio imediato (TESTE CLICK SEND)
-  const enviarAgoraTest = async () => {
-    if (!lastDocId) return alert("Nenhum agendamento disponível para envio imediato.");
-
-    try {
-      // 1️⃣ Busca o documento do Firestore
-      const ref = doc(db, "agendamentos", lastDocId);
-      const snap = await getDoc(ref);
-
-      if (!snap.exists()) {
-        return alert("Erro: não encontrei o agendamento.");
-      }
-
-      const data = snap.data();
-      const link = data.link_midia;
-      const dest = data.telefone_destinatario;
-      const remet = data.remetente;
-      const destNome = data.destinatario;
-
-      // 2️⃣ Sanitiza telefone
-      const phone = "+55" + sanitizePhone(dest);
-
-      // 3️⃣ Mensagem com o link real
-      const bodySMS = `Olá ${destNome}, você recebeu uma mensagem de ${remet}. Ouça aqui: ${link}`;
-
-      // 4️⃣ Envio via ClickSend
-      const res = await fetch("https://rest.clicksend.com/v3/sms/send", {
-        method: "POST",
-        headers: {
-          "Authorization": "Basic " + btoa(
-            process.env.REACT_APP_CLICKSEND_USERNAME + ":" + process.env.REACT_APP_CLICKSEND_API_KEY
-          ),
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          messages: [{
-            source: "sdk",
-            body: bodySMS,
-            to: phone
-          }]
-        })
-      });
-
-      const resultado = await res.json();
-      console.log("CLICK SEND RESULTADO:", resultado);
-
-      if (resultado.response_code === "SUCCESS") {
-        alert("SMS enviado com sucesso!");
-      } else {
-        alert("Erro ao enviar SMS. Veja o console.");
-      }
-
-    } catch (err) {
-      console.error("ERRO CLICK SEND:", err);
-      alert("Erro ao enviar. Veja o console.");
-    }
-  };
 
   const startRecording = async () => {
     try {
@@ -193,12 +132,10 @@ const AudioRecordPage = () => {
         remetente_nascimento: remetenteNascimento,
       };
 
-      const ref = await addDoc(collection(db, "agendamentos"), payload);
-
-      setLastDocId(ref.id); // PARA O BOTÃO FUNCIONAR
+      await addDoc(collection(db, "agendamentos"), payload);
 
       alert("🎉 Áudio agendado com sucesso!");
-      console.log("Permaneça na tela para testar o botão de envio imediato.");
+      console.log("Agendado com sucesso!");
 
     } catch (err) {
       console.error(err);
@@ -276,15 +213,6 @@ const AudioRecordPage = () => {
       >
         🚀 Enviar Áudio Agendado
       </button>
-
-      {lastDocId && (
-        <button
-          onClick={enviarAgoraTest}
-          style={{ marginTop: 12, width: "100%", padding: 16, background: "red", color: "white", borderRadius: 12 }}
-        >
-          🚨 ENVIAR AGORA (TESTE)
-        </button>
-      )}
     </div>
   );
 };
