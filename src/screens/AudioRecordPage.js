@@ -1,11 +1,10 @@
-// UPDATED WITH TERMS BUTTON + CHECKBOX (ONLY ADDITIONS, NOTHING ELSE ALTERED)
 import React, { useState, useRef, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 // Firestore
 import { db } from "../firebase";
 import { collection, addDoc } from "firebase/firestore";
-import { Link } from "react-router-dom"; // added for Terms link
+import { Link } from "react-router-dom";
 
 // Supabase Config
 const supabase = createClient(
@@ -13,7 +12,6 @@ const supabase = createClient(
   "sb_publishable_Rgq_kYySn7XB-zPyDG1_Iw_YEVt8O2P"
 );
 
-// util
 const sanitizePhone = (s = "") => (s || "").toString().replace(/\D/g, "");
 
 const AudioRecordPage = () => {
@@ -21,23 +19,20 @@ const AudioRecordPage = () => {
   const [audioURL, setAudioURL] = useState(null);
   const [audioBlob, setAudioBlob] = useState(null);
 
-  // remetente
   const [remetenteNome, setRemetenteNome] = useState("");
   const [remetenteTelefone, setRemetenteTelefone] = useState("");
   const [remetenteNascimento, setRemetenteNascimento] = useState("");
 
-  // destinatário
   const [destinatarioNome, setDestinatarioNome] = useState("");
   const [destinatarioTelefone, setDestinatarioTelefone] = useState("");
 
-  // agendamento
   const [dataEntrega, setDataEntrega] = useState("");
   const [horaEntrega, setHoraEntrega] = useState("");
 
   const [isUploading, setIsUploading] = useState(false);
   const [tempoRestante, setTempoRestante] = useState(30);
 
-  const [aceitoTermos, setAceitoTermos] = useState(false); // NEW
+  const [aceitoTermos, setAceitoTermos] = useState(false);
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -86,7 +81,7 @@ const AudioRecordPage = () => {
   };
 
   const enviarDados = async () => {
-    if (!aceitoTermos) return alert("Você deve aceitar os Termos para continuar."); // NEW VALIDATION
+    if (!aceitoTermos) return alert("Você deve aceitar os Termos para continuar.");
     if (!audioBlob) return alert("Grave o áudio antes de enviar.");
     if (!destinatarioNome || !destinatarioTelefone || !horaEntrega)
       return alert("Preencha destinatário, telefone e horário.");
@@ -108,6 +103,7 @@ const AudioRecordPage = () => {
 
     try {
       const nomeArquivo = `audio_${Date.now()}_${Math.random().toString(36).slice(2)}.webm`;
+
       const { error: uploadError } = await supabase.storage
         .from("Midias")
         .upload(nomeArquivo, audioBlob, { contentType: "audio/webm" });
@@ -130,7 +126,7 @@ const AudioRecordPage = () => {
         hora_agendamento: horaEntrega,
         enviado: false,
         destinatario: destinatarioNome,
-        telefone: telefoneDest,
+        telefone_destinatario: telefoneDest, // <-- AJUSTE AQUI
         remetente: remetenteNome,
         telefone_remetente: telefoneRem,
         remetente_nascimento: remetenteNascimento,
@@ -143,10 +139,10 @@ const AudioRecordPage = () => {
         JSON.stringify({
           nome: destinatarioNome,
           telefone: telefoneDest,
-          dataEntrega: dataEntrega,
+          dataEntrega,
           horario: horaEntrega,
           tipo: "audio",
-          orderID: orderID
+          orderID
         })
       );
 
@@ -219,7 +215,6 @@ const AudioRecordPage = () => {
         </select>
       </div>
 
-      {/* NEW TERMS SECTION (DISCREET) */}
       <div style={{ marginTop: 16, fontSize: 14 }}>
         <input type="checkbox" checked={aceitoTermos} onChange={(e) => setAceitoTermos(e.target.checked)} /> Eu li e aceito os <Link to="/termos">Termos de Uso</Link>
       </div>
