@@ -135,7 +135,9 @@ const AudioRecordPage = () => {
       await addDoc(collection(db, "agendamentos"), payload);
 
       alert("🎉 Áudio agendado com sucesso!");
-      console.log("Agendado com sucesso!");
+
+      // 👉 restauração do redirecionamento
+      window.location.href = "/saida";
 
     } catch (err) {
       console.error(err);
