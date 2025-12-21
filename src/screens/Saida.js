@@ -33,14 +33,35 @@ const Saida = () => {
 
         <div className="saida-info">
           <h3>Resumo do Agendamento:</h3>
-          <div className="info-item"><strong>Status:</strong> <span className="status-confirmado">Confirmado</span></div>
-          <div className="info-item"><strong>Nome do destinatário:</strong> {dados.nome || 'Não informado'}</div>
-          <div className="info-item"><strong>Data da entrega:</strong> {formatDate(dados.dataEntrega)}</div>
-          <div className="info-item"><strong>Horário preferencial:</strong> {dados.horario || dados.horaEntrega || 'Não informado'}</div>
-          <div className="info-item"><strong>Entrega:</strong> Link Via SMS</div>
-          <div className="info-item"><strong>Tipo:</strong> {dados.tipo === 'audio' ? 'Mensagem de Áudio' : 'Mensagem de Vídeo'}</div>
+          <div className="info-item">
+            <strong>Status:</strong> 
+            <span className="status-confirmado">Confirmado</span>
+          </div>
+
+          <div className="info-item">
+            <strong>Nome do destinatário:</strong> {dados.nome || 'Não informado'}
+          </div>
+
+          <div className="info-item">
+            <strong>Data da entrega:</strong> {formatDate(dados.dataEntrega)}
+          </div>
+
+          <div className="info-item">
+            <strong>Horário preferencial:</strong> {dados.horaEntrega || 'Não informado'}
+          </div>
+
+          <div className="info-item">
+            <strong>Entrega:</strong> Link Via SMS
+          </div>
+
+          <div className="info-item">
+            <strong>Tipo:</strong> {dados.tipo === 'audio' ? 'Mensagem de Áudio' : 'Mensagem de Vídeo'}
+          </div>
+
           {dados.orderID && (
-            <div className="info-item"><strong>ID do agendamento:</strong> {dados.orderID}</div>
+            <div className="info-item">
+              <strong>ID do agendamento:</strong> {dados.orderID}
+            </div>
           )}
         </div>
 
@@ -48,23 +69,27 @@ const Saida = () => {
           <button className="btn-nova-mensagem" onClick={() => navigate('/servicos')}>
             Enviar Nova Mensagem
           </button>
-          <button className="btn-sair" onClick={() => { 
-            // Limpa só o agendamento, mantém clienteId se existir
-            localStorage.removeItem('lastAgendamento'); 
-            navigate('/'); 
-          }}>
+          <button
+            className="btn-sair"
+            onClick={() => {
+              // Limpa só o agendamento, mantém clienteId se existir
+              localStorage.removeItem('lastAgendamento');
+              navigate('/');
+            }}
+          >
             Sair do App
           </button>
         </div>
 
         <div className="saida-footer">
           <p>Obrigado por usar nosso serviço! A corujinha agradece! 🦉</p>
-          <p className="small-text">Um SMS será enviado para {dados.telefone || 'o destinatário'} na data e hora agendadas.</p>
+          <p className="small-text">
+            Um SMS será enviado para {dados.telefone || 'o destinatário'} na data e hora agendadas.
+          </p>
         </div>
       </div>
     </div>
   );
 };
-
 
 export default Saida;
