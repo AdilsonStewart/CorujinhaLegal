@@ -136,6 +136,19 @@ const AudioRecordPage = () => {
 
       alert("🎉 Áudio agendado com sucesso!");
 
+      // ⭐⭐⭐ ADICIONADO — salvando no localStorage para a página saída ⭐⭐⭐
+      localStorage.setItem(
+        "lastAgendamento",
+        JSON.stringify({
+          nome: destinatarioNome,
+          dataEntrega,
+          horaEntrega,
+          tipo: "audio",
+          orderID,
+          telefone: destinatarioTelefone,
+        })
+      );
+
       // 👉 restauração do redirecionamento
       window.location.href = "/saida";
 
