@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 // Firestore
 import { db } from "../firebase";
 import { collection, addDoc } from "firebase/firestore";
-import { Link } from "react-router-dom"; // <-- ADICIONADO
+import { Link } from "react-router-dom";
 
 // Supabase Config
 const supabase = createClient(
@@ -30,7 +30,7 @@ const VideoRecordPage = () => {
   const [dataEntrega, setDataEntrega] = useState("");
   const [horaEntrega, setHoraEntrega] = useState("");
 
-  const [aceitoTermos, setAceitoTermos] = useState(false); // <-- ADICIONADO
+  const [aceitoTermos, setAceitoTermos] = useState(false);
 
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
@@ -98,12 +98,10 @@ const VideoRecordPage = () => {
   };
 
   const enviarDados = async () => {
-
     if (!aceitoTermos) return alert("Você deve aceitar os Termos para continuar.");
-
     if (!videoBlob) return alert("Grave o vídeo antes de enviar.");
-    if (!destinatarioNome || !destinatarioTelefone || !horaEntrega)
-      return alert("Preencha destinatário, telefone e horário.");
+    if (!destinatarioNome || !horaEntrega)
+      return alert("Preencha destinatário e horário.");
     if (!remetenteNascimento)
       return alert("Preencha a data de nascimento do remetente.");
 
@@ -143,7 +141,7 @@ const VideoRecordPage = () => {
         hora_agendamento: horaEntrega,
         enviado: false,
         destinatario: destinatarioNome,
-        telefone: telefoneDest,
+        telefone_destinatario: telefoneDest || telefoneRem, // ✔ AJUSTE AQUI
         remetente: remetenteNome,
         telefone_remetente: telefoneRem,
         remetente_nascimento: remetenteNascimento,
@@ -155,7 +153,7 @@ const VideoRecordPage = () => {
         "lastAgendamento",
         JSON.stringify({
           nome: destinatarioNome,
-          telefone: telefoneDest,
+          telefone: telefoneDest || telefoneRem,
           dataEntrega,
           horario: horaEntrega,
           tipo: "video",
@@ -180,16 +178,31 @@ const VideoRecordPage = () => {
         <video ref={previewRef} autoPlay muted playsInline style={{ width: "100%", marginBottom: 16 }} />
       )}
 
-      <div style={{ fontSize: 24, color: "#dc3545", fontWeight: "bold", background: "#ffebee", padding: "15px", borderRadius: 12, marginBottom: 20, textAlign: "center" }}>
+      <div style={{
+        fontSize: 24,
+        color: "#dc3545",
+        fontWeight: "bold",
+        background: "#ffebee",
+        padding: "15px",
+        borderRadius: 12,
+        marginBottom: 20,
+        textAlign: "center"
+      }}>
         ⏱️ Tempo máximo: {tempoRestante}s
       </div>
 
       {!isRecording ? (
-        <button onClick={startRecording} style={{ width: "100%", padding: 18, background: "#007bff", color: "white", borderRadius: 12 }}>
+        <button
+          onClick={startRecording}
+          style={{ width: "100%", padding: 18, background: "#007bff", color: "white", borderRadius: 12 }}
+        >
           🎬 Iniciar Gravação
         </button>
       ) : (
-        <button onClick={stopRecording} style={{ width: "100%", padding: 18, background: "#dc3545", color: "white", borderRadius: 12 }}>
+        <button
+          onClick={stopRecording}
+          style={{ width: "100%", padding: 18, background: "#dc3545", color: "white", borderRadius: 12 }}
+        >
           ⏹️ Parar Gravação
         </button>
       )}
