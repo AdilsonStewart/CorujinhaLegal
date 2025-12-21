@@ -36,28 +36,26 @@ function Clientes() {
     setCarregando(true);
 
     try {
-      // Primeiro tentar telefone_remetente
       const q1 = query(
         collection(db, "agendamentos"),
         where("telefone_remetente", "==", telLimpo)
       );
       const snap1 = await getDocs(q1);
-      let mensagens = snap1.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-      // Se não encontrar nada, tenta telefone
+      let mensagens = snap1.docs;
+
       if (mensagens.length === 0) {
         const q2 = query(
           collection(db, "agendamentos"),
           where("telefone", "==", telLimpo)
         );
         const snap2 = await getDocs(q2);
-        mensagens = snap2.docs.map((d) => ({ id: d.id, ...d.data() }));
+        mensagens = snap2.docs;
       }
 
       setClienteAchado({
-        nome: nome || (mensagens[0]?.remetente ?? "Cliente"),
-        telefone: telLimpo,
-        quantidade: mensagens.length
+        nome: nome || (mensagens[0]?.data()?.remetente ?? "Cliente"),
+        telefone: telLimpo
       });
 
       localStorage.setItem("clienteNome", nome);
@@ -102,12 +100,7 @@ function Clientes() {
       {clienteAchado && (
         <div style={{ marginTop: 20 }}>
           <p>
-            Ok — encontramos <b>{clienteAchado.nome}</b>.<br />
-            Você tem{" "}
-            <b>
-              {clienteAchado.quantidade}{" "}
-              {clienteAchado.quantidade === 1 ? "mensagem" : "mensagens"}
-            </b>.
+            Ok — encontramos <b>{clienteAchado.nome}</b>.
           </p>
 
           <button
@@ -130,4 +123,3 @@ function Clientes() {
 }
 
 export default Clientes;
-
