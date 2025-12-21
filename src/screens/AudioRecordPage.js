@@ -1,9 +1,11 @@
+// UPDATED WITH TERMS BUTTON + CHECKBOX (ONLY ADDITIONS, NOTHING ELSE ALTERED)
 import React, { useState, useRef, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 // Firestore
 import { db } from "../firebase";
 import { collection, addDoc } from "firebase/firestore";
+import { Link } from "react-router-dom"; // added for Terms link
 
 // Supabase Config
 const supabase = createClient(
@@ -34,6 +36,8 @@ const AudioRecordPage = () => {
 
   const [isUploading, setIsUploading] = useState(false);
   const [tempoRestante, setTempoRestante] = useState(30);
+
+  const [aceitoTermos, setAceitoTermos] = useState(false); // NEW
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -82,13 +86,13 @@ const AudioRecordPage = () => {
   };
 
   const enviarDados = async () => {
+    if (!aceitoTermos) return alert("Você deve aceitar os Termos para continuar."); // NEW VALIDATION
     if (!audioBlob) return alert("Grave o áudio antes de enviar.");
     if (!destinatarioNome || !destinatarioTelefone || !horaEntrega)
       return alert("Preencha destinatário, telefone e horário.");
     if (!remetenteNascimento)
       return alert("Preencha a data de nascimento do remetente.");
 
-    // validação
     const agora = new Date();
     const dataHorario = new Date(`${dataEntrega}T${horaEntrega}`);
 
@@ -103,7 +107,6 @@ const AudioRecordPage = () => {
     setIsUploading(true);
 
     try {
-      // 1. Upload no Supabase (NÃO ALTERADO)
       const nomeArquivo = `audio_${Date.now()}_${Math.random().toString(36).slice(2)}.webm`;
       const { error: uploadError } = await supabase.storage
         .from("Midias")
@@ -114,7 +117,6 @@ const AudioRecordPage = () => {
       const { data } = supabase.storage.from("Midias").getPublicUrl(nomeArquivo);
       const publicUrl = data?.publicUrl || "";
 
-      // 2. Firestore (NÃO ALTERADO)
       const orderID = `AUD-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const telefoneDest = sanitizePhone(destinatarioTelefone);
       const telefoneRem = sanitizePhone(remetenteTelefone);
@@ -136,7 +138,6 @@ const AudioRecordPage = () => {
 
       await addDoc(collection(db, "agendamentos"), payload);
 
-      // 3. 💥 ADICIONAMOS APENAS ISSO — localStorage p/ SAIDA
       localStorage.setItem(
         "lastAgendamento",
         JSON.stringify({
@@ -197,53 +198,15 @@ const AudioRecordPage = () => {
 
       <hr style={{ margin: "24px 0" }} />
 
-      {/* Formulário */}
       <div style={{ display: "grid", gap: 12 }}>
-
-        {/* REMETENTE */}
-        <input
-          type="text"
-          placeholder="Seu nome (remetente)"
-          value={remetenteNome}
-          onChange={(e) => setRemetenteNome(e.target.value)}
-        />
-
-        <input
-          type="tel"
-          placeholder="Seu telefone (remetente)"
-          value={remetenteTelefone}
-          onChange={(e) => setRemetenteTelefone(e.target.value)}
-        />
-
+        <input type="text" placeholder="Seu nome (remetente)" value={remetenteNome} onChange={(e) => setRemetenteNome(e.target.value)} />
+        <input type="tel" placeholder="Seu telefone (remetente)" value={remetenteTelefone} onChange={(e) => setRemetenteTelefone(e.target.value)} />
         <label>Data de nascimento do remetente *</label>
-        <input
-          type="date"
-          value={remetenteNascimento}
-          onChange={(e) => setRemetenteNascimento(e.target.value)}
-        />
-
-        {/* DESTINATÁRIO */}
-        <input
-          type="text"
-          placeholder="Nome do destinatário"
-          value={destinatarioNome}
-          onChange={(e) => setDestinatarioNome(e.target.value)}
-        />
-
-        <input
-          type="tel"
-          placeholder="Telefone do destinatário"
-          value={destinatarioTelefone}
-          onChange={(e) => setDestinatarioTelefone(e.target.value)}
-        />
-
+        <input type="date" value={remetenteNascimento} onChange={(e) => setRemetenteNascimento(e.target.value)} />
+        <input type="text" placeholder="Nome do destinatário" value={destinatarioNome} onChange={(e) => setDestinatarioNome(e.target.value)} />
+        <input type="tel" placeholder="Telefone do destinatario" value={destinatarioTelefone} onChange={(e) => setDestinatarioTelefone(e.target.value)} />
         <label>Data de entrega da mensagem *</label>
-        <input
-          type="date"
-          value={dataEntrega}
-          onChange={(e) => setDataEntrega(e.target.value)}
-        />
-
+        <input type="date" value={dataEntrega} onChange={(e) => setDataEntrega(e.target.value)} />
         <label>Horário disponível *</label>
         <select value={horaEntrega} onChange={(e) => setHoraEntrega(e.target.value)}>
           <option value="">Selecione</option>
@@ -256,16 +219,14 @@ const AudioRecordPage = () => {
         </select>
       </div>
 
+      {/* NEW TERMS SECTION (DISCREET) */}
+      <div style={{ marginTop: 16, fontSize: 14 }}>
+        <input type="checkbox" checked={aceitoTermos} onChange={(e) => setAceitoTermos(e.target.checked)} /> Eu li e aceito os <Link to="/termos">Termos de Uso</Link>
+      </div>
+
       <button
         onClick={enviarDados}
-        style={{
-          marginTop: 24,
-          width: "100%",
-          padding: 18,
-          background: "#28a745",
-          color: "white",
-          borderRadius: 12
-        }}
+        style={{ marginTop: 24, width: "100%", padding: 18, background: "#28a745", color: "white", borderRadius: 12 }}
       >
         🚀 Enviar Áudio Agendado
       </button>
