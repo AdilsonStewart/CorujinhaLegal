@@ -259,3 +259,4 @@ const VideoRecordPage = () => {
 };
 
 export default VideoRecordPage;
+
