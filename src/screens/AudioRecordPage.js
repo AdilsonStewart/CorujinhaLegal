@@ -38,9 +38,10 @@ const AudioRecordPage = () => {
   const audioChunksRef = useRef([]);
   const tempoIntervalRef = useRef(null);
 
-  // 🔹 ADIÇÃO PARA TESTE CLICK SEND
+  // estado do botão de envio imediato
   const [lastDocId, setLastDocId] = useState(null);
 
+  // botão de envio imediato (TESTE CLICK SEND)
   const enviarAgoraTest = async () => {
     if (!lastDocId) return alert("Nenhum agendamento disponível para envio imediato.");
 
@@ -65,21 +66,20 @@ const AudioRecordPage = () => {
         })
       });
 
-      const result = await res.json();
-      console.log("CLICK SEND RESULTADO:", result);
+      const resultado = await res.json();
+      console.log("CLICK SEND RESULTADO:", resultado);
 
-      if (result.response_code === "SUCCESS") {
-        alert("SMS enviado com sucesso! ✔");
+      if (resultado.response_code === "SUCCESS") {
+        alert("SMS enviado com sucesso!");
       } else {
         alert("Erro ao enviar SMS. Veja o console.");
       }
+
     } catch (err) {
       console.error("ERRO CLICK SEND:", err);
       alert("Erro ao enviar. Veja o console.");
     }
   };
-
-  // 🔹 FIM DA ADIÇÃO
 
 
   const startRecording = async () => {
@@ -178,22 +178,13 @@ const AudioRecordPage = () => {
 
       const ref = await addDoc(collection(db, "agendamentos"), payload);
 
-      setLastDocId(ref.id); // <<< AQUI
-
-      localStorage.setItem(
-        "lastAgendamento",
-        JSON.stringify({
-          nome: destinatarioNome,
-          telefone: telefoneDest || telefoneRem,
-          dataEntrega,
-          horario: horaEntrega,
-          tipo: "audio",
-          orderID
-        })
-      );
+      setLastDocId(ref.id); // <<< PARA O BOTÃO FUNCIONAR
 
       alert("🎉 Áudio agendado com sucesso!");
-      window.location.href = "/saida";
+      console.log("Permaneça na tela para testar o botão de envio imediato.");
+
+      // 🚫 redirect desativado temporariamente
+      // window.location.href = "/saida";
 
     } catch (err) {
       console.error(err);
