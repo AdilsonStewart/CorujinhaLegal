@@ -1,15 +1,7 @@
 // robo.js – versão ajustada para CorujinhaLegal2
-// Agora usando credencial explícita do Firebase Admin
-// — mantém toda a lógica original —
-// - 3 tentativas
-// - horários fixos
-// - ClickSend
-// - Firestore (coleção 'agendamentos')
-
 const admin = require("firebase-admin");
 const axios = require("axios");
 
-// 🔥 CONFIGURAÇÃO EXPLÍCITA DO FIREBASE ADMIN
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
@@ -20,13 +12,10 @@ if (!admin.apps.length) {
   });
 }
 
-// 🔥 RESTO DO CÓDIGO PERMANECE IGUAL ↓↓↓
-
 const TIMEZONE = "America/Sao_Paulo";
 const MAX_TENTATIVAS = 3;
 const ALLOWED_HOURS = ["08:00","10:00","12:00","14:00","16:00","18:00"];
 
-// ClickSend credentials
 const CLICKSEND_USERNAME = process.env.CLICKSEND_USERNAME;
 const CLICKSEND_API_KEY = process.env.CLICKSEND_API_KEY;
 
@@ -98,9 +87,13 @@ async function run() {
       const d = doc.data();
 
       const tent = d.tentativas_total || 0;
+
       const destName = d.destinatario || "Amigo";
       const senderName = d.remetente || "Alguém";
-      const telDest = normalizePhone(d.telefone);
+
+      // ← ← ← AQUI O AJUSTE IMPORTANTE
+      const telDest = normalizePhone(d.telefone_destinatario || d.telefone);
+
       const telRem = normalizePhone(d.telefone_remetente);
       const url = d.link_midia || "";
 
@@ -129,6 +122,7 @@ async function run() {
         });
 
         console.log(`Sucesso: ${doc.id}`);
+
       } catch (err) {
         const novoTotal = tent + 1;
 
@@ -154,6 +148,7 @@ async function run() {
         }
 
         await ref.update(update);
+
         console.log(`Falha ${novoTotal}/${MAX_TENTATIVAS}: ${doc.id}`);
       }
     }
