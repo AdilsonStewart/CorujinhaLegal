@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
+
 // Firestore
 import { db } from "../firebase";
 import { collection, addDoc } from "firebase/firestore";
@@ -19,16 +20,13 @@ const VideoRecordPage = () => {
   const [videoBlob, setVideoBlob] = useState(null);
   const [tempoRestante, setTempoRestante] = useState(30);
 
-  // remetente
   const [remetenteNome, setRemetenteNome] = useState("");
   const [remetenteTelefone, setRemetenteTelefone] = useState("");
   const [remetenteNascimento, setRemetenteNascimento] = useState("");
 
-  // destinatário
   const [destinatarioNome, setDestinatarioNome] = useState("");
   const [destinatarioTelefone, setDestinatarioTelefone] = useState("");
 
-  // agendamento
   const [dataEntrega, setDataEntrega] = useState("");
   const [horaEntrega, setHoraEntrega] = useState("");
 
@@ -36,7 +34,6 @@ const VideoRecordPage = () => {
 
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
-
   const [stream, setStream] = useState(null);
   const previewRef = useRef(null);
 
@@ -102,7 +99,6 @@ const VideoRecordPage = () => {
 
   const enviarDados = async () => {
 
-    // <-- ADICIONADO
     if (!aceitoTermos) return alert("Você deve aceitar os Termos para continuar.");
 
     if (!videoBlob) return alert("Grave o vídeo antes de enviar.");
@@ -112,7 +108,7 @@ const VideoRecordPage = () => {
       return alert("Preencha a data de nascimento do remetente.");
 
     const agora = new Date();
-    const dataHorario = new Date(${dataEntrega}T${horaEntrega});
+    const dataHorario = new Date(`${dataEntrega}T${horaEntrega}`);
 
     if (dataHorario < agora)
       return alert("⛔ Não é possível agendar no passado.");
@@ -123,7 +119,7 @@ const VideoRecordPage = () => {
       return alert("⛔ Agendamento máximo de 365 dias.");
 
     try {
-      const nomeArquivo = video_${Date.now()}_${Math.random().toString(36).slice(2)}.webm;
+      const nomeArquivo = `video_${Date.now()}_${Math.random().toString(36).slice(2)}.webm`;
 
       const { error: uploadError } = await supabase.storage
         .from("Midias")
@@ -134,7 +130,7 @@ const VideoRecordPage = () => {
       const { data } = supabase.storage.from("Midias").getPublicUrl(nomeArquivo);
       const publicUrl = data?.publicUrl || "";
 
-      const orderID = VID-${Date.now()}-${Math.random().toString(36).slice(2, 8)};
+      const orderID = `VID-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const telefoneDest = sanitizePhone(destinatarioTelefone);
       const telefoneRem = sanitizePhone(remetenteTelefone);
 
@@ -157,7 +153,14 @@ const VideoRecordPage = () => {
 
       localStorage.setItem(
         "lastAgendamento",
-        JSON.stringify({ nome: destinatarioNome, telefone: telefoneDest, dataEntrega, horario: horaEntrega, tipo: "video", orderID })
+        JSON.stringify({
+          nome: destinatarioNome,
+          telefone: telefoneDest,
+          dataEntrega,
+          horario: horaEntrega,
+          tipo: "video",
+          orderID
+        })
       );
 
       alert("🎉 Vídeo agendado com sucesso!");
@@ -216,9 +219,13 @@ const VideoRecordPage = () => {
         </select>
       </div>
 
-      {/* <-- SOMENTE ISSO ADICIONADO */}
       <div style={{ marginTop: 16, fontSize: 14 }}>
-        <input type="checkbox" checked={aceitoTermos} onChange={(e) => setAceitoTermos(e.target.checked)} /> Eu li e aceito os <Link to="/termos">Termos de Uso</Link>
+        <input
+          type="checkbox"
+          checked={aceitoTermos}
+          onChange={(e) => setAceitoTermos(e.target.checked)}
+        />{" "}
+        Eu li e aceito os <Link to="/termos">Termos de Uso</Link>
       </div>
 
       <button
