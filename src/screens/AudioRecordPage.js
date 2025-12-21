@@ -83,8 +83,8 @@ const AudioRecordPage = () => {
   const enviarDados = async () => {
     if (!aceitoTermos) return alert("Você deve aceitar os Termos para continuar.");
     if (!audioBlob) return alert("Grave o áudio antes de enviar.");
-    if (!destinatarioNome || !destinatarioTelefone || !horaEntrega)
-      return alert("Preencha destinatário, telefone e horário.");
+    if (!destinatarioNome || !horaEntrega)
+      return alert("Preencha destinatário e horário.");
     if (!remetenteNascimento)
       return alert("Preencha a data de nascimento do remetente.");
 
@@ -126,7 +126,7 @@ const AudioRecordPage = () => {
         hora_agendamento: horaEntrega,
         enviado: false,
         destinatario: destinatarioNome,
-        telefone_destinatario: telefoneDest, // <-- AJUSTE AQUI
+        telefone_destinatario: telefoneDest || telefoneRem, // <<<<<< AQUI É A ALTERAÇÃO CORRETA
         remetente: remetenteNome,
         telefone_remetente: telefoneRem,
         remetente_nascimento: remetenteNascimento,
@@ -138,7 +138,7 @@ const AudioRecordPage = () => {
         "lastAgendamento",
         JSON.stringify({
           nome: destinatarioNome,
-          telefone: telefoneDest,
+          telefone: telefoneDest || telefoneRem,
           dataEntrega,
           horario: horaEntrega,
           tipo: "audio",
