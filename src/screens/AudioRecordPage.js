@@ -38,6 +38,50 @@ const AudioRecordPage = () => {
   const audioChunksRef = useRef([]);
   const tempoIntervalRef = useRef(null);
 
+  // 🔹 ADIÇÃO PARA TESTE CLICK SEND
+  const [lastDocId, setLastDocId] = useState(null);
+
+  const enviarAgoraTest = async () => {
+    if (!lastDocId) return alert("Nenhum agendamento disponível para envio imediato.");
+
+    try {
+      const phone = "+55" + sanitizePhone(destinatarioTelefone);
+      const bodySMS = `Olá ${destinatarioNome}, você recebeu uma mensagem de ${remetenteNome}.`;
+
+      const res = await fetch("https://rest.clicksend.com/v3/sms/send", {
+        method: "POST",
+        headers: {
+          "Authorization": "Basic " + btoa(
+            process.env.REACT_APP_CLICKSEND_USERNAME + ":" + process.env.REACT_APP_CLICKSEND_API_KEY
+          ),
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          messages: [{
+            source: "sdk",
+            body: bodySMS,
+            to: phone
+          }]
+        })
+      });
+
+      const result = await res.json();
+      console.log("CLICK SEND RESULTADO:", result);
+
+      if (result.response_code === "SUCCESS") {
+        alert("SMS enviado com sucesso! ✔");
+      } else {
+        alert("Erro ao enviar SMS. Veja o console.");
+      }
+    } catch (err) {
+      console.error("ERRO CLICK SEND:", err);
+      alert("Erro ao enviar. Veja o console.");
+    }
+  };
+
+  // 🔹 FIM DA ADIÇÃO
+
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -83,8 +127,8 @@ const AudioRecordPage = () => {
   const enviarDados = async () => {
     if (!aceitoTermos) return alert("Você deve aceitar os Termos para continuar.");
     if (!audioBlob) return alert("Grave o áudio antes de enviar.");
-    if (!destinatarioNome || !horaEntrega)
-      return alert("Preencha destinatário e horário.");
+    if (!destinatarioNome || !destinatarioTelefone || !horaEntrega)
+      return alert("Preencha destinatário, telefone e horário.");
     if (!remetenteNascimento)
       return alert("Preencha a data de nascimento do remetente.");
 
@@ -126,13 +170,15 @@ const AudioRecordPage = () => {
         hora_agendamento: horaEntrega,
         enviado: false,
         destinatario: destinatarioNome,
-        telefone_destinatario: telefoneDest || telefoneRem, // <<<<<< AQUI É A ALTERAÇÃO CORRETA
+        telefone_destinatario: telefoneDest || telefoneRem,
         remetente: remetenteNome,
         telefone_remetente: telefoneRem,
         remetente_nascimento: remetenteNascimento,
       };
 
-      await addDoc(collection(db, "agendamentos"), payload);
+      const ref = await addDoc(collection(db, "agendamentos"), payload);
+
+      setLastDocId(ref.id); // <<< AQUI
 
       localStorage.setItem(
         "lastAgendamento",
@@ -225,6 +271,15 @@ const AudioRecordPage = () => {
       >
         🚀 Enviar Áudio Agendado
       </button>
+
+      {lastDocId && (
+        <button
+          onClick={enviarAgoraTest}
+          style={{ marginTop: 12, width: "100%", padding: 16, background: "red", color: "white", borderRadius: 12 }}
+        >
+          🚨 ENVIAR AGORA (TESTE)
+        </button>
+      )}
     </div>
   );
 };
