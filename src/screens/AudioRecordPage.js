@@ -22,18 +22,23 @@ const AudioRecordPage = () => {
   const [remetenteNome, setRemetenteNome] = useState("");
   const [remetenteTelefone, setRemetenteTelefone] = useState("");
 
+  // ⭐ senha e modo
   const [senha, setSenha] = useState("");
-  const [modoSenha, setModoSenha] = useState("novo"); // "novo" ou "existente"
+  const [modoSenha, setModoSenha] = useState("novo");
 
   const [remetenteNascimento, setRemetenteNascimento] = useState("");
 
   const [destinatarioNome, setDestinatarioNome] = useState("");
   const [destinatarioTelefone, setDestinatarioTelefone] = useState("");
+
   const [dataEntrega, setDataEntrega] = useState("");
   const [horaEntrega, setHoraEntrega] = useState("");
 
   const [isUploading, setIsUploading] = useState(false);
   const [tempoRestante, setTempoRestante] = useState(30);
+
+  // ⭐ RESTAURADO: termos
+  const [aceitoTermos, setAceitoTermos] = useState(false);
 
   const mediaRecorderRef = useRef(null);
   const tempoIntervalRef = useRef(null);
@@ -97,7 +102,7 @@ const AudioRecordPage = () => {
       return;
     }
 
-    // 3️⃣ valida telefone/senha ANTES de qualquer outra coisa
+    // 3️⃣ Validar senha/telefone primeiro
     if (modoSenha === "existente") {
       try {
         const q = query(
@@ -107,7 +112,7 @@ const AudioRecordPage = () => {
         const snap = await getDocs(q);
 
         if (snap.empty) {
-          alert("Nenhuma conta encontrada. Crie uma senha.");
+          alert("Nenhuma conta encontrada. Criando nova senha.");
           setModoSenha("novo"); // ⭐ muda automaticamente
           return;
         }
@@ -136,7 +141,7 @@ const AudioRecordPage = () => {
       return;
     }
 
-    // 6️⃣ destinatário + horário
+    // 6️⃣ destinatário
     if (!destinatarioNome || !destinatarioTelefone || !horaEntrega) {
       alert("Preencha nome, telefone do destinatário e horário.");
       return;
@@ -144,7 +149,7 @@ const AudioRecordPage = () => {
 
     // 7️⃣ nascimento
     if (!remetenteNascimento) {
-      alert("Informe sua data de nascimento.");
+      alert("Informe a data de nascimento.");
       return;
     }
 
@@ -177,7 +182,7 @@ const AudioRecordPage = () => {
         remetente: remetenteNome,
         telefone_remetente: telefoneRem,
         remetente_nascimento: remetenteNascimento,
-        senha: senha // ⭐ salva senha
+        senha: senha // ⭐ salva
       };
 
       await addDoc(collection(db, "agendamentos"), payload);
@@ -198,7 +203,7 @@ const AudioRecordPage = () => {
 
       window.location.href = "/saida";
 
-    } catch (err) {
+    } catch {
       alert("Erro ao enviar.");
     }
 
