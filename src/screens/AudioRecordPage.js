@@ -104,37 +104,29 @@ const AudioRecordPage = () => {
 
     const telefoneRem = sanitizePhone(remetenteTelefone);
 
-    // ⭐ MODO EXISTENTE → VALIDAR ANTES DE CONTINUAR
+    // ⭐ Telefone do remetente OBRIGATÓRIO sempre
+    if (!telefoneRem) {
+      alert("Informe seu telefone para validar sua conta.");
+      return;
+    }
+
+    // ⭐ Se ele marcou "já tenho conta" — validar telefone e senha
     if (modoSenha === "existente") {
       try {
-        // procura por telefone no firestore
         const q1 = query(
           collection(db, "agendamentos"),
           where("telefone_remetente", "==", telefoneRem)
         );
+
         const snap1 = await getDocs(q1);
 
-        let registros = snap1.docs;
-
-        // tenta como destinatário também
-        if (registros.length === 0) {
-          const q2 = query(
-            collection(db, "agendamentos"),
-            where("telefone_destinatario", "==", telefoneRem)
-          );
-          const snap2 = await getDocs(q2);
-          registros = snap2.docs;
-        }
-
-        // nenhum registro encontrado → erro
-        if (registros.length === 0) {
+        if (snap1.empty) {
           alert("Nenhuma conta encontrada para este telefone. Cadastre-se criando uma senha.");
           return;
         }
 
-        const dados = registros[0].data();
+        const dados = snap1.docs[0].data();
 
-        // senha errada → erro
         if (dados.senha !== senha) {
           alert("Senha incorreta. Tente novamente.");
           return;
@@ -145,7 +137,7 @@ const AudioRecordPage = () => {
       }
     }
 
-    // 📌 Daqui para baixo → processo normal de envio
+    // 📌 Após validação — fluxo normal
     setIsUploading(true);
 
     try {
