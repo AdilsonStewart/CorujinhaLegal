@@ -14,9 +14,11 @@ function Clientes() {
 
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
+  const [senha, setSenha] = useState("");              // ⭐ ADICIONADO
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
   const [clienteAchado, setClienteAchado] = useState(null);
+  const [senhaValida, setSenhaValida] = useState(false); // ⭐ ADICIONADO
 
   const fazerLoginCliente = async (e) => {
     e.preventDefault();
@@ -24,6 +26,11 @@ function Clientes() {
 
     if (!telefone.trim()) {
       setErro("Digite seu telefone.");
+      return;
+    }
+
+    if (!senha.trim()) {
+      setErro("Digite sua senha.");
       return;
     }
 
@@ -47,11 +54,29 @@ function Clientes() {
       if (mensagens.length === 0) {
         const q2 = query(
           collection(db, "agendamentos"),
-          where("telefone", "==", telLimpo)
+          where("telefone_destinatario", "==", telLimpo)
         );
         const snap2 = await getDocs(q2);
         mensagens = snap2.docs;
       }
+
+      if (mensagens.length === 0) {
+        setErro("Nenhuma mensagem encontrada para este telefone.");
+        setCarregando(false);
+        return;
+      }
+
+      // ⭐ VALIDAR SENHA
+      const senhaRegistrada = mensagens[0]?.data()?.senha;
+
+      if (senhaRegistrada !== senha) {
+        setErro("Senha incorreta.");
+        setCarregando(false);
+        return;
+      }
+
+      // ⭐ senha confirmada!
+      setSenhaValida(true);
 
       setClienteAchado({
         nome: nome || (mensagens[0]?.data()?.remetente ?? "Cliente"),
@@ -90,6 +115,15 @@ function Clientes() {
           placeholder="11999998888"
         />
 
+        {/* ⭐ campo de senha */}
+        <label>Sua senha</label>
+        <input
+          type="password"
+          value={senha}
+          onChange={(e) => setSenha(e.target.value)}
+          placeholder="Senha cadastrada"
+        />
+
         <button type="submit" disabled={carregando}>
           {carregando ? "Buscando..." : "Procurar"}
         </button>
@@ -97,7 +131,8 @@ function Clientes() {
         {erro && <p style={{ color: "red" }}>{erro}</p>}
       </form>
 
-      {clienteAchado && (
+      {/* ⭐ só aparece se senha validou */}
+      {clienteAchado && senhaValida && (
         <div style={{ marginTop: 20 }}>
           <p>
             Ok — encontramos <b>{clienteAchado.nome}</b>.
