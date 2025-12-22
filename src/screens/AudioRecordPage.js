@@ -21,6 +21,10 @@ const AudioRecordPage = () => {
 
   const [remetenteNome, setRemetenteNome] = useState("");
   const [remetenteTelefone, setRemetenteTelefone] = useState("");
+
+  // ⭐ ADICIONADO: estado da senha
+  const [senha, setSenha] = useState("");
+
   const [remetenteNascimento, setRemetenteNascimento] = useState("");
 
   const [destinatarioNome, setDestinatarioNome] = useState("");
@@ -33,9 +37,6 @@ const AudioRecordPage = () => {
   const [tempoRestante, setTempoRestante] = useState(30);
 
   const [aceitoTermos, setAceitoTermos] = useState(false);
-
-  // ⭐ ADICIONADO — SENHA
-  const [senha, setSenha] = useState("");
 
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
@@ -91,7 +92,7 @@ const AudioRecordPage = () => {
     if (!remetenteNascimento)
       return alert("Preencha a data de nascimento do remetente.");
 
-    // ⭐ ADICIONADO — validação senha
+    // ⭐ ADICIONADO: validação senha
     if (!senha) return alert("Crie uma senha para proteger seu acesso.");
 
     const agora = new Date();
@@ -137,7 +138,7 @@ const AudioRecordPage = () => {
         telefone_remetente: telefoneRem,
         remetente_nascimento: remetenteNascimento,
 
-        // ⭐ ADICIONADO — envia senha para Firestore
+        // ⭐ ADICIONADO: senha no payload
         senha: senha,
       };
 
@@ -171,16 +172,47 @@ const AudioRecordPage = () => {
     <div style={{ padding: 20, maxWidth: 680, margin: "0 auto" }}>
       <h2>🎤 Gravador de Áudio - Máx 30s</h2>
 
-      {/* ... TODO O RESTO SEM ALTERAÇÃO ... */}
+      <div style={{
+        fontSize: 24,
+        color: "#dc3545",
+        fontWeight: "bold",
+        background: "#ffebee",
+        padding: "15px",
+        borderRadius: 12,
+        marginBottom: 20,
+        textAlign: "center"
+      }}>
+        ⏱️ Tempo máximo: {tempoRestante}s
+      </div>
+
+      {!isRecording ? (
+        <button
+          onClick={startRecording}
+          style={{ width: "100%", padding: 18, background: "#007bff", color: "white", borderRadius: 12 }}
+        >
+          🎙️ Iniciar Gravação
+        </button>
+      ) : (
+        <button
+          onClick={stopRecording}
+          style={{ width: "100%", padding: 18, background: "#dc3545", color: "white", borderRadius: 12 }}
+        >
+          ⏹️ Parar Gravação
+        </button>
+      )}
+
+      {audioURL && <audio controls src={audioURL} style={{ width: "100%", marginTop: 16 }} />}
+
+      <hr style={{ margin: "24px 0" }} />
 
       <div style={{ display: "grid", gap: 12 }}>
         <input type="text" placeholder="Seu nome (remetente)" value={remetenteNome} onChange={(e) => setRemetenteNome(e.target.value)} />
         <input type="tel" placeholder="Seu telefone (remetente)" value={remetenteTelefone} onChange={(e) => setRemetenteTelefone(e.target.value)} />
 
-        {/* ⭐ ADICIONADO — CAMPO SENHA */}
+        {/* ⭐ ADICIONADO: CAMPO SENHA */}
         <input
           type="password"
-          placeholder="Crie uma senha (obrigatória)"
+          placeholder="Crie uma senha para acessar suas mensagens"
           value={senha}
           onChange={(e) => setSenha(e.target.value)}
         />
@@ -203,8 +235,16 @@ const AudioRecordPage = () => {
         </select>
       </div>
 
-      {/* ... TODO O RESTO SEM ALTERAÇÃO ... */}
+      <div style={{ marginTop: 16, fontSize: 14 }}>
+        <input type="checkbox" checked={aceitoTermos} onChange={(e) => setAceitoTermos(e.target.checked)} /> Eu li e aceito os <Link to="/termos">Termos de Uso</Link>
+      </div>
 
+      <button
+        onClick={enviarDados}
+        style={{ marginTop: 24, width: "100%", padding: 18, background: "#28a745", color: "white", borderRadius: 12 }}
+      >
+        🚀 Enviar Áudio Agendado
+      </button>
     </div>
   );
 };
