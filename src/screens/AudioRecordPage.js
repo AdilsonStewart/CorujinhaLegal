@@ -136,7 +136,7 @@ const AudioRecordPage = () => {
 
       alert("🎉 Áudio agendado com sucesso!");
 
-      // ⭐⭐⭐ ADICIONADO — salvando no localStorage para a página saída ⭐⭐⭐
+      // ⭐ Salvando no localStorage para a página Saida
       localStorage.setItem(
         "lastAgendamento",
         JSON.stringify({
@@ -149,7 +149,6 @@ const AudioRecordPage = () => {
         })
       );
 
-      // 👉 restauração do redirecionamento
       window.location.href = "/saida";
 
     } catch (err) {
