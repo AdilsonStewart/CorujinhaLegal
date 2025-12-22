@@ -22,8 +22,9 @@ const AudioRecordPage = () => {
   const [remetenteNome, setRemetenteNome] = useState("");
   const [remetenteTelefone, setRemetenteTelefone] = useState("");
 
-  // ⭐ ADICIONADO: estado da senha
+  // ⭐ SENHA
   const [senha, setSenha] = useState("");
+  const [modoSenha, setModoSenha] = useState("novo"); // novo | existente
 
   const [remetenteNascimento, setRemetenteNascimento] = useState("");
 
@@ -92,8 +93,14 @@ const AudioRecordPage = () => {
     if (!remetenteNascimento)
       return alert("Preencha a data de nascimento do remetente.");
 
-    // ⭐ ADICIONADO: validação senha
-    if (!senha) return alert("Crie uma senha para proteger seu acesso.");
+    // ⭐ valida senha conforme modo
+    if (!senha) {
+      return alert(
+        modoSenha === "novo"
+          ? "Crie uma senha para proteger o acesso."
+          : "Digite sua senha para continuar."
+      );
+    }
 
     const agora = new Date();
     const dataHorario = new Date(`${dataEntrega}T${horaEntrega}`);
@@ -137,8 +144,8 @@ const AudioRecordPage = () => {
         remetente: remetenteNome,
         telefone_remetente: telefoneRem,
         remetente_nascimento: remetenteNascimento,
-
-        // ⭐ ADICIONADO: senha no payload
+        
+        // ⭐ SENHA sendo salva
         senha: senha,
       };
 
@@ -209,20 +216,46 @@ const AudioRecordPage = () => {
         <input type="text" placeholder="Seu nome (remetente)" value={remetenteNome} onChange={(e) => setRemetenteNome(e.target.value)} />
         <input type="tel" placeholder="Seu telefone (remetente)" value={remetenteTelefone} onChange={(e) => setRemetenteTelefone(e.target.value)} />
 
-        {/* ⭐ ADICIONADO: CAMPO SENHA */}
+        {/* ⭐ seleção do tipo de senha */}
+        <div style={{ display: "flex", gap: 10 }}>
+          <label>
+            <input
+              type="radio"
+              value="novo"
+              checked={modoSenha === "novo"}
+              onChange={() => setModoSenha("novo")}
+            />
+            Primeiro acesso
+          </label>
+
+          <label>
+            <input
+              type="radio"
+              value="existente"
+              checked={modoSenha === "existente"}
+              onChange={() => setModoSenha("existente")}
+            />
+            Já tenho senha
+          </label>
+        </div>
+
+        {/* ⭐ campo senha */}
         <input
           type="password"
-          placeholder="Crie uma senha para acessar suas mensagens"
+          placeholder={modoSenha === "novo" ? "Crie uma senha" : "Digite sua senha"}
           value={senha}
           onChange={(e) => setSenha(e.target.value)}
         />
 
         <label>Data de nascimento do remetente *</label>
         <input type="date" value={remetenteNascimento} onChange={(e) => setRemetenteNascimento(e.target.value)} />
+
         <input type="text" placeholder="Nome do destinatário" value={destinatarioNome} onChange={(e) => setDestinatarioNome(e.target.value)} />
         <input type="tel" placeholder="Telefone do destinatario" value={destinatarioTelefone} onChange={(e) => setDestinatarioTelefone(e.target.value)} />
+
         <label>Data de entrega da mensagem *</label>
         <input type="date" value={dataEntrega} onChange={(e) => setDataEntrega(e.target.value)} />
+
         <label>Horário disponível *</label>
         <select value={horaEntrega} onChange={(e) => setHoraEntrega(e.target.value)}>
           <option value="">Selecione</option>
