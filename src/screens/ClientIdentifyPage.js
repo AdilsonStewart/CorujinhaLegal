@@ -4,9 +4,7 @@ import {
   collection,
   query,
   where,
-  getDocs,
-  addDoc,
-  serverTimestamp
+  getDocs
 } from "firebase/firestore";
 
 const sanitizePhone = (s = "") => (s || "").toString().replace(/\D/g, "");
@@ -14,114 +12,103 @@ const sanitizePhone = (s = "") => (s || "").toString().replace(/\D/g, "");
 const ClientIdentifyPage = () => {
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
+  const [senha, setSenha] = useState(""); // ⭐
   const [loading, setLoading] = useState(false);
   const [foundClient, setFoundClient] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
-
-  const findClientByPhone = async (tel) => {
-    try {
-      const q = query(collection(db, "clientes"), where("telefone", "==", tel));
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        const d = snap.docs[0];
-        return { id: d.id, ...d.data() };
-      }
-      return null;
-    } catch (e) {
-      console.error("findClientByPhone error:", e);
-      throw e;
-    }
-  };
+  const [senhaValida, setSenhaValida] = useState(false); // ⭐
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatusMessage("");
 
     const telClean = sanitizePhone(telefone);
+
     if (!telClean || telClean.length < 10) {
-      alert("Por favor, informe um telefone válido com DDD (ex: 11999999999).");
+      alert("Telefone inválido. Ex: 11999998888");
+      return;
+    }
+
+    if (!senha.trim()) {
+      alert("Digite sua senha.");
       return;
     }
 
     setLoading(true);
 
     try {
-      const client = await findClientByPhone(telClean);
+      // ⭐ consulta a coleção AGENDAMENTOS
+      const q = query(
+        collection(db, "agendamentos"),
+        where("telefone_remetente", "==", telClean)
+      );
 
-      if (client) {
-        setFoundClient({ id: client.id, data: client });
+      const snap = await getDocs(q);
 
-        setStatusMessage(
-          `Ok — encontramos ${client.nome || "cliente"}.`
+      let registros = snap.docs;
+
+      if (registros.length === 0) {
+        const q2 = query(
+          collection(db, "agendamentos"),
+          where("telefone_destinatario", "==", telClean)
         );
-
-        localStorage.setItem("clienteId", client.id);
-        localStorage.setItem("clienteNome", client.nome || "");
-        localStorage.setItem("clienteTelefone", telClean);
-      } else {
-        setFoundClient(null);
-        setStatusMessage("Cliente não encontrado. Deseja criar uma conta com esses dados?");
+        const snap2 = await getDocs(q2);
+        registros = snap2.docs;
       }
+
+      if (registros.length === 0) {
+        setFoundClient(null);
+        setStatusMessage("Nenhuma mensagem encontrada para este telefone.");
+        setLoading(false);
+        return;
+      }
+
+      // ⭐ pegar o primeiro agendamento registrado
+      const dados = registros[0].data();
+
+      // ⭐ validar senha
+      if (dados.senha !== senha) {
+        setStatusMessage("Senha incorreta.");
+        setFoundClient(null);
+        setSenhaValida(false);
+        setLoading(false);
+        return;
+      }
+
+      // ⭐ senha ok
+      setSenhaValida(true);
+
+      setFoundClient({
+        nome: dados.remetente || nome,
+        telefone: telClean
+      });
+
+      localStorage.setItem("clienteTelefone", telClean);
+      localStorage.setItem("clienteNome", dados.remetente || nome);
+
+      setStatusMessage(`Bem-vindo, ${dados.remetente || "cliente"}.`);
+
     } catch (err) {
       console.error(err);
-      alert("Ocorreu um erro ao procurar o cliente.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateClient = async () => {
-    const telClean = sanitizePhone(telefone);
-
-    if (!telClean || telClean.length < 10) {
-      alert("Telefone inválido.");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const payload = {
-        nome: nome || null,
-        telefone: telClean,
-        criadoEm: new Date().toISOString()
-      };
-
-      const ref = await addDoc(collection(db, "clientes"), payload);
-
-      localStorage.setItem("clienteId", ref.id);
-      localStorage.setItem("clienteNome", nome || "");
-      localStorage.setItem("clienteTelefone", telClean);
-
-      setFoundClient({ id: ref.id, data: payload });
-
-      setStatusMessage(`Conta criada! Bem-vindo(a), ${nome || "cliente"}.`);
-    } catch (err) {
-      console.error("create client error:", err);
-      alert("Erro ao criar cliente.");
+      alert("Erro ao validar acesso.");
     } finally {
       setLoading(false);
     }
   };
 
   const goToMessages = () => {
+    if (!senhaValida) return;
     window.location.href = "/minhas-mensagens";
   };
 
   const goToSend = () => {
+    if (!senhaValida) return;
     window.location.href = "/";
   };
 
   return (
     <div style={{ padding: 20, maxWidth: 680, margin: "0 auto" }}>
-      <h2>
-        <img
-          src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExbTZycHZycGcxeTB1aDE1OWR0OGlxNHd2cGgycTB5MHF3MThtbjVlciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/rVY6OYHpnJNln3SwFu/giphy.gif"
-          alt="Corujinha"
-          style={{ width: "40px", height: "40px", marginRight: 10, verticalAlign: "middle" }}
-        />
-        Sou cliente
-      </h2>
+      <h2>Sou cliente</h2>
 
       <form onSubmit={handleSubmit} style={{ display: "grid", gap: 10 }}>
         <input
@@ -129,75 +116,42 @@ const ClientIdentifyPage = () => {
           placeholder="Seu nome (opcional)"
           value={nome}
           onChange={(e) => setNome(e.target.value)}
-          style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
         />
 
         <input
           type="tel"
-          placeholder="Seu telefone com DDD *"
+          placeholder="Seu telefone *"
           value={telefone}
           onChange={(e) => setTelefone(e.target.value)}
-          style={{ padding: 12, fontSize: 16, borderRadius: 8, border: "1px solid #ddd" }}
         />
 
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            padding: "12px 18px",
-            fontSize: 16,
-            background: "#007bff",
-            color: "white",
-            border: "none",
-            borderRadius: 8,
-            cursor: "pointer"
-          }}
-        >
-          {loading ? "Procurando..." : "Procurar"}
+        {/* ⭐ campo de senha */}
+        <input
+          type="password"
+          placeholder="Sua senha *"
+          value={senha}
+          onChange={(e) => setSenha(e.target.value)}
+        />
+
+        <button type="submit" disabled={loading}>
+          {loading ? "Validando..." : "Entrar"}
         </button>
       </form>
 
       {statusMessage && (
-        <div style={{ marginTop: 16, padding: 12, background: "#f1f1f1", borderRadius: 8 }}>
+        <div style={{ marginTop: 16 }}>
           <strong>{statusMessage}</strong>
         </div>
       )}
 
-      {foundClient && (
-        <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
-          <div>Nome: <strong>{foundClient.data.nome || "—"}</strong></div>
-          <div>Telefone: <strong>{foundClient.data.telefone || telefone}</strong></div>
+      {foundClient && senhaValida && (
+        <div style={{ marginTop: 14 }}>
+          <div>Nome: <strong>{foundClient.nome}</strong></div>
+          <div>Telefone: <strong>{foundClient.telefone}</strong></div>
 
-          <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-            <button
-              onClick={goToMessages}
-              style={{
-                flex: 1,
-                padding: "10px 12px",
-                background: "#17a2b8",
-                color: "#fff",
-                border: "none",
-                borderRadius: 8,
-                cursor: "pointer"
-              }}
-            >
-              Ver minha lista
-            </button>
-
-            <button
-              onClick={goToSend}
-              style={{
-                flex: 1,
-                padding: "10px 12px",
-                background: "#28a745",
-                color: "#fff",
-                border: "none",
-                borderRadius: 8,
-                cursor: "pointer"
-              }}
-            >
-              Enviar nova mensagem
-            </button>
+          <div style={{ marginTop: 10, display: "flex", gap: 10 }}>
+            <button onClick={goToMessages}>Ver minha lista</button>
+            <button onClick={goToSend}>Enviar nova mensagem</button>
           </div>
         </div>
       )}
