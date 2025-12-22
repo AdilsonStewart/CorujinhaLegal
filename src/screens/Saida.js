@@ -47,7 +47,7 @@ const Saida = () => {
           </div>
 
           <div className="info-item">
-            <strong>Horário preferencial:</strong> {dados.horaEntrega || 'Não informado'}
+            <strong>Horário preferencial:</strong> {dados.horaEntrega || dados.horario || 'Não informado'}
           </div>
 
           <div className="info-item">
