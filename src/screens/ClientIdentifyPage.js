@@ -12,11 +12,11 @@ const sanitizePhone = (s = "") => (s || "").toString().replace(/\D/g, "");
 const ClientIdentifyPage = () => {
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
-  const [senha, setSenha] = useState(""); // ⭐
+  const [senha, setSenha] = useState(""); // ⭐ ADICIONADO
   const [loading, setLoading] = useState(false);
   const [foundClient, setFoundClient] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
-  const [senhaValida, setSenhaValida] = useState(false); // ⭐
+  const [senhaValida, setSenhaValida] = useState(false); // ⭐ ADICIONADO
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -30,23 +30,23 @@ const ClientIdentifyPage = () => {
     }
 
     if (!senha.trim()) {
-      alert("Digite sua senha.");
+      alert("Informe sua senha.");
       return;
     }
 
     setLoading(true);
 
     try {
-      // ⭐ consulta a coleção AGENDAMENTOS
-      const q = query(
+      // 1️⃣ busca pelo remetente
+      const q1 = query(
         collection(db, "agendamentos"),
         where("telefone_remetente", "==", telClean)
       );
+      const snap1 = await getDocs(q1);
 
-      const snap = await getDocs(q);
+      let registros = snap1.docs;
 
-      let registros = snap.docs;
-
+      // 2️⃣ se não achou, busca pelo destinatário
       if (registros.length === 0) {
         const q2 = query(
           collection(db, "agendamentos"),
@@ -58,28 +58,29 @@ const ClientIdentifyPage = () => {
 
       if (registros.length === 0) {
         setFoundClient(null);
-        setStatusMessage("Nenhuma mensagem encontrada para este telefone.");
+        setSenhaValida(false);
+        setStatusMessage("Nenhuma mensagem encontrada com este telefone.");
         setLoading(false);
         return;
       }
 
-      // ⭐ pegar o primeiro agendamento registrado
+      // usa o primeiro agendamento encontrado
       const dados = registros[0].data();
 
-      // ⭐ validar senha
+      // ⭐ valida senha
       if (dados.senha !== senha) {
-        setStatusMessage("Senha incorreta.");
         setFoundClient(null);
         setSenhaValida(false);
+        setStatusMessage("Senha incorreta.");
         setLoading(false);
         return;
       }
 
-      // ⭐ senha ok
+      // ⭐ senha OK
       setSenhaValida(true);
 
       setFoundClient({
-        nome: dados.remetente || nome,
+        nome: dados.remetente || nome || "Cliente",
         telefone: telClean
       });
 
@@ -90,7 +91,7 @@ const ClientIdentifyPage = () => {
 
     } catch (err) {
       console.error(err);
-      alert("Erro ao validar acesso.");
+      alert("Erro ao validar.");
     } finally {
       setLoading(false);
     }
@@ -120,12 +121,12 @@ const ClientIdentifyPage = () => {
 
         <input
           type="tel"
-          placeholder="Seu telefone *"
+          placeholder="Seu telefone com DDD *"
           value={telefone}
           onChange={(e) => setTelefone(e.target.value)}
         />
 
-        {/* ⭐ campo de senha */}
+        {/* ⭐ CAMPO SENHA */}
         <input
           type="password"
           placeholder="Sua senha *"
@@ -144,14 +145,26 @@ const ClientIdentifyPage = () => {
         </div>
       )}
 
+      {/* ⭐ SÓ MOSTRA SE SENHA VALIDADA */}
       {foundClient && senhaValida && (
         <div style={{ marginTop: 14 }}>
           <div>Nome: <strong>{foundClient.nome}</strong></div>
           <div>Telefone: <strong>{foundClient.telefone}</strong></div>
 
           <div style={{ marginTop: 10, display: "flex", gap: 10 }}>
-            <button onClick={goToMessages}>Ver minha lista</button>
-            <button onClick={goToSend}>Enviar nova mensagem</button>
+            <button
+              onClick={goToMessages}
+              style={{ flex: 1 }}
+            >
+              Ver minha lista
+            </button>
+
+            <button
+              onClick={goToSend}
+              style={{ flex: 1 }}
+            >
+              Enviar nova mensagem
+            </button>
           </div>
         </div>
       )}
