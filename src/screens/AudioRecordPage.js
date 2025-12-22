@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 // Firestore
 import { db } from "../firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, query, where, getDocs } from "firebase/firestore";
 import { Link } from "react-router-dom";
 
 // Supabase Config
@@ -22,9 +22,9 @@ const AudioRecordPage = () => {
   const [remetenteNome, setRemetenteNome] = useState("");
   const [remetenteTelefone, setRemetenteTelefone] = useState("");
 
-  // ⭐ SENHA
+  // ⭐ senha e modo
   const [senha, setSenha] = useState("");
-  const [modoSenha, setModoSenha] = useState("novo"); // novo | existente
+  const [modoSenha, setModoSenha] = useState("novo");
 
   const [remetenteNascimento, setRemetenteNascimento] = useState("");
 
@@ -93,30 +93,64 @@ const AudioRecordPage = () => {
     if (!remetenteNascimento)
       return alert("Preencha a data de nascimento do remetente.");
 
-    // ⭐ valida senha conforme modo
+    // ⭐ senha obrigatória
     if (!senha) {
       return alert(
         modoSenha === "novo"
-          ? "Crie uma senha para proteger o acesso."
-          : "Digite sua senha para continuar."
+          ? "Crie uma senha para proteger sua conta."
+          : "Digite sua senha."
       );
     }
 
-    const agora = new Date();
-    const dataHorario = new Date(`${dataEntrega}T${horaEntrega}`);
+    const telefoneRem = sanitizePhone(remetenteTelefone);
 
-    if (dataHorario < agora)
-      return alert("⛔ Não é possível agendar no passado.");
+    // ⭐ MODO EXISTENTE → VALIDAR ANTES DE CONTINUAR
+    if (modoSenha === "existente") {
+      try {
+        // procura por telefone no firestore
+        const q1 = query(
+          collection(db, "agendamentos"),
+          where("telefone_remetente", "==", telefoneRem)
+        );
+        const snap1 = await getDocs(q1);
 
-    const limite = new Date();
-    limite.setDate(limite.getDate() + 365);
-    if (dataHorario > limite)
-      return alert("⛔ Agendamento máximo de 365 dias.");
+        let registros = snap1.docs;
 
+        // tenta como destinatário também
+        if (registros.length === 0) {
+          const q2 = query(
+            collection(db, "agendamentos"),
+            where("telefone_destinatario", "==", telefoneRem)
+          );
+          const snap2 = await getDocs(q2);
+          registros = snap2.docs;
+        }
+
+        // nenhum registro encontrado → erro
+        if (registros.length === 0) {
+          alert("Nenhuma conta encontrada para este telefone. Cadastre-se criando uma senha.");
+          return;
+        }
+
+        const dados = registros[0].data();
+
+        // senha errada → erro
+        if (dados.senha !== senha) {
+          alert("Senha incorreta. Tente novamente.");
+          return;
+        }
+      } catch (e) {
+        alert("Erro ao validar sua conta.");
+        return;
+      }
+    }
+
+    // 📌 Daqui para baixo → processo normal de envio
     setIsUploading(true);
 
     try {
-      const nomeArquivo = `audio_${Date.now()}_${Math.random().toString(36).slice(2)}.webm`;
+      const nomeArquivo =
+        `audio_${Date.now()}_${Math.random().toString(36).slice(2)}.webm`;
 
       const { error: uploadError } = await supabase.storage
         .from("Midias")
@@ -129,7 +163,6 @@ const AudioRecordPage = () => {
 
       const orderID = `AUD-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const telefoneDest = sanitizePhone(destinatarioTelefone);
-      const telefoneRem = sanitizePhone(remetenteTelefone);
 
       const payload = {
         order_id: orderID,
@@ -144,8 +177,8 @@ const AudioRecordPage = () => {
         remetente: remetenteNome,
         telefone_remetente: telefoneRem,
         remetente_nascimento: remetenteNascimento,
-        
-        // ⭐ SENHA sendo salva
+
+        // ⭐ salva senha no agendamento
         senha: senha,
       };
 
@@ -216,7 +249,7 @@ const AudioRecordPage = () => {
         <input type="text" placeholder="Seu nome (remetente)" value={remetenteNome} onChange={(e) => setRemetenteNome(e.target.value)} />
         <input type="tel" placeholder="Seu telefone (remetente)" value={remetenteTelefone} onChange={(e) => setRemetenteTelefone(e.target.value)} />
 
-        {/* ⭐ seleção do tipo de senha */}
+        {/* ⭐ opções de senha */}
         <div style={{ display: "flex", gap: 10 }}>
           <label>
             <input
@@ -235,7 +268,7 @@ const AudioRecordPage = () => {
               checked={modoSenha === "existente"}
               onChange={() => setModoSenha("existente")}
             />
-            Já tenho senha
+            Já tenho conta
           </label>
         </div>
 
@@ -249,7 +282,6 @@ const AudioRecordPage = () => {
 
         <label>Data de nascimento do remetente *</label>
         <input type="date" value={remetenteNascimento} onChange={(e) => setRemetenteNascimento(e.target.value)} />
-
         <input type="text" placeholder="Nome do destinatário" value={destinatarioNome} onChange={(e) => setDestinatarioNome(e.target.value)} />
         <input type="tel" placeholder="Telefone do destinatario" value={destinatarioTelefone} onChange={(e) => setDestinatarioTelefone(e.target.value)} />
 
