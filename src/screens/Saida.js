@@ -5,15 +5,11 @@ import './Saida.css';
 const Saida = () => {
   const navigate = useNavigate();
   
-  // Puxa os dados com os nomes corretos que o AudioRecordPage salva
   const dados = JSON.parse(localStorage.getItem('lastAgendamento') || '{}');
 
   const formatDate = (iso) => {
     if (!iso) return 'A ser definida';
-    // Se já estiver no formato dd/mm/yyyy, retorna como está
     if (iso.includes('/')) return iso;
-    
-    // Se for formato ISO (yyyy-mm-dd), converte
     const [y, m, d] = iso.split('-');
     return `${d}/${m}/${y}`;
   };
@@ -21,6 +17,7 @@ const Saida = () => {
   return (
     <div className="saida-container">
       <div className="saida-content">
+
         <div className="gif-container">
           <img
             src="https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExOTNoNnJiOHFwOHczb3VvbDg1bngxN3F3eG93dG01YXplbWoyMDJodiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/Y258CvWqb5qyfp5JA9/giphy.gif"
@@ -33,8 +30,9 @@ const Saida = () => {
 
         <div className="saida-info">
           <h3>Resumo do Agendamento:</h3>
+
           <div className="info-item">
-            <strong>Status:</strong> 
+            <strong>Status:</strong>
             <span className="status-confirmado">Confirmado</span>
           </div>
 
@@ -47,7 +45,7 @@ const Saida = () => {
           </div>
 
           <div className="info-item">
-            <strong>Horário preferencial:</strong> {dados.horaEntrega || dados.horario || 'Não informado'}
+            <strong>Horário preferencial:</strong> {dados.horaEntrega || 'Não informado'}
           </div>
 
           <div className="info-item">
@@ -55,7 +53,10 @@ const Saida = () => {
           </div>
 
           <div className="info-item">
-            <strong>Tipo:</strong> {dados.tipo === 'audio' ? 'Mensagem de Áudio' : 'Mensagem de Vídeo'}
+            <strong>Tipo:</strong> 
+            {dados.tipo === 'audio' ? 'Mensagem de Áudio'
+              : dados.tipo === 'video' ? 'Mensagem de Vídeo'
+              : 'Não informado'}
           </div>
 
           {dados.orderID && (
@@ -69,10 +70,10 @@ const Saida = () => {
           <button className="btn-nova-mensagem" onClick={() => navigate('/servicos')}>
             Enviar Nova Mensagem
           </button>
+
           <button
             className="btn-sair"
             onClick={() => {
-              // Limpa só o agendamento, mantém clienteId se existir
               localStorage.removeItem('lastAgendamento');
               navigate('/');
             }}
@@ -87,6 +88,7 @@ const Saida = () => {
             Um SMS será enviado para {dados.telefone || 'o destinatário'} na data e hora agendadas.
           </p>
         </div>
+
       </div>
     </div>
   );
