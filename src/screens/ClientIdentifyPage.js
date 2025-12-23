@@ -59,10 +59,8 @@ const ClientIdentifyPage = () => {
         return;
       }
 
-      // ✅ LOGIN OK
       localStorage.setItem("clienteTelefone", telClean);
       localStorage.setItem("clienteNome", cliente.nome || "");
-
       window.location.href = "/minhas-mensagens";
 
     } catch (err) {
@@ -117,7 +115,6 @@ const ClientIdentifyPage = () => {
 
       localStorage.setItem("clienteTelefone", telClean);
       localStorage.setItem("clienteNome", cadNome);
-
       window.location.href = "/servicos";
 
     } catch (err) {
@@ -130,8 +127,23 @@ const ClientIdentifyPage = () => {
 
   return (
     <div style={{ padding: 20, maxWidth: 680, margin: "0 auto" }}>
-      <h2>Olá, que bom te ter aqui!</h2>
-      <p>Para sua segurança, acesse com sua senha ou faça um pequeno cadastro.</p>
+
+      {/* 🦉 GIF DE BOAS-VINDAS */}
+      <div style={{ textAlign: "center", marginBottom: 8 }}>
+        <img
+          src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExcGp4emIxbG56aTN6d3Z2NXJobG81cHZubm51dDFpNDNmbTY4c3k0YyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/koQc8mBoKI1zRmQFvF/giphy.gif"
+          alt="Bem-vindo"
+          style={{ width: 60, height: "auto" }}
+        />
+      </div>
+
+      <h2 style={{ textAlign: "center" }}>
+        Olá, que bom te ter aqui!
+      </h2>
+
+      <p style={{ textAlign: "center" }}>
+        Para sua segurança, acesse com sua senha ou faça um pequeno cadastro.
+      </p>
 
       {/* 🔐 JÁ SOU CLIENTE */}
       <div
