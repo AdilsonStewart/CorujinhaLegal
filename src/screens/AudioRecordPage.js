@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 // Firestore
 import { db } from "../firebase";
-import { collection, addDoc, query, where, getDocs } from "firebase/firestore";
+import { collection, addDoc } from "firebase/firestore";
 import { Link } from "react-router-dom";
 
 // Supabase Config
@@ -21,11 +21,6 @@ const AudioRecordPage = () => {
 
   const [remetenteNome, setRemetenteNome] = useState("");
   const [remetenteTelefone, setRemetenteTelefone] = useState("");
-
-  // ⭐ senha e modo
-  const [senha, setSenha] = useState("");
-  const [modoSenha, setModoSenha] = useState("novo");
-
   const [remetenteNascimento, setRemetenteNascimento] = useState("");
 
   const [destinatarioNome, setDestinatarioNome] = useState("");
@@ -37,7 +32,6 @@ const AudioRecordPage = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [tempoRestante, setTempoRestante] = useState(30);
 
-  // ⭐ RESTAURADO: termos
   const [aceitoTermos, setAceitoTermos] = useState(false);
 
   const mediaRecorderRef = useRef(null);
@@ -86,74 +80,34 @@ const AudioRecordPage = () => {
     }
   };
 
-  // ⭐ VALIDAÇÃO REORGANIZADA
   const enviarDados = async () => {
     const telefoneRem = sanitizePhone(remetenteTelefone);
 
-    // 1️⃣ telefone obrigatório
     if (!telefoneRem) {
-      alert("Informe seu telefone para continuar.");
+      alert("Informe seu telefone.");
       return;
     }
 
-    // 2️⃣ senha obrigatória
-    if (!senha) {
-      alert(modoSenha === "novo" ? "Crie uma senha." : "Digite sua senha.");
-      return;
-    }
-
-    // 3️⃣ Validar senha/telefone primeiro
-    if (modoSenha === "existente") {
-      try {
-        const q = query(
-          collection(db, "agendamentos"),
-          where("telefone_remetente", "==", telefoneRem)
-        );
-        const snap = await getDocs(q);
-
-        if (snap.empty) {
-          alert("Nenhuma conta encontrada. Criando nova senha.");
-          setModoSenha("novo"); // ⭐ muda automaticamente
-          return;
-        }
-
-        const dados = snap.docs[0].data();
-
-        if (dados.senha !== senha) {
-          alert("Senha incorreta.");
-          return;
-        }
-      } catch {
-        alert("Erro ao validar sua conta.");
-        return;
-      }
-    }
-
-    // 4️⃣ termos
     if (!aceitoTermos) {
       alert("Aceite os Termos de Uso.");
       return;
     }
 
-    // 5️⃣ gravação
     if (!audioBlob) {
       alert("Grave seu áudio antes de enviar.");
       return;
     }
 
-    // 6️⃣ destinatário
     if (!destinatarioNome || !destinatarioTelefone || !horaEntrega) {
       alert("Preencha nome, telefone do destinatário e horário.");
       return;
     }
 
-    // 7️⃣ nascimento
     if (!remetenteNascimento) {
       alert("Informe a data de nascimento.");
       return;
     }
 
-    // 8️⃣ envio normal
     setIsUploading(true);
 
     try {
@@ -165,7 +119,9 @@ const AudioRecordPage = () => {
 
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage.from("Midias").getPublicUrl(nomeArquivo);
+      const { data } = supabase.storage
+        .from("Midias")
+        .getPublicUrl(nomeArquivo);
 
       const orderID = `AUD-${Date.now()}`;
 
@@ -181,13 +137,10 @@ const AudioRecordPage = () => {
         telefone_destinatario: sanitizePhone(destinatarioTelefone),
         remetente: remetenteNome,
         telefone_remetente: telefoneRem,
-        remetente_nascimento: remetenteNascimento,
-        senha: senha // ⭐ salva
+        remetente_nascimento: remetenteNascimento
       };
 
       await addDoc(collection(db, "agendamentos"), payload);
-
-      alert("🎉 Áudio agendado com sucesso!");
 
       localStorage.setItem(
         "lastAgendamento",
@@ -243,12 +196,13 @@ const AudioRecordPage = () => {
         </button>
       )}
 
-      {audioURL && <audio controls src={audioURL} style={{ width: "100%", marginTop: 16 }} />}
+      {audioURL && (
+        <audio controls src={audioURL} style={{ width: "100%", marginTop: 16 }} />
+      )}
 
       <hr style={{ margin: "24px 0" }} />
 
       <div style={{ display: "grid", gap: 12 }}>
-
         <input
           type="text"
           placeholder="Seu nome (remetente)"
@@ -261,33 +215,6 @@ const AudioRecordPage = () => {
           placeholder="Seu telefone (remetente)"
           value={remetenteTelefone}
           onChange={(e) => setRemetenteTelefone(e.target.value)}
-        />
-
-        <div style={{ display: "flex", gap: 10 }}>
-          <label>
-            <input
-              type="radio"
-              checked={modoSenha === "novo"}
-              onChange={() => setModoSenha("novo")}
-            />
-            Primeiro acesso
-          </label>
-
-          <label>
-            <input
-              type="radio"
-              checked={modoSenha === "existente"}
-              onChange={() => setModoSenha("existente")}
-            />
-            Já tenho conta
-          </label>
-        </div>
-
-        <input
-          type="password"
-          placeholder={modoSenha === "novo" ? "Crie uma senha" : "Digite sua senha"}
-          value={senha}
-          onChange={(e) => setSenha(e.target.value)}
         />
 
         <label>Data de nascimento do remetente *</label>
@@ -306,7 +233,7 @@ const AudioRecordPage = () => {
 
         <input
           type="tel"
-          placeholder="Telefone do destinatario"
+          placeholder="Telefone do destinatário"
           value={destinatarioTelefone}
           onChange={(e) => setDestinatarioTelefone(e.target.value)}
         />
@@ -319,7 +246,10 @@ const AudioRecordPage = () => {
         />
 
         <label>Horário disponível *</label>
-        <select value={horaEntrega} onChange={(e) => setHoraEntrega(e.target.value)}>
+        <select
+          value={horaEntrega}
+          onChange={(e) => setHoraEntrega(e.target.value)}
+        >
           <option value="">Selecione</option>
           <option value="08:00">08:00</option>
           <option value="10:00">10:00</option>
@@ -328,7 +258,6 @@ const AudioRecordPage = () => {
           <option value="16:00">16:00</option>
           <option value="18:00">18:00</option>
         </select>
-
       </div>
 
       <div style={{ marginTop: 16, fontSize: 14 }}>
@@ -336,7 +265,7 @@ const AudioRecordPage = () => {
           type="checkbox"
           checked={aceitoTermos}
           onChange={(e) => setAceitoTermos(e.target.checked)}
-        />
+        />{" "}
         Eu li e aceito os <Link to="/termos">Termos de Uso</Link>
       </div>
 
