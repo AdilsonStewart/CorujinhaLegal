@@ -11,7 +11,7 @@ import {
 const sanitizePhone = (s = "") => (s || "").toString().replace(/\D/g, "");
 
 const ClientIdentifyPage = () => {
-  // 🔐 LOGIN
+  // 🔐 LOGIN (somente telefone + senha)
   const [loginTelefone, setLoginTelefone] = useState("");
   const [loginSenha, setLoginSenha] = useState("");
 
@@ -25,11 +25,11 @@ const ClientIdentifyPage = () => {
   const [loading, setLoading] = useState(false);
 
   // 🔐 CLIENTE EXISTENTE → LOGIN
-  const entrarClienteExistente = async () => {
+  const entrarCliente = async () => {
     const telClean = sanitizePhone(loginTelefone);
 
     if (!telClean || telClean.length < 10) {
-      alert("Informe seu telefone com DDD.");
+      alert("Informe o telefone cadastrado com DDD.");
       return;
     }
 
@@ -42,13 +42,13 @@ const ClientIdentifyPage = () => {
 
     try {
       const q = query(
-        collection(db, "Clientes"), // ✅ AQUI
+        collection(db, "Clientes"),
         where("telefone", "==", telClean)
       );
       const snap = await getDocs(q);
 
       if (snap.empty) {
-        alert("Cliente não encontrado. Faça o cadastro abaixo.");
+        alert("Telefone não encontrado. Faça o cadastro abaixo.");
         return;
       }
 
@@ -59,14 +59,15 @@ const ClientIdentifyPage = () => {
         return;
       }
 
+      // ✅ LOGIN OK
       localStorage.setItem("clienteTelefone", telClean);
-      localStorage.setItem("clienteNome", cliente.nome);
+      localStorage.setItem("clienteNome", cliente.nome || "");
 
       window.location.href = "/minhas-mensagens";
 
     } catch (err) {
       console.error("ERRO LOGIN:", err);
-      alert("Erro ao validar cliente.");
+      alert("Erro ao validar acesso.");
     } finally {
       setLoading(false);
     }
@@ -106,13 +107,7 @@ const ClientIdentifyPage = () => {
     setLoading(true);
 
     try {
-      console.log("CRIANDO CLIENTE EM Clientes:", {
-        nome: cadNome,
-        telefone: telClean,
-        nascimento: cadNascimento
-      });
-
-      await addDoc(collection(db, "Clientes"), { // ✅ AQUI
+      await addDoc(collection(db, "Clientes"), {
         nome: cadNome,
         telefone: telClean,
         nascimento: cadNascimento,
@@ -126,8 +121,8 @@ const ClientIdentifyPage = () => {
       window.location.href = "/servicos";
 
     } catch (err) {
-      console.error("ERRO AO CRIAR CLIENTE:", err);
-      alert("Erro ao criar cadastro. Veja o console.");
+      console.error("ERRO CADASTRO:", err);
+      alert("Erro ao criar cadastro.");
     } finally {
       setLoading(false);
     }
@@ -136,15 +131,22 @@ const ClientIdentifyPage = () => {
   return (
     <div style={{ padding: 20, maxWidth: 680, margin: "0 auto" }}>
       <h2>Olá, que bom te ter aqui!</h2>
-      <p>Para sua segurança, faça um pequeno cadastro e gere uma senha.</p>
+      <p>Para sua segurança, acesse com sua senha ou faça um pequeno cadastro.</p>
 
       {/* 🔐 JÁ SOU CLIENTE */}
-      <div style={{ marginBottom: 24, padding: 16, border: "1px solid #ddd", borderRadius: 8 }}>
+      <div
+        style={{
+          marginBottom: 24,
+          padding: 16,
+          border: "1px solid #ddd",
+          borderRadius: 8
+        }}
+      >
         <strong>Já sou cliente</strong>
 
         <input
           type="tel"
-          placeholder="Telefone com DDD"
+          placeholder="Telefone cadastrado (com DDD)"
           value={loginTelefone}
           onChange={(e) => setLoginTelefone(e.target.value)}
           style={{ width: "100%", marginTop: 10 }}
@@ -152,14 +154,14 @@ const ClientIdentifyPage = () => {
 
         <input
           type="password"
-          placeholder="Digite sua senha"
+          placeholder="Sua senha"
           value={loginSenha}
           onChange={(e) => setLoginSenha(e.target.value)}
           style={{ width: "100%", marginTop: 10 }}
         />
 
         <button
-          onClick={entrarClienteExistente}
+          onClick={entrarCliente}
           disabled={loading}
           style={{ marginTop: 12, width: "100%" }}
         >
@@ -170,7 +172,10 @@ const ClientIdentifyPage = () => {
       <hr />
 
       {/* 🆕 PRIMEIRO ACESSO */}
-      <form onSubmit={cadastrarNovoCliente} style={{ display: "grid", gap: 12, marginTop: 20 }}>
+      <form
+        onSubmit={cadastrarNovoCliente}
+        style={{ display: "grid", gap: 12, marginTop: 20 }}
+      >
         <strong>Primeiro acesso</strong>
 
         <input
