@@ -42,7 +42,7 @@ const ClientIdentifyPage = () => {
 
     try {
       const q = query(
-        collection(db, "clientes"),
+        collection(db, "Clientes"), // ✅ AQUI
         where("telefone", "==", telClean)
       );
       const snap = await getDocs(q);
@@ -59,7 +59,6 @@ const ClientIdentifyPage = () => {
         return;
       }
 
-      // ✅ LOGIN OK
       localStorage.setItem("clienteTelefone", telClean);
       localStorage.setItem("clienteNome", cliente.nome);
 
@@ -107,13 +106,13 @@ const ClientIdentifyPage = () => {
     setLoading(true);
 
     try {
-      console.log("CRIANDO CLIENTE:", {
+      console.log("CRIANDO CLIENTE EM Clientes:", {
         nome: cadNome,
         telefone: telClean,
         nascimento: cadNascimento
       });
 
-      await addDoc(collection(db, "clientes"), {
+      await addDoc(collection(db, "Clientes"), { // ✅ AQUI
         nome: cadNome,
         telefone: telClean,
         nascimento: cadNascimento,
