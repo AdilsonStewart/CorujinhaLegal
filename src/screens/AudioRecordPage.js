@@ -19,10 +19,6 @@ const AudioRecordPage = () => {
   const [audioURL, setAudioURL] = useState(null);
   const [audioBlob, setAudioBlob] = useState(null);
 
-  const [remetenteNome, setRemetenteNome] = useState("");
-  const [remetenteTelefone, setRemetenteTelefone] = useState("");
-  const [remetenteNascimento, setRemetenteNascimento] = useState("");
-
   const [destinatarioNome, setDestinatarioNome] = useState("");
   const [destinatarioTelefone, setDestinatarioTelefone] = useState("");
 
@@ -81,10 +77,11 @@ const AudioRecordPage = () => {
   };
 
   const enviarDados = async () => {
-    const telefoneRem = sanitizePhone(remetenteTelefone);
+    const telefoneRem = sanitizePhone(localStorage.getItem("clienteTelefone"));
+    const remetenteNome = localStorage.getItem("clienteNome") || "";
 
     if (!telefoneRem) {
-      alert("Informe seu telefone.");
+      alert("Sessão expirada. Faça login novamente.");
       return;
     }
 
@@ -100,11 +97,6 @@ const AudioRecordPage = () => {
 
     if (!destinatarioNome || !destinatarioTelefone || !horaEntrega) {
       alert("Preencha nome, telefone do destinatário e horário.");
-      return;
-    }
-
-    if (!remetenteNascimento) {
-      alert("Informe a data de nascimento.");
       return;
     }
 
@@ -136,8 +128,7 @@ const AudioRecordPage = () => {
         destinatario: destinatarioNome,
         telefone_destinatario: sanitizePhone(destinatarioTelefone),
         remetente: remetenteNome,
-        telefone_remetente: telefoneRem,
-        remetente_nascimento: remetenteNascimento
+        telefone_remetente: telefoneRem
       };
 
       await addDoc(collection(db, "agendamentos"), payload);
@@ -156,8 +147,9 @@ const AudioRecordPage = () => {
 
       window.location.href = "/saida";
 
-    } catch {
-      alert("Erro ao enviar.");
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao enviar áudio.");
     }
 
     setIsUploading(false);
@@ -165,18 +157,20 @@ const AudioRecordPage = () => {
 
   return (
     <div style={{ padding: 20, maxWidth: 680, margin: "0 auto" }}>
-      <h2>🎤 Gravador de Áudio - Máx 30s</h2>
+      <h2>🎤 Gravador de Áudio – Máx 30s</h2>
 
-      <div style={{
-        fontSize: 24,
-        color: "#dc3545",
-        fontWeight: "bold",
-        background: "#ffebee",
-        padding: "15px",
-        borderRadius: 12,
-        marginBottom: 20,
-        textAlign: "center"
-      }}>
+      <div
+        style={{
+          fontSize: 24,
+          color: "#dc3545",
+          fontWeight: "bold",
+          background: "#ffebee",
+          padding: "15px",
+          borderRadius: 12,
+          marginBottom: 20,
+          textAlign: "center"
+        }}
+      >
         ⏱️ Tempo máximo: {tempoRestante}s
       </div>
 
@@ -196,34 +190,11 @@ const AudioRecordPage = () => {
         </button>
       )}
 
-      {audioURL && (
-        <audio controls src={audioURL} style={{ width: "100%", marginTop: 16 }} />
-      )}
+      {audioURL && <audio controls src={audioURL} style={{ width: "100%", marginTop: 16 }} />}
 
       <hr style={{ margin: "24px 0" }} />
 
       <div style={{ display: "grid", gap: 12 }}>
-        <input
-          type="text"
-          placeholder="Seu nome (remetente)"
-          value={remetenteNome}
-          onChange={(e) => setRemetenteNome(e.target.value)}
-        />
-
-        <input
-          type="tel"
-          placeholder="Seu telefone (remetente)"
-          value={remetenteTelefone}
-          onChange={(e) => setRemetenteTelefone(e.target.value)}
-        />
-
-        <label>Data de nascimento do remetente *</label>
-        <input
-          type="date"
-          value={remetenteNascimento}
-          onChange={(e) => setRemetenteNascimento(e.target.value)}
-        />
-
         <input
           type="text"
           placeholder="Nome do destinatário"
@@ -246,10 +217,7 @@ const AudioRecordPage = () => {
         />
 
         <label>Horário disponível *</label>
-        <select
-          value={horaEntrega}
-          onChange={(e) => setHoraEntrega(e.target.value)}
-        >
+        <select value={horaEntrega} onChange={(e) => setHoraEntrega(e.target.value)}>
           <option value="">Selecione</option>
           <option value="08:00">08:00</option>
           <option value="10:00">10:00</option>
