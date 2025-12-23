@@ -1,4 +1,4 @@
-// robo.js – versão ajustada para CorujinhaLegal2
+// robo.js – versão ajustada para CorujinhaLegal2 (SEM TRAVA DE HORÁRIO)
 const admin = require("firebase-admin");
 const axios = require("axios");
 
@@ -6,7 +6,7 @@ if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
       projectId: process.env.FIREBASE_PROJECT_ID,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL
     })
   });
@@ -14,7 +14,6 @@ if (!admin.apps.length) {
 
 const TIMEZONE = "America/Sao_Paulo";
 const MAX_TENTATIVAS = 3;
-const ALLOWED_HOURS = ["08:00","10:00","12:00","14:00","16:00","18:00"];
 
 const CLICKSEND_USERNAME = process.env.CLICKSEND_USERNAME;
 const CLICKSEND_API_KEY = process.env.CLICKSEND_API_KEY;
@@ -50,7 +49,7 @@ function getTodaySP() {
 
 function getHourSP() {
   const d = new Date(nowSP());
-  return d.toTimeString().slice(0, 5);
+  return d.toTimeString().slice(0, 5); // HH:MM
 }
 
 async function run() {
@@ -59,26 +58,23 @@ async function run() {
     return;
   }
 
-  const currentHour = getHourSP();
   const today = getTodaySP();
+  const currentHour = getHourSP();
 
-  if (!ALLOWED_HOURS.includes(currentHour)) {
-    console.log(`Skipping: not allowed hour (${currentHour})`);
-    return;
-  }
+  console.log(`Runner iniciado | Data: ${today} | Hora atual: ${currentHour}`);
 
   const db = admin.firestore();
 
   try {
-    const snap = await db.collection("agendamentos")
+    const snap = await db
+      .collection("agendamentos")
       .where("data_agendamento", "==", today)
-      .where("hora_agendamento", "==", currentHour)
       .where("enviado", "==", false)
       .limit(50)
       .get();
 
     if (snap.empty) {
-      console.log("No pending messages");
+      console.log("No pending messages for today");
       return;
     }
 
@@ -86,13 +82,21 @@ async function run() {
       const ref = doc.ref;
       const d = doc.data();
 
+      const horaAgendada = d.hora_agendamento; // "HH:MM"
+
+      // ⏱️ REGRA PRINCIPAL: ainda não chegou a hora → pula
+      if (!horaAgendada || horaAgendada > currentHour) {
+        continue;
+      }
+
       const tent = d.tentativas_total || 0;
 
       const destName = d.destinatario || "Amigo";
       const senderName = d.remetente || "Alguém";
 
-      // ← ← ← AQUI O AJUSTE IMPORTANTE
-      const telDest = normalizePhone(d.telefone_destinatario || d.telefone);
+      const telDest = normalizePhone(
+        d.telefone_destinatario || d.telefone
+      );
 
       const telRem = normalizePhone(d.telefone_remetente);
       const url = d.link_midia || "";
@@ -102,7 +106,7 @@ async function run() {
           tentativas_total: tent + 1,
           ultimo_erro: "telefone invalido"
         });
-        console.log(`Telefone inválido para ${doc.id}`);
+        console.log(`Telefone inválido: ${doc.id}`);
         continue;
       }
 
