@@ -18,9 +18,9 @@ const ClientIdentifyPage = () => {
   const [confirmaSenha, setConfirmaSenha] = useState("");
 
   const [loading, setLoading] = useState(false);
-  const [modoExistente, setModoExistente] = useState(false);
 
-  const validarClienteExistente = async () => {
+  // 🔐 CLIENTE EXISTENTE → LOGIN
+  const entrarClienteExistente = async () => {
     const telClean = sanitizePhone(telefone);
 
     if (!telClean || telClean.length < 10) {
@@ -43,8 +43,7 @@ const ClientIdentifyPage = () => {
       const snap = await getDocs(q);
 
       if (snap.empty) {
-        alert("Cliente não encontrado. Complete o cadastro abaixo.");
-        setModoExistente(false);
+        alert("Cliente não encontrado. Faça o cadastro abaixo.");
         setLoading(false);
         return;
       }
@@ -57,11 +56,12 @@ const ClientIdentifyPage = () => {
         return;
       }
 
-      // login OK
+      // ✅ login OK
       localStorage.setItem("clienteTelefone", telClean);
       localStorage.setItem("clienteNome", cliente.nome);
 
-      window.location.href = "/servicos";
+      // 👉 CLIENTE EXISTENTE VAI PARA MINHAS MENSAGENS
+      window.location.href = "/minhas-mensagens";
 
     } catch (err) {
       console.error(err);
@@ -71,6 +71,7 @@ const ClientIdentifyPage = () => {
     }
   };
 
+  // 🆕 NOVO CLIENTE → CADASTRO
   const cadastrarNovoCliente = async (e) => {
     e.preventDefault();
 
@@ -115,6 +116,7 @@ const ClientIdentifyPage = () => {
       localStorage.setItem("clienteTelefone", telClean);
       localStorage.setItem("clienteNome", nome);
 
+      // 👉 CLIENTE NOVO VAI PARA SERVIÇOS
       window.location.href = "/servicos";
 
     } catch (err) {
@@ -131,7 +133,14 @@ const ClientIdentifyPage = () => {
       <p>Para sua segurança, faça um pequeno cadastro e gere uma senha.</p>
 
       {/* 🔐 JÁ SOU CLIENTE */}
-      <div style={{ marginBottom: 24, padding: 16, border: "1px solid #ddd", borderRadius: 8 }}>
+      <div
+        style={{
+          marginBottom: 24,
+          padding: 16,
+          border: "1px solid #ddd",
+          borderRadius: 8
+        }}
+      >
         <strong>Já sou cliente</strong>
 
         <input
@@ -151,18 +160,21 @@ const ClientIdentifyPage = () => {
         />
 
         <button
-          onClick={validarClienteExistente}
+          onClick={entrarClienteExistente}
           disabled={loading}
           style={{ marginTop: 12, width: "100%" }}
         >
-          {loading ? "Validando..." : "Entrar"}
+          {loading ? "Entrando..." : "Entrar"}
         </button>
       </div>
 
       <hr />
 
-      {/* 🆕 NOVO CADASTRO */}
-      <form onSubmit={cadastrarNovoCliente} style={{ display: "grid", gap: 12, marginTop: 20 }}>
+      {/* 🆕 PRIMEIRO ACESSO */}
+      <form
+        onSubmit={cadastrarNovoCliente}
+        style={{ display: "grid", gap: 12, marginTop: 20 }}
+      >
         <strong>Primeiro acesso</strong>
 
         <input
