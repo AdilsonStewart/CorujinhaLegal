@@ -20,10 +20,6 @@ const VideoRecordPage = () => {
   const [videoBlob, setVideoBlob] = useState(null);
   const [tempoRestante, setTempoRestante] = useState(30);
 
-  const [remetenteNome, setRemetenteNome] = useState("");
-  const [remetenteTelefone, setRemetenteTelefone] = useState("");
-  const [remetenteNascimento, setRemetenteNascimento] = useState("");
-
   const [destinatarioNome, setDestinatarioNome] = useState("");
   const [destinatarioTelefone, setDestinatarioTelefone] = useState("");
 
@@ -63,9 +59,8 @@ const VideoRecordPage = () => {
         const blob = new Blob(chunksRef.current, { type: "video/webm" });
         setVideoBlob(blob);
         setVideoURL(URL.createObjectURL(blob));
-        if (stream) {
-          stream.getTracks().forEach((t) => t.stop());
-        }
+
+        newStream.getTracks().forEach((t) => t.stop());
         setStream(null);
         setTempoRestante(30);
       };
@@ -85,8 +80,8 @@ const VideoRecordPage = () => {
         });
       }, 1000);
 
-    } catch (err) {
-      alert("Permita o uso da câmera e microfone.");
+    } catch {
+      alert("Permita o uso da câmera e do microfone.");
     }
   };
 
@@ -98,23 +93,43 @@ const VideoRecordPage = () => {
   };
 
   const enviarDados = async () => {
-    if (!aceitoTermos) return alert("Você deve aceitar os Termos para continuar.");
-    if (!videoBlob) return alert("Grave o vídeo antes de enviar.");
-    if (!destinatarioNome || !horaEntrega)
-      return alert("Preencha destinatário e horário.");
-    if (!remetenteNascimento)
-      return alert("Preencha a data de nascimento do remetente.");
+    const telefoneRem = sanitizePhone(localStorage.getItem("clienteTelefone"));
+    const remetenteNome = localStorage.getItem("clienteNome") || "";
+
+    if (!telefoneRem) {
+      alert("Sessão expirada. Faça login novamente.");
+      return;
+    }
+
+    if (!aceitoTermos) {
+      alert("Você deve aceitar os Termos para continuar.");
+      return;
+    }
+
+    if (!videoBlob) {
+      alert("Grave o vídeo antes de enviar.");
+      return;
+    }
+
+    if (!destinatarioNome || !destinatarioTelefone || !horaEntrega) {
+      alert("Preencha nome, telefone do destinatário e horário.");
+      return;
+    }
 
     const agora = new Date();
     const dataHorario = new Date(`${dataEntrega}T${horaEntrega}`);
 
-    if (dataHorario < agora)
-      return alert("⛔ Não é possível agendar no passado.");
+    if (dataHorario < agora) {
+      alert("⛔ Não é possível agendar no passado.");
+      return;
+    }
 
     const limite = new Date();
     limite.setDate(limite.getDate() + 365);
-    if (dataHorario > limite)
-      return alert("⛔ Agendamento máximo de 365 dias.");
+    if (dataHorario > limite) {
+      alert("⛔ Agendamento máximo de 365 dias.");
+      return;
+    }
 
     try {
       const nomeArquivo = `video_${Date.now()}_${Math.random().toString(36).slice(2)}.webm`;
@@ -125,26 +140,25 @@ const VideoRecordPage = () => {
 
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage.from("Midias").getPublicUrl(nomeArquivo);
-      const publicUrl = data?.publicUrl || "";
+      const { data } = supabase.storage
+        .from("Midias")
+        .getPublicUrl(nomeArquivo);
 
-      const orderID = `VID-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const orderID = `VID-${Date.now()}`;
       const telefoneDest = sanitizePhone(destinatarioTelefone);
-      const telefoneRem = sanitizePhone(remetenteTelefone);
 
       const payload = {
         order_id: orderID,
         tipo: "video",
-        link_midia: publicUrl,
+        link_midia: data?.publicUrl || "",
         criado_em: new Date().toISOString(),
         data_agendamento: dataEntrega,
         hora_agendamento: horaEntrega,
         enviado: false,
         destinatario: destinatarioNome,
-        telefone_destinatario: telefoneDest || telefoneRem, // ✔ AJUSTE AQUI
+        telefone_destinatario: telefoneDest,
         remetente: remetenteNome,
-        telefone_remetente: telefoneRem,
-        remetente_nascimento: remetenteNascimento,
+        telefone_remetente: telefoneRem
       };
 
       await addDoc(collection(db, "agendamentos"), payload);
@@ -153,41 +167,48 @@ const VideoRecordPage = () => {
         "lastAgendamento",
         JSON.stringify({
           nome: destinatarioNome,
-          telefone: telefoneDest || telefoneRem,
+          telefone: telefoneDest,
           dataEntrega,
-          horario: horaEntrega,
+          horaEntrega,
           tipo: "video",
           orderID
         })
       );
 
-      alert("🎉 Vídeo agendado com sucesso!");
       window.location.href = "/saida";
 
     } catch (err) {
       console.error(err);
-      alert("Erro ao enviar.");
+      alert("Erro ao enviar vídeo.");
     }
   };
 
   return (
     <div style={{ padding: 20, maxWidth: 680, margin: "0 auto" }}>
-      <h2>🎥 Gravador de Vídeo - Máx 30s</h2>
+      <h2>🎥 Gravador de Vídeo – Máx 30s</h2>
 
       {isRecording && (
-        <video ref={previewRef} autoPlay muted playsInline style={{ width: "100%", marginBottom: 16 }} />
+        <video
+          ref={previewRef}
+          autoPlay
+          muted
+          playsInline
+          style={{ width: "100%", marginBottom: 16 }}
+        />
       )}
 
-      <div style={{
-        fontSize: 24,
-        color: "#dc3545",
-        fontWeight: "bold",
-        background: "#ffebee",
-        padding: "15px",
-        borderRadius: 12,
-        marginBottom: 20,
-        textAlign: "center"
-      }}>
+      <div
+        style={{
+          fontSize: 24,
+          color: "#dc3545",
+          fontWeight: "bold",
+          background: "#ffebee",
+          padding: "15px",
+          borderRadius: 12,
+          marginBottom: 20,
+          textAlign: "center"
+        }}
+      >
         ⏱️ Tempo máximo: {tempoRestante}s
       </div>
 
@@ -212,14 +233,27 @@ const VideoRecordPage = () => {
       <hr style={{ margin: "24px 0" }} />
 
       <div style={{ display: "grid", gap: 12 }}>
-        <input type="text" placeholder="Seu nome (remetente)" value={remetenteNome} onChange={(e) => setRemetenteNome(e.target.value)} />
-        <input type="tel" placeholder="Seu telefone (remetente)" value={remetenteTelefone} onChange={(e) => setRemetenteTelefone(e.target.value)} />
-        <label>Data de nascimento do remetente *</label>
-        <input type="date" value={remetenteNascimento} onChange={(e) => setRemetenteNascimento(e.target.value)} />
-        <input type="text" placeholder="Nome do destinatário" value={destinatarioNome} onChange={(e) => setDestinatarioNome(e.target.value)} />
-        <input type="tel" placeholder="Telefone do destinatário" value={destinatarioTelefone} onChange={(e) => setDestinatarioTelefone(e.target.value)} />
+        <input
+          type="text"
+          placeholder="Nome do destinatário"
+          value={destinatarioNome}
+          onChange={(e) => setDestinatarioNome(e.target.value)}
+        />
+
+        <input
+          type="tel"
+          placeholder="Telefone do destinatário"
+          value={destinatarioTelefone}
+          onChange={(e) => setDestinatarioTelefone(e.target.value)}
+        />
+
         <label>Data de entrega da mensagem *</label>
-        <input type="date" value={dataEntrega} onChange={(e) => setDataEntrega(e.target.value)} />
+        <input
+          type="date"
+          value={dataEntrega}
+          onChange={(e) => setDataEntrega(e.target.value)}
+        />
+
         <label>Horário disponível *</label>
         <select value={horaEntrega} onChange={(e) => setHoraEntrega(e.target.value)}>
           <option value="">Selecione</option>
