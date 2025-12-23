@@ -11,24 +11,29 @@ import {
 const sanitizePhone = (s = "") => (s || "").toString().replace(/\D/g, "");
 
 const ClientIdentifyPage = () => {
-  const [nome, setNome] = useState("");
-  const [telefone, setTelefone] = useState("");
-  const [nascimento, setNascimento] = useState("");
-  const [senha, setSenha] = useState("");
-  const [confirmaSenha, setConfirmaSenha] = useState("");
+  // 🔐 LOGIN
+  const [loginTelefone, setLoginTelefone] = useState("");
+  const [loginSenha, setLoginSenha] = useState("");
+
+  // 🆕 CADASTRO
+  const [cadNome, setCadNome] = useState("");
+  const [cadTelefone, setCadTelefone] = useState("");
+  const [cadNascimento, setCadNascimento] = useState("");
+  const [cadSenha, setCadSenha] = useState("");
+  const [cadConfirmaSenha, setCadConfirmaSenha] = useState("");
 
   const [loading, setLoading] = useState(false);
 
   // 🔐 CLIENTE EXISTENTE → LOGIN
   const entrarClienteExistente = async () => {
-    const telClean = sanitizePhone(telefone);
+    const telClean = sanitizePhone(loginTelefone);
 
     if (!telClean || telClean.length < 10) {
       alert("Informe seu telefone com DDD.");
       return;
     }
 
-    if (!senha) {
+    if (!loginSenha) {
       alert("Informe sua senha.");
       return;
     }
@@ -44,27 +49,24 @@ const ClientIdentifyPage = () => {
 
       if (snap.empty) {
         alert("Cliente não encontrado. Faça o cadastro abaixo.");
-        setLoading(false);
         return;
       }
 
       const cliente = snap.docs[0].data();
 
-      if (cliente.senha !== senha) {
+      if (cliente.senha !== loginSenha) {
         alert("Senha incorreta.");
-        setLoading(false);
         return;
       }
 
-      // ✅ login OK
+      // ✅ LOGIN OK
       localStorage.setItem("clienteTelefone", telClean);
       localStorage.setItem("clienteNome", cliente.nome);
 
-      // 👉 CLIENTE EXISTENTE VAI PARA MINHAS MENSAGENS
       window.location.href = "/minhas-mensagens";
 
     } catch (err) {
-      console.error(err);
+      console.error("ERRO LOGIN:", err);
       alert("Erro ao validar cliente.");
     } finally {
       setLoading(false);
@@ -75,9 +77,9 @@ const ClientIdentifyPage = () => {
   const cadastrarNovoCliente = async (e) => {
     e.preventDefault();
 
-    const telClean = sanitizePhone(telefone);
+    const telClean = sanitizePhone(cadTelefone);
 
-    if (!nome.trim()) {
+    if (!cadNome.trim()) {
       alert("Informe seu nome.");
       return;
     }
@@ -87,17 +89,17 @@ const ClientIdentifyPage = () => {
       return;
     }
 
-    if (!nascimento) {
+    if (!cadNascimento) {
       alert("Informe sua data de nascimento.");
       return;
     }
 
-    if (!senha || !confirmaSenha) {
+    if (!cadSenha || !cadConfirmaSenha) {
       alert("Crie e confirme sua senha.");
       return;
     }
 
-    if (senha !== confirmaSenha) {
+    if (cadSenha !== cadConfirmaSenha) {
       alert("As senhas não conferem.");
       return;
     }
@@ -105,23 +107,28 @@ const ClientIdentifyPage = () => {
     setLoading(true);
 
     try {
-      await addDoc(collection(db, "clientes"), {
-        nome,
+      console.log("CRIANDO CLIENTE:", {
+        nome: cadNome,
         telefone: telClean,
-        nascimento,
-        senha,
+        nascimento: cadNascimento
+      });
+
+      await addDoc(collection(db, "clientes"), {
+        nome: cadNome,
+        telefone: telClean,
+        nascimento: cadNascimento,
+        senha: cadSenha,
         criado_em: new Date().toISOString()
       });
 
       localStorage.setItem("clienteTelefone", telClean);
-      localStorage.setItem("clienteNome", nome);
+      localStorage.setItem("clienteNome", cadNome);
 
-      // 👉 CLIENTE NOVO VAI PARA SERVIÇOS
       window.location.href = "/servicos";
 
     } catch (err) {
-      console.error(err);
-      alert("Erro ao criar cadastro.");
+      console.error("ERRO AO CRIAR CLIENTE:", err);
+      alert("Erro ao criar cadastro. Veja o console.");
     } finally {
       setLoading(false);
     }
@@ -133,29 +140,22 @@ const ClientIdentifyPage = () => {
       <p>Para sua segurança, faça um pequeno cadastro e gere uma senha.</p>
 
       {/* 🔐 JÁ SOU CLIENTE */}
-      <div
-        style={{
-          marginBottom: 24,
-          padding: 16,
-          border: "1px solid #ddd",
-          borderRadius: 8
-        }}
-      >
+      <div style={{ marginBottom: 24, padding: 16, border: "1px solid #ddd", borderRadius: 8 }}>
         <strong>Já sou cliente</strong>
 
         <input
           type="tel"
           placeholder="Telefone com DDD"
-          value={telefone}
-          onChange={(e) => setTelefone(e.target.value)}
+          value={loginTelefone}
+          onChange={(e) => setLoginTelefone(e.target.value)}
           style={{ width: "100%", marginTop: 10 }}
         />
 
         <input
           type="password"
           placeholder="Digite sua senha"
-          value={senha}
-          onChange={(e) => setSenha(e.target.value)}
+          value={loginSenha}
+          onChange={(e) => setLoginSenha(e.target.value)}
           style={{ width: "100%", marginTop: 10 }}
         />
 
@@ -171,45 +171,42 @@ const ClientIdentifyPage = () => {
       <hr />
 
       {/* 🆕 PRIMEIRO ACESSO */}
-      <form
-        onSubmit={cadastrarNovoCliente}
-        style={{ display: "grid", gap: 12, marginTop: 20 }}
-      >
+      <form onSubmit={cadastrarNovoCliente} style={{ display: "grid", gap: 12, marginTop: 20 }}>
         <strong>Primeiro acesso</strong>
 
         <input
           type="text"
           placeholder="Seu nome completo"
-          value={nome}
-          onChange={(e) => setNome(e.target.value)}
+          value={cadNome}
+          onChange={(e) => setCadNome(e.target.value)}
         />
 
         <input
           type="tel"
           placeholder="Telefone com DDD"
-          value={telefone}
-          onChange={(e) => setTelefone(e.target.value)}
+          value={cadTelefone}
+          onChange={(e) => setCadTelefone(e.target.value)}
         />
 
         <label>Data de nascimento</label>
         <input
           type="date"
-          value={nascimento}
-          onChange={(e) => setNascimento(e.target.value)}
+          value={cadNascimento}
+          onChange={(e) => setCadNascimento(e.target.value)}
         />
 
         <input
           type="password"
           placeholder="Crie uma senha"
-          value={senha}
-          onChange={(e) => setSenha(e.target.value)}
+          value={cadSenha}
+          onChange={(e) => setCadSenha(e.target.value)}
         />
 
         <input
           type="password"
           placeholder="Confirme sua senha"
-          value={confirmaSenha}
-          onChange={(e) => setConfirmaSenha(e.target.value)}
+          value={cadConfirmaSenha}
+          onChange={(e) => setCadConfirmaSenha(e.target.value)}
         />
 
         <button type="submit" disabled={loading}>
