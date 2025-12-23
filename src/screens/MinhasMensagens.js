@@ -89,7 +89,7 @@ export default function MinhasMensagens() {
           }
         }
 
-        const items = docs.map(d => ({ id: d.id, ...d })); // docs já contém { id, ...d.data() }
+        const items = docs.map(d => ({ id: d.id, ...d }));
 
         items.sort((a, b) => {
           const ta = a.data_agendamento
@@ -155,6 +155,22 @@ export default function MinhasMensagens() {
   return (
     <div style={{ padding: 20, maxWidth: 760, margin: "0 auto" }}>
       <h2>📬 Minhas Mensagens</h2>
+
+      {/* ➕ NOVA MENSAGEM */}
+      <button
+        onClick={() => navigate("/servicos")}
+        style={{
+          width: "100%",
+          padding: 16,
+          marginBottom: 20,
+          background: "#28a745",
+          color: "#fff",
+          fontSize: 16,
+          borderRadius: 8
+        }}
+      >
+        ➕ Nova Mensagem
+      </button>
 
       {errorMsg && <div style={{ color: "red" }}>{errorMsg}</div>}
       {loading && <div>Carregando...</div>}
