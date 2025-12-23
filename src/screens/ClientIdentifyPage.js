@@ -57,7 +57,7 @@ const ClientIdentifyPage = () => {
       localStorage.setItem("clienteNome", cliente.nome || "");
       window.location.href = "/minhas-mensagens";
 
-    } catch (err) {
+    } catch {
       alert("Erro ao validar acesso.");
     } finally {
       setLoading(false);
@@ -104,7 +104,6 @@ const ClientIdentifyPage = () => {
     <div style={{
       minHeight: "100vh",
       background: "#0B0F1A",
-      color: "#FFFFFF",
       padding: 20
     }}>
       <div style={{ maxWidth: 680, margin: "0 auto" }}>
@@ -130,22 +129,16 @@ const ClientIdentifyPage = () => {
           Para sua segurança, acesse com sua senha ou faça um pequeno cadastro.
         </p>
 
-        {/* LOGIN */}
-        <div style={{
-          background: "#111827",
-          padding: 20,
-          borderRadius: 10,
-          border: "1px solid #1F2937",
-          marginBottom: 30
-        }}>
-          <strong style={{ color: "#3FA9F5" }}>Já sou cliente</strong>
+        {/* 🔐 JÁ SOU CLIENTE */}
+        <div style={cardWhite}>
+          <strong style={{ color: "#1E90FF" }}>Já sou cliente</strong>
 
           <input
             type="tel"
             placeholder="Telefone com DDD"
             value={loginTelefone}
             onChange={(e) => setLoginTelefone(e.target.value)}
-            style={inputStyle}
+            style={inputLight}
           />
 
           <input
@@ -153,7 +146,7 @@ const ClientIdentifyPage = () => {
             placeholder="Senha"
             value={loginSenha}
             onChange={(e) => setLoginSenha(e.target.value)}
-            style={inputStyle}
+            style={inputLight}
           />
 
           <button onClick={entrarCliente} disabled={loading} style={btnPrimary}>
@@ -161,34 +154,31 @@ const ClientIdentifyPage = () => {
           </button>
         </div>
 
-        {/* CADASTRO */}
-        <form
-          onSubmit={cadastrarNovoCliente}
-          style={{
-            background: "#111827",
-            padding: 20,
-            borderRadius: 10,
-            border: "1px solid #1F2937",
-            display: "grid",
-            gap: 12
-          }}
-        >
+        <hr style={{ borderColor: "#1F2937", margin: "30px 0" }} />
+
+        {/* 🆕 PRIMEIRO ACESSO */}
+        <form onSubmit={cadastrarNovoCliente} style={cardWhite}>
           <strong style={{ color: "#2ECC71" }}>Primeiro acesso</strong>
 
-          <input type="text" placeholder="Nome completo" value={cadNome}
-            onChange={(e) => setCadNome(e.target.value)} style={inputStyle} />
+          <input type="text" placeholder="Nome completo"
+            value={cadNome} onChange={(e) => setCadNome(e.target.value)}
+            style={inputLight} />
 
-          <input type="tel" placeholder="Telefone com DDD" value={cadTelefone}
-            onChange={(e) => setCadTelefone(e.target.value)} style={inputStyle} />
+          <input type="tel" placeholder="Telefone com DDD"
+            value={cadTelefone} onChange={(e) => setCadTelefone(e.target.value)}
+            style={inputLight} />
 
-          <input type="date" value={cadNascimento}
-            onChange={(e) => setCadNascimento(e.target.value)} style={inputStyle} />
+          <input type="date"
+            value={cadNascimento} onChange={(e) => setCadNascimento(e.target.value)}
+            style={inputLight} />
 
-          <input type="password" placeholder="Crie uma senha" value={cadSenha}
-            onChange={(e) => setCadSenha(e.target.value)} style={inputStyle} />
+          <input type="password" placeholder="Crie uma senha"
+            value={cadSenha} onChange={(e) => setCadSenha(e.target.value)}
+            style={inputLight} />
 
-          <input type="password" placeholder="Confirme sua senha" value={cadConfirmaSenha}
-            onChange={(e) => setCadConfirmaSenha(e.target.value)} style={inputStyle} />
+          <input type="password" placeholder="Confirme sua senha"
+            value={cadConfirmaSenha} onChange={(e) => setCadConfirmaSenha(e.target.value)}
+            style={inputLight} />
 
           <button type="submit" disabled={loading} style={btnSuccess}>
             {loading ? "Criando cadastro..." : "Continuar"}
@@ -200,22 +190,31 @@ const ClientIdentifyPage = () => {
   );
 };
 
-const inputStyle = {
+const cardWhite = {
+  background: "#FFFFFF",
+  padding: 20,
+  borderRadius: 12,
+  boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+  display: "grid",
+  gap: 12
+};
+
+const inputLight = {
   width: "100%",
   padding: 12,
   borderRadius: 8,
-  border: "1px solid #1F2937",
-  background: "#0B0F1A",
-  color: "#FFFFFF"
+  border: "1px solid #CBD5E1",
+  background: "#FFFFFF",
+  color: "#000000"
 };
 
 const btnPrimary = {
-  marginTop: 12,
+  marginTop: 10,
   padding: 12,
   borderRadius: 8,
   border: "none",
   background: "#1E90FF",
-  color: "#fff",
+  color: "#FFFFFF",
   fontWeight: "bold",
   cursor: "pointer"
 };
