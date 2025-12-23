@@ -4,7 +4,8 @@ import {
   collection,
   query,
   where,
-  getDocs
+  getDocs,
+  addDoc
 } from "firebase/firestore";
 
 const sanitizePhone = (s = "") => (s || "").toString().replace(/\D/g, "");
@@ -12,11 +13,12 @@ const sanitizePhone = (s = "") => (s || "").toString().replace(/\D/g, "");
 const ClientIdentifyPage = () => {
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
-  const [senha, setSenha] = useState(""); // ⭐ ADICIONADO
+  const [nascimento, setNascimento] = useState("");
+  const [senha, setSenha] = useState("");
+  const [confirmaSenha, setConfirmaSenha] = useState("");
+
   const [loading, setLoading] = useState(false);
-  const [foundClient, setFoundClient] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
-  const [senhaValida, setSenhaValida] = useState(false); // ⭐ ADICIONADO
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -24,148 +26,132 @@ const ClientIdentifyPage = () => {
 
     const telClean = sanitizePhone(telefone);
 
+    if (!nome.trim()) {
+      alert("Informe seu nome.");
+      return;
+    }
+
     if (!telClean || telClean.length < 10) {
       alert("Telefone inválido. Ex: 11999998888");
       return;
     }
 
-    if (!senha.trim()) {
-      alert("Informe sua senha.");
+    if (!nascimento) {
+      alert("Informe sua data de nascimento.");
+      return;
+    }
+
+    if (!senha || !confirmaSenha) {
+      alert("Informe e confirme sua senha.");
+      return;
+    }
+
+    if (senha !== confirmaSenha) {
+      alert("As senhas não conferem.");
       return;
     }
 
     setLoading(true);
 
     try {
-      // 1️⃣ busca pelo remetente
-      const q1 = query(
-        collection(db, "agendamentos"),
-        where("telefone_remetente", "==", telClean)
+      // 🔎 Verifica se o cliente já existe
+      const q = query(
+        collection(db, "clientes"),
+        where("telefone", "==", telClean)
       );
-      const snap1 = await getDocs(q1);
+      const snap = await getDocs(q);
 
-      let registros = snap1.docs;
+      // 🟢 CLIENTE JÁ EXISTE → validar senha
+      if (!snap.empty) {
+        const cliente = snap.docs[0].data();
 
-      // 2️⃣ se não achou, busca pelo destinatário
-      if (registros.length === 0) {
-        const q2 = query(
-          collection(db, "agendamentos"),
-          where("telefone_destinatario", "==", telClean)
-        );
-        const snap2 = await getDocs(q2);
-        registros = snap2.docs;
-      }
+        if (cliente.senha !== senha) {
+          alert("Senha incorreta.");
+          setLoading(false);
+          return;
+        }
 
-      if (registros.length === 0) {
-        setFoundClient(null);
-        setSenhaValida(false);
-        setStatusMessage("Nenhuma mensagem encontrada com este telefone.");
-        setLoading(false);
+        // login ok
+        localStorage.setItem("clienteTelefone", telClean);
+        localStorage.setItem("clienteNome", cliente.nome);
+
+        window.location.href = "/servicos";
         return;
       }
 
-      // usa o primeiro agendamento encontrado
-      const dados = registros[0].data();
-
-      // ⭐ valida senha
-      if (dados.senha !== senha) {
-        setFoundClient(null);
-        setSenhaValida(false);
-        setStatusMessage("Senha incorreta.");
-        setLoading(false);
-        return;
-      }
-
-      // ⭐ senha OK
-      setSenhaValida(true);
-
-      setFoundClient({
-        nome: dados.remetente || nome || "Cliente",
-        telefone: telClean
+      // 🆕 NOVO CLIENTE → criar cadastro
+      await addDoc(collection(db, "clientes"), {
+        nome,
+        telefone: telClean,
+        nascimento,
+        senha,
+        criado_em: new Date().toISOString()
       });
 
       localStorage.setItem("clienteTelefone", telClean);
-      localStorage.setItem("clienteNome", dados.remetente || nome);
+      localStorage.setItem("clienteNome", nome);
 
-      setStatusMessage(`Bem-vindo, ${dados.remetente || "cliente"}.`);
+      window.location.href = "/servicos";
 
     } catch (err) {
       console.error(err);
-      alert("Erro ao validar.");
+      alert("Erro ao processar seu cadastro.");
     } finally {
       setLoading(false);
     }
   };
 
-  const goToMessages = () => {
-    if (!senhaValida) return;
-    window.location.href = "/minhas-mensagens";
-  };
-
-  const goToSend = () => {
-    if (!senhaValida) return;
-    window.location.href = "/";
-  };
-
   return (
     <div style={{ padding: 20, maxWidth: 680, margin: "0 auto" }}>
-      <h2>Sou cliente</h2>
+      <h2>Olá, que bom te ter aqui!</h2>
+      <p>Para sua segurança, faça um pequeno cadastro e gere uma senha.</p>
 
-      <form onSubmit={handleSubmit} style={{ display: "grid", gap: 10 }}>
+      <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
+
         <input
           type="text"
-          placeholder="Seu nome (opcional)"
+          placeholder="Seu nome completo"
           value={nome}
           onChange={(e) => setNome(e.target.value)}
         />
 
         <input
           type="tel"
-          placeholder="Seu telefone com DDD *"
+          placeholder="Telefone com DDD"
           value={telefone}
           onChange={(e) => setTelefone(e.target.value)}
         />
 
-        {/* ⭐ CAMPO SENHA */}
+        <label>Data de nascimento</label>
+        <input
+          type="date"
+          value={nascimento}
+          onChange={(e) => setNascimento(e.target.value)}
+        />
+
         <input
           type="password"
-          placeholder="Sua senha *"
+          placeholder="Crie uma senha"
           value={senha}
           onChange={(e) => setSenha(e.target.value)}
         />
 
+        <input
+          type="password"
+          placeholder="Confirme sua senha"
+          value={confirmaSenha}
+          onChange={(e) => setConfirmaSenha(e.target.value)}
+        />
+
         <button type="submit" disabled={loading}>
-          {loading ? "Validando..." : "Entrar"}
+          {loading ? "Processando..." : "Continuar"}
         </button>
+
       </form>
 
       {statusMessage && (
         <div style={{ marginTop: 16 }}>
           <strong>{statusMessage}</strong>
-        </div>
-      )}
-
-      {/* ⭐ SÓ MOSTRA SE SENHA VALIDADA */}
-      {foundClient && senhaValida && (
-        <div style={{ marginTop: 14 }}>
-          <div>Nome: <strong>{foundClient.nome}</strong></div>
-          <div>Telefone: <strong>{foundClient.telefone}</strong></div>
-
-          <div style={{ marginTop: 10, display: "flex", gap: 10 }}>
-            <button
-              onClick={goToMessages}
-              style={{ flex: 1 }}
-            >
-              Ver minha lista
-            </button>
-
-            <button
-              onClick={goToSend}
-              style={{ flex: 1 }}
-            >
-              Enviar nova mensagem
-            </button>
-          </div>
         </div>
       )}
     </div>
