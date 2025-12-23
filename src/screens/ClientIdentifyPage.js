@@ -160,25 +160,46 @@ const ClientIdentifyPage = () => {
         <form onSubmit={cadastrarNovoCliente} style={cardWhite}>
           <strong style={{ color: "#2ECC71" }}>Primeiro acesso</strong>
 
-          <input type="text" placeholder="Nome completo"
-            value={cadNome} onChange={(e) => setCadNome(e.target.value)}
-            style={inputLight} />
+          <input
+            type="text"
+            placeholder="Nome completo"
+            value={cadNome}
+            onChange={(e) => setCadNome(e.target.value)}
+            style={inputLight}
+          />
 
-          <input type="tel" placeholder="Telefone com DDD"
-            value={cadTelefone} onChange={(e) => setCadTelefone(e.target.value)}
-            style={inputLight} />
+          <input
+            type="tel"
+            placeholder="Telefone com DDD"
+            value={cadTelefone}
+            onChange={(e) => setCadTelefone(e.target.value)}
+            style={inputLight}
+          />
 
-          <input type="date"
-            value={cadNascimento} onChange={(e) => setCadNascimento(e.target.value)}
-            style={inputLight} />
+          {/* ✅ AJUSTE AQUI */}
+          <label style={labelStyle}>Data de nascimento</label>
+          <input
+            type="date"
+            value={cadNascimento}
+            onChange={(e) => setCadNascimento(e.target.value)}
+            style={inputLight}
+          />
 
-          <input type="password" placeholder="Crie uma senha"
-            value={cadSenha} onChange={(e) => setCadSenha(e.target.value)}
-            style={inputLight} />
+          <input
+            type="password"
+            placeholder="Crie uma senha"
+            value={cadSenha}
+            onChange={(e) => setCadSenha(e.target.value)}
+            style={inputLight}
+          />
 
-          <input type="password" placeholder="Confirme sua senha"
-            value={cadConfirmaSenha} onChange={(e) => setCadConfirmaSenha(e.target.value)}
-            style={inputLight} />
+          <input
+            type="password"
+            placeholder="Confirme sua senha"
+            value={cadConfirmaSenha}
+            onChange={(e) => setCadConfirmaSenha(e.target.value)}
+            style={inputLight}
+          />
 
           <button type="submit" disabled={loading} style={btnSuccess}>
             {loading ? "Criando cadastro..." : "Continuar"}
@@ -197,6 +218,12 @@ const cardWhite = {
   boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
   display: "grid",
   gap: 12
+};
+
+const labelStyle = {
+  fontSize: 14,
+  fontWeight: "600",
+  color: "#111827"
 };
 
 const inputLight = {
