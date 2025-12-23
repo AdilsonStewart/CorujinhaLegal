@@ -11,11 +11,9 @@ import {
 const sanitizePhone = (s = "") => (s || "").toString().replace(/\D/g, "");
 
 const ClientIdentifyPage = () => {
-  // 🔐 LOGIN (somente telefone + senha)
   const [loginTelefone, setLoginTelefone] = useState("");
   const [loginSenha, setLoginSenha] = useState("");
 
-  // 🆕 CADASTRO
   const [cadNome, setCadNome] = useState("");
   const [cadTelefone, setCadTelefone] = useState("");
   const [cadNascimento, setCadNascimento] = useState("");
@@ -24,7 +22,6 @@ const ClientIdentifyPage = () => {
 
   const [loading, setLoading] = useState(false);
 
-  // 🔐 CLIENTE EXISTENTE → LOGIN
   const entrarCliente = async () => {
     const telClean = sanitizePhone(loginTelefone);
 
@@ -32,14 +29,12 @@ const ClientIdentifyPage = () => {
       alert("Informe o telefone cadastrado com DDD.");
       return;
     }
-
     if (!loginSenha) {
       alert("Informe sua senha.");
       return;
     }
 
     setLoading(true);
-
     try {
       const q = query(
         collection(db, "Clientes"),
@@ -53,7 +48,6 @@ const ClientIdentifyPage = () => {
       }
 
       const cliente = snap.docs[0].data();
-
       if (cliente.senha !== loginSenha) {
         alert("Senha incorreta.");
         return;
@@ -64,36 +58,19 @@ const ClientIdentifyPage = () => {
       window.location.href = "/minhas-mensagens";
 
     } catch (err) {
-      console.error("ERRO LOGIN:", err);
       alert("Erro ao validar acesso.");
     } finally {
       setLoading(false);
     }
   };
 
-  // 🆕 NOVO CLIENTE → CADASTRO
   const cadastrarNovoCliente = async (e) => {
     e.preventDefault();
 
     const telClean = sanitizePhone(cadTelefone);
 
-    if (!cadNome.trim()) {
-      alert("Informe seu nome.");
-      return;
-    }
-
-    if (!telClean || telClean.length < 10) {
-      alert("Telefone inválido.");
-      return;
-    }
-
-    if (!cadNascimento) {
-      alert("Informe sua data de nascimento.");
-      return;
-    }
-
-    if (!cadSenha || !cadConfirmaSenha) {
-      alert("Crie e confirme sua senha.");
+    if (!cadNome || !telClean || !cadNascimento || !cadSenha) {
+      alert("Preencha todos os campos.");
       return;
     }
 
@@ -103,7 +80,6 @@ const ClientIdentifyPage = () => {
     }
 
     setLoading(true);
-
     try {
       await addDoc(collection(db, "Clientes"), {
         nome: cadNome,
@@ -117,8 +93,7 @@ const ClientIdentifyPage = () => {
       localStorage.setItem("clienteNome", cadNome);
       window.location.href = "/servicos";
 
-    } catch (err) {
-      console.error("ERRO CADASTRO:", err);
+    } catch {
       alert("Erro ao criar cadastro.");
     } finally {
       setLoading(false);
@@ -126,111 +101,128 @@ const ClientIdentifyPage = () => {
   };
 
   return (
-    <div style={{ padding: 20, maxWidth: 680, margin: "0 auto" }}>
+    <div style={{
+      minHeight: "100vh",
+      background: "#0B0F1A",
+      color: "#FFFFFF",
+      padding: 20
+    }}>
+      <div style={{ maxWidth: 680, margin: "0 auto" }}>
 
-      {/* 🦉 GIF DE BOAS-VINDAS */}
-      <div style={{ textAlign: "center", marginBottom: 8 }}>
-        <img
-          src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExcGp4emIxbG56aTN6d3Z2NXJobG81cHZubm51dDFpNDNmbTY4c3k0YyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/koQc8mBoKI1zRmQFvF/giphy.gif"
-          alt="Bem-vindo"
-          style={{ width: 60, height: "auto" }}
-        />
-      </div>
+        {/* GIF */}
+        <div style={{ textAlign: "center", marginBottom: 10 }}>
+          <img
+            src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExcGp4emIxbG56aTN6d3Z2NXJobG81cHZubm51dDFpNDNmbTY4c3k0YyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/koQc8mBoKI1zRmQFvF/giphy.gif"
+            alt="Bem-vindo"
+            style={{ width: 60 }}
+          />
+        </div>
 
-      <h2 style={{ textAlign: "center" }}>
-        Olá, que bom te ter aqui!
-      </h2>
+        <h2 style={{ textAlign: "center", color: "#1E90FF" }}>
+          Olá, que bom te ter aqui!
+        </h2>
 
-      <p style={{ textAlign: "center" }}>
-        Para sua segurança, acesse com sua senha ou faça um pequeno cadastro.
-      </p>
+        <p style={{
+          textAlign: "center",
+          color: "#B0BEC5",
+          marginBottom: 30
+        }}>
+          Para sua segurança, acesse com sua senha ou faça um pequeno cadastro.
+        </p>
 
-      {/* 🔐 JÁ SOU CLIENTE */}
-      <div
-        style={{
-          marginBottom: 24,
-          padding: 16,
-          border: "1px solid #ddd",
-          borderRadius: 8
-        }}
-      >
-        <strong>Já sou cliente</strong>
+        {/* LOGIN */}
+        <div style={{
+          background: "#111827",
+          padding: 20,
+          borderRadius: 10,
+          border: "1px solid #1F2937",
+          marginBottom: 30
+        }}>
+          <strong style={{ color: "#3FA9F5" }}>Já sou cliente</strong>
 
-        <input
-          type="tel"
-          placeholder="Telefone cadastrado (com DDD)"
-          value={loginTelefone}
-          onChange={(e) => setLoginTelefone(e.target.value)}
-          style={{ width: "100%", marginTop: 10 }}
-        />
+          <input
+            type="tel"
+            placeholder="Telefone com DDD"
+            value={loginTelefone}
+            onChange={(e) => setLoginTelefone(e.target.value)}
+            style={inputStyle}
+          />
 
-        <input
-          type="password"
-          placeholder="Sua senha"
-          value={loginSenha}
-          onChange={(e) => setLoginSenha(e.target.value)}
-          style={{ width: "100%", marginTop: 10 }}
-        />
+          <input
+            type="password"
+            placeholder="Senha"
+            value={loginSenha}
+            onChange={(e) => setLoginSenha(e.target.value)}
+            style={inputStyle}
+          />
 
-        <button
-          onClick={entrarCliente}
-          disabled={loading}
-          style={{ marginTop: 12, width: "100%" }}
+          <button onClick={entrarCliente} disabled={loading} style={btnPrimary}>
+            {loading ? "Entrando..." : "Entrar"}
+          </button>
+        </div>
+
+        {/* CADASTRO */}
+        <form
+          onSubmit={cadastrarNovoCliente}
+          style={{
+            background: "#111827",
+            padding: 20,
+            borderRadius: 10,
+            border: "1px solid #1F2937",
+            display: "grid",
+            gap: 12
+          }}
         >
-          {loading ? "Entrando..." : "Entrar"}
-        </button>
+          <strong style={{ color: "#2ECC71" }}>Primeiro acesso</strong>
+
+          <input type="text" placeholder="Nome completo" value={cadNome}
+            onChange={(e) => setCadNome(e.target.value)} style={inputStyle} />
+
+          <input type="tel" placeholder="Telefone com DDD" value={cadTelefone}
+            onChange={(e) => setCadTelefone(e.target.value)} style={inputStyle} />
+
+          <input type="date" value={cadNascimento}
+            onChange={(e) => setCadNascimento(e.target.value)} style={inputStyle} />
+
+          <input type="password" placeholder="Crie uma senha" value={cadSenha}
+            onChange={(e) => setCadSenha(e.target.value)} style={inputStyle} />
+
+          <input type="password" placeholder="Confirme sua senha" value={cadConfirmaSenha}
+            onChange={(e) => setCadConfirmaSenha(e.target.value)} style={inputStyle} />
+
+          <button type="submit" disabled={loading} style={btnSuccess}>
+            {loading ? "Criando cadastro..." : "Continuar"}
+          </button>
+        </form>
+
       </div>
-
-      <hr />
-
-      {/* 🆕 PRIMEIRO ACESSO */}
-      <form
-        onSubmit={cadastrarNovoCliente}
-        style={{ display: "grid", gap: 12, marginTop: 20 }}
-      >
-        <strong>Primeiro acesso</strong>
-
-        <input
-          type="text"
-          placeholder="Seu nome completo"
-          value={cadNome}
-          onChange={(e) => setCadNome(e.target.value)}
-        />
-
-        <input
-          type="tel"
-          placeholder="Telefone com DDD"
-          value={cadTelefone}
-          onChange={(e) => setCadTelefone(e.target.value)}
-        />
-
-        <label>Data de nascimento</label>
-        <input
-          type="date"
-          value={cadNascimento}
-          onChange={(e) => setCadNascimento(e.target.value)}
-        />
-
-        <input
-          type="password"
-          placeholder="Crie uma senha"
-          value={cadSenha}
-          onChange={(e) => setCadSenha(e.target.value)}
-        />
-
-        <input
-          type="password"
-          placeholder="Confirme sua senha"
-          value={cadConfirmaSenha}
-          onChange={(e) => setCadConfirmaSenha(e.target.value)}
-        />
-
-        <button type="submit" disabled={loading}>
-          {loading ? "Criando cadastro..." : "Continuar"}
-        </button>
-      </form>
     </div>
   );
+};
+
+const inputStyle = {
+  width: "100%",
+  padding: 12,
+  borderRadius: 8,
+  border: "1px solid #1F2937",
+  background: "#0B0F1A",
+  color: "#FFFFFF"
+};
+
+const btnPrimary = {
+  marginTop: 12,
+  padding: 12,
+  borderRadius: 8,
+  border: "none",
+  background: "#1E90FF",
+  color: "#fff",
+  fontWeight: "bold",
+  cursor: "pointer"
+};
+
+const btnSuccess = {
+  ...btnPrimary,
+  background: "#2ECC71"
 };
 
 export default ClientIdentifyPage;
