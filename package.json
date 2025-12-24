@@ -13,9 +13,9 @@
     "react-router-dom": "^7.10.1",
     "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4",
-
     "firebase-admin": "^11.10.0",
-    "axios": "^1.6.0"
+    "axios": "^1.6.0",
+    "twilio": "^4.20.0"
   },
   "scripts": {
     "start": "react-scripts start",
