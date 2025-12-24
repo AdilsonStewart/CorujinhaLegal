@@ -42,21 +42,12 @@ export default function Home() {
       <h1 className="titulo">DeixaComigo</h1>
       <p className="slogan">Lembrou agora?<br />Programe o parabéns!</p>
 
-      {/* Botão principal: quem quer CRIAR e GRAVAR uma mensagem */}
+      {/* Botão principal: vai direto para a tela de identificação (criar lembrete) */}
       <button
         className="botao criar-lembrete"
         onClick={() => navigate('/sou-cliente')}
       >
         Criar Meu Lembrete
-      </button>
-
-      {/* Botão secundário: quem quer apenas VER as mensagens recebidas */}
-      <button
-        className="botao criar-lembrete"
-        style={{ marginTop: '10px', backgroundColor: '#4A90E2' }}
-        onClick={() => navigate('/minhas-mensagens')}
-      >
-        Sou Cliente
       </button>
 
       <p className="texto-pequeno">
