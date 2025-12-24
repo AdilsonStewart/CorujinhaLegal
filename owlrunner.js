@@ -1,3 +1,4 @@
+
 // owlrunner.js – versão Twilio + mensagem 100% pessoal (sem emoji, sem "PARAR")
 const admin = require("firebase-admin");
 const twilio = require("twilio");
