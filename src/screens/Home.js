@@ -8,7 +8,6 @@ export default function Home() {
   const [adminPassword, setAdminPassword] = useState('');
   const [passwordError, setPasswordError] = useState(false);
 
-  // Senha do admin - 123456
   const ADMIN_PASSWORD = "123456";
 
   const handleAdminAccess = () => {
@@ -30,7 +29,7 @@ export default function Home() {
   return (
     <div className="container">
 
-      {/* CABEÇALHO COM TARJA */}
+      {/* CABEÇALHO COM LARGURA IGUAL */}
       <div className="cabecalho-home">
         <div className="tarja-owlbuddy">OwlBuddy</div>
         <p className="nao-esqueca">Não Esqueça Mais:</p>
@@ -64,7 +63,7 @@ export default function Home() {
         Todo mundo acha que você nunca esquece.
       </p>
 
-      {/* ADMIN CENTRALIZADO */}
+      {/* ADMIN */}
       <div className="admin-centralizado">
         <button
           className="admin-btn-central"
