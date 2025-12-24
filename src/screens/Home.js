@@ -29,7 +29,13 @@ export default function Home() {
 
   return (
     <div className="container">
-      <p className="nao-esqueca">Não Esqueça Mais:</p>
+
+      {/* CABEÇALHO COM TARJA */}
+      <div className="cabecalho-home">
+        <div className="tarja-owlbuddy">OwlBuddy</div>
+        <p className="nao-esqueca">Não Esqueça Mais:</p>
+      </div>
+
       <div className="mascote-container">
         <img
           src="https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExZTg0cXptZ2t1a3QxNTczY25xbzJ5bDA2MXFuMnRocWNzdXZvMHB0aSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/XpfXuBYtvR9I8jjBH0/giphy.gif"
@@ -37,10 +43,14 @@ export default function Home() {
           className="mascote-image"
         />
       </div>
+
       <h2 className="corujinha-legal">Corujinha Legal</h2>
-     
       <h1 className="titulo">DeixaComigo</h1>
-      <p className="slogan">Lembrou agora?<br />Programe o parabéns!</p>
+
+      <p className="slogan">
+        Lembrou agora?<br />
+        Programe o parabéns!
+      </p>
 
       <button
         className="botao criar-lembrete"
@@ -50,7 +60,8 @@ export default function Home() {
       </button>
 
       <p className="texto-pequeno">
-        Sua voz, na hora certa.<br />Todo mundo acha que você nunca esquece.
+        Sua voz, na hora certa.<br />
+        Todo mundo acha que você nunca esquece.
       </p>
 
       {/* ADMIN CENTRALIZADO */}
@@ -61,9 +72,11 @@ export default function Home() {
         >
           {showAdmin ? '✖ Fechar Admin' : '⚙ Acesso Admin'}
         </button>
+
         {showAdmin && (
           <div className="admin-painel-central">
             <h3>Área Administrativa</h3>
+
             <input
               type="password"
               placeholder="Digite a senha admin"
@@ -72,15 +85,20 @@ export default function Home() {
               className="admin-input-central"
               onKeyPress={(e) => e.key === 'Enter' && handleAdminAccess()}
             />
+
             <button
               className="admin-btn-acessar"
               onClick={handleAdminAccess}
             >
               🔓 Acessar Painel
             </button>
+
             {passwordError && (
-              <p className="admin-erro-central">Senha incorreta - Digite: 123456</p>
+              <p className="admin-erro-central">
+                Senha incorreta - Digite: 123456
+              </p>
             )}
+
             <p className="admin-dica">Senha: 123456</p>
           </div>
         )}
