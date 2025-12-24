@@ -29,20 +29,6 @@ export default function Home() {
 
   return (
     <div className="container">
-      {/* LOGO OWLBUDDY NO TOPO - VERSÃO ATUALIZADA! */}
-      <div style={{ textAlign: 'center', margin: '30px 0' }}>
-        <img
-          src="https://lh3.googleusercontent.com/pw/AP1GczM5wY8Y0Z9eK1bN4fH3jPqR7sT2uV4wY6z8A0B2C4D6E8F0G2H4I6J8K0L2M=w1200-h800"  // Link direto do seu novo logo (alta qualidade)
-          alt="Logo OwlBuddy"
-          style={{ 
-            maxWidth: '90%', 
-            height: 'auto', 
-            borderRadius: '15px', 
-            boxShadow: '0 4px 10px rgba(0,0,0,0.1)'  // Sombrinha sutil pra destacar
-          }}
-        />
-      </div>
-
       <p className="nao-esqueca">Não Esqueça Mais:</p>
       <div className="mascote-container">
         <img
