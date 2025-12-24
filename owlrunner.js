@@ -1,6 +1,6 @@
-// robo.js – versão ajustada para CorujinhaLegal2 (SEM TRAVA DE HORÁRIO)
+// robo.js – versão Twilio + mensagem 100% pessoal (sem emoji, sem "PARAR")
 const admin = require("firebase-admin");
-const axios = require("axios");
+const twilio = require("twilio");
 
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -15,8 +15,12 @@ if (!admin.apps.length) {
 const TIMEZONE = "America/Sao_Paulo";
 const MAX_TENTATIVAS = 3;
 
-const CLICKSEND_USERNAME = process.env.CLICKSEND_USERNAME;
-const CLICKSEND_API_KEY = process.env.CLICKSEND_API_KEY;
+// Credenciais Twilio (já configuradas na Render)
+const twilioClient = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
+const FROM_NUMBER = process.env.TWILIO_PHONE_NUMBER;
 
 function normalizePhone(raw) {
   if (!raw) return null;
@@ -28,14 +32,11 @@ function normalizePhone(raw) {
 }
 
 async function sendSms(to, body) {
-  return axios.post(
-    "https://rest.clicksend.com/v3/sms/send",
-    { messages: [{ source: "sdk", body, to }] },
-    {
-      auth: { username: CLICKSEND_USERNAME, password: CLICKSEND_API_KEY },
-      timeout: 15000
-    }
-  );
+  return twilioClient.messages.create({
+    body: body,
+    from: FROM_NUMBER,
+    to: to
+  });
 }
 
 function nowSP() {
@@ -53,14 +54,13 @@ function getHourSP() {
 }
 
 async function run() {
-  if (!CLICKSEND_USERNAME || !CLICKSEND_API_KEY) {
-    console.error("ClickSend secrets missing");
+  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !FROM_NUMBER) {
+    console.error("Credenciais da Twilio não encontradas nas environment variables");
     return;
   }
 
   const today = getTodaySP();
   const currentHour = getHourSP();
-
   console.log(`Runner iniciado | Data: ${today} | Hora atual: ${currentHour}`);
 
   const db = admin.firestore();
@@ -74,30 +74,23 @@ async function run() {
       .get();
 
     if (snap.empty) {
-      console.log("No pending messages for today");
+      console.log("Nenhuma mensagem pendente para hoje");
       return;
     }
 
     for (const doc of snap.docs) {
       const ref = doc.ref;
       const d = doc.data();
+      const horaAgendada = d.hora_agendamento;
 
-      const horaAgendada = d.hora_agendamento; // "HH:MM"
-
-      // ⏱️ REGRA PRINCIPAL: ainda não chegou a hora → pula
       if (!horaAgendada || horaAgendada > currentHour) {
         continue;
       }
 
       const tent = d.tentativas_total || 0;
-
       const destName = d.destinatario || "Amigo";
       const senderName = d.remetente || "Alguém";
-
-      const telDest = normalizePhone(
-        d.telefone_destinatario || d.telefone
-      );
-
+      const telDest = normalizePhone(d.telefone_destinatario || d.telefone);
       const telRem = normalizePhone(d.telefone_remetente);
       const url = d.link_midia || "";
 
@@ -110,26 +103,23 @@ async function run() {
         continue;
       }
 
-      const body =
-        `Olá ${destName},\n` +
-        `você recebeu uma mensagem de ${senderName}.\n` +
-        `Clique no link: ${url}`;
+      // Mensagem 100% pessoal e natural
+      const body = `Olá ${destName},\n\n` +
+                   `${senderName} te enviou uma mensagem especial.\n\n` +
+                   `Clique no link para ouvir ou ver:\n${url}`;
 
       try {
-        await sendSms(telDest, body);
-
+        const message = await sendSms(telDest, body);
         await ref.update({
           enviado: true,
           enviado_em: admin.firestore.FieldValue.serverTimestamp(),
           tentativas_total: tent,
-          ultimo_erro: null
+          ultimo_erro: null,
+          twilio_sid: message.sid
         });
-
-        console.log(`Sucesso: ${doc.id}`);
-
+        console.log(`Sucesso Twilio: ${doc.id} | SID: ${message.sid}`);
       } catch (err) {
         const novoTotal = tent + 1;
-
         const update = {
           tentativas_total: novoTotal,
           ultimo_erro: String(err.message || err),
@@ -142,23 +132,21 @@ async function run() {
               await sendSms(
                 telRem,
                 `Olá ${senderName},\n` +
-                `não conseguimos entregar sua mensagem após ${MAX_TENTATIVAS} tentativas.`
+                `não conseguimos entregar sua mensagem após ${MAX_TENTATIVAS} tentativas. ` +
+                `Verifique o número ou entre em contato.`
               );
             } catch (_) {}
           }
-
           update.falha_definitiva = true;
           update.enviado = false;
         }
 
         await ref.update(update);
-
-        console.log(`Falha ${novoTotal}/${MAX_TENTATIVAS}: ${doc.id}`);
+        console.log(`Falha ${novoTotal}/${MAX_TENTATIVAS}: ${doc.id} | Erro: ${err.message}`);
       }
     }
-
   } catch (e) {
-    console.error("Runner error:", e);
+    console.error("Erro geral no runner:", e);
   }
 }
 
