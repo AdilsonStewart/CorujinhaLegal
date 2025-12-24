@@ -29,12 +29,17 @@ export default function Home() {
 
   return (
     <div className="container">
-      {/* LOGO OWLBUDDY NO TOPO - NOVO! */}
-      <div style={{ textAlign: 'center', marginBottom: '20px', marginTop: '20px' }}>
+      {/* LOGO OWLBUDDY NO TOPO - VERSÃO ATUALIZADA! */}
+      <div style={{ textAlign: 'center', margin: '30px 0' }}>
         <img
-          src="https://lh3.googleusercontent.com/pw/AP1GczN8z3zV6o3bL9kQeXhV0pR7sT2uV4wY6z8A0B2C4D6E8F0G2H4I6J8K0L2M=w800-h600"  // Link direto do seu logo (ajustado pra tamanho bom)
+          src="https://lh3.googleusercontent.com/pw/AP1GczM5wY8Y0Z9eK1bN4fH3jPqR7sT2uV4wY6z8A0B2C4D6E8F0G2H4I6J8K0L2M=w1200-h800"  // Link direto do seu novo logo (alta qualidade)
           alt="Logo OwlBuddy"
-          style={{ maxWidth: '80%', height: 'auto', borderRadius: '10px' }}  // Responsivo e bonito
+          style={{ 
+            maxWidth: '90%', 
+            height: 'auto', 
+            borderRadius: '15px', 
+            boxShadow: '0 4px 10px rgba(0,0,0,0.1)'  // Sombrinha sutil pra destacar
+          }}
         />
       </div>
 
@@ -51,7 +56,6 @@ export default function Home() {
       <h1 className="titulo">DeixaComigo</h1>
       <p className="slogan">Lembrou agora?<br />Programe o parabéns!</p>
 
-      {/* Botão principal */}
       <button
         className="botao criar-lembrete"
         onClick={() => navigate('/sou-cliente')}
