@@ -1,4 +1,4 @@
-
+// FORÇA REBUILD FINAL - TWILIO CORRETO 24/12/2025
 // owlrunner.js – versão Twilio + mensagem 100% pessoal (sem emoji, sem "PARAR")
 const admin = require("firebase-admin");
 const twilio = require("twilio");
