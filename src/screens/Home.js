@@ -25,7 +25,7 @@ export default function Home() {
       {/* Cabeçalho */}
       <div className="cabecalho-home">
         <div className="logo">OwlBuddy</div>
-        <p className="subtitulo">Nunca mais esqueça um momento importante</p>
+        <p className="subtitulo">A sua Corujinha Legal chegou!</p>
       </div>
 
       {/* Mascote */}
