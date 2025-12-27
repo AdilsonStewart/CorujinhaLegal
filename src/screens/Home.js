@@ -1,107 +1,84 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import './Home.css';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import "./Home.css";
 
 export default function Home() {
   const navigate = useNavigate();
   const [showAdmin, setShowAdmin] = useState(false);
-  const [adminPassword, setAdminPassword] = useState('');
+  const [adminPassword, setAdminPassword] = useState("");
   const [passwordError, setPasswordError] = useState(false);
 
   const ADMIN_PASSWORD = "123456";
 
   const handleAdminAccess = () => {
     if (adminPassword === ADMIN_PASSWORD) {
-      navigate('/admin');
+      navigate("/admin");
     } else {
       setPasswordError(true);
-      setAdminPassword('');
       setTimeout(() => setPasswordError(false), 3000);
     }
-  };
-
-  const toggleAdmin = () => {
-    setShowAdmin(!showAdmin);
-    setAdminPassword('');
-    setPasswordError(false);
   };
 
   return (
     <div className="container">
 
-      {/* CABEÇALHO COM LARGURA IGUAL */}
+      {/* Cabeçalho */}
       <div className="cabecalho-home">
-        <div className="tarja-owlbuddy">OwlBuddy</div>
-        <p className="nao-esqueca">Não Esqueça Mais:</p>
+        <div className="logo">OwlBuddy</div>
+        <p className="subtitulo">Nunca mais esqueça um momento importante</p>
       </div>
 
+      {/* Mascote */}
       <div className="mascote-container">
         <img
           src="https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExZTg0cXptZ2t1a3QxNTczY25xbzJ5bDA2MXFuMnRocWNzdXZvMHB0aSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/XpfXuBYtvR9I8jjBH0/giphy.gif"
-          alt="Mascote DeixaComigo"
+          alt="Mascote OwlBuddy"
           className="mascote-image"
         />
       </div>
 
-      <h2 className="corujinha-legal">Corujinha Legal</h2>
-      <h1 className="titulo">DeixaComigo</h1>
-
+      <h1 className="titulo">Nunca mais esqueça um momento importante</h1>
       <p className="slogan">
-        Lembrou agora?<br />
-        Programe o parabéns!
+        Grave agora e deixe que a Corujinha entregue no momento certo 🦉
       </p>
 
-      <button
-        className="botao criar-lembrete"
-        onClick={() => navigate('/sou-cliente')}
-      >
-        Criar Meu Lembrete
+      <button className="botao-principal" onClick={() => navigate("/sou-cliente")}>
+        Criar meu lembrete
       </button>
 
-      <p className="texto-pequeno">
-        Sua voz, na hora certa.<br />
-        Todo mundo acha que você nunca esquece.
+      <p className="texto-secundario">
+        Sua voz. Seu tempo. Do seu jeito.
       </p>
 
-      {/* ADMIN */}
-      <div className="admin-centralizado">
-        <button
-          className="admin-btn-central"
-          onClick={toggleAdmin}
-        >
-          {showAdmin ? '✖ Fechar Admin' : '⚙ Acesso Admin'}
+      {/* Área Admin */}
+      <div className="admin-area">
+        <button className="admin-toggle" onClick={() => setShowAdmin(!showAdmin)}>
+          ⚙ Área administrativa
         </button>
 
         {showAdmin && (
-          <div className="admin-painel-central">
-            <h3>Área Administrativa</h3>
-
+          <div className="admin-box">
             <input
               type="password"
-              placeholder="Digite a senha admin"
+              placeholder="Senha de administrador"
               value={adminPassword}
               onChange={(e) => setAdminPassword(e.target.value)}
-              className="admin-input-central"
-              onKeyPress={(e) => e.key === 'Enter' && handleAdminAccess()}
             />
 
-            <button
-              className="admin-btn-acessar"
-              onClick={handleAdminAccess}
-            >
-              🔓 Acessar Painel
+            <button className="admin-btn" onClick={handleAdminAccess}>
+              Entrar
             </button>
 
             {passwordError && (
-              <p className="admin-erro-central">
-                Senha incorreta - Digite: 123456
-              </p>
+              <p className="erro">Senha incorreta</p>
             )}
-
-            <p className="admin-dica">Senha: 123456</p>
           </div>
         )}
       </div>
+
+      <footer className="rodape">
+        © {new Date().getFullYear()} OwlBuddy — feito com carinho 💛
+      </footer>
     </div>
   );
 }
